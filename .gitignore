@@ -1,0 +1,83 @@
+# ==========================================
+# 1. Environment Variables & Secrets
+# ==========================================
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+
+# ==========================================
+# 2. Node.js, pnpm & Turborepo (Web & API)
+# ==========================================
+node_modules/
+.pnpm-store/
+.pnp
+.pnp.js
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# 3. Build Outputs (Next.js & NestJS)
+# ==========================================
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# ==========================================
+# 4. Python & FastAPI (services/ai)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.uv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==========================================
+# 5. Database, Docker Volumes & Local Storage
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+redis-data/
+minio-data/
+uploads/
+tmp/
+temp/
+
+# ==========================================
+# 6. Testing & Coverage
+# ==========================================
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ==========================================
+# 7. IDE, OS & Misc
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.log
