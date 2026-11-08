@@ -55,6 +55,8 @@ env/
 *.sqlite
 *.sqlite3
 postgres-data/
+qdrant-data/
+qdrant_storage/
 redis-data/
 minio-data/
 uploads/

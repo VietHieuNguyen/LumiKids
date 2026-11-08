@@ -50,8 +50,8 @@
    - **Nguồn:** `prisma/skills` & `supabase/agent-skills`
    - **Vai trò:** Tối ưu schema 21 thực thể, đánh index chuẩn, xử lý ghi lô sự kiện `InteractionEvent` chống trùng (`eventId`), và tránh lỗi truy vấn N+1 khi tải `ChildDevelopmentProfile`.
 
-6. **`fastapi-gemini-rag` (Python FastAPI + Gemini Structured Output + pgvector)**
-   - **Vai trò:** Hướng dẫn AI viết service Python chuẩn async, dùng Pydantic v2 ép kết quả Gemini trả về đúng 100% JSON schema của `GameContent`, `LessonPlan`, và `summary`, kết hợp truy xuất RAG tài liệu Chương trình GDMN.
+6. **`fastapi-gemini-rag` (Python FastAPI + Gemini Structured Output + Qdrant)**
+   - **Vai trò:** Hướng dẫn AI viết service Python chuẩn async, dùng Pydantic v2 ép kết quả Gemini trả về đúng 100% JSON schema của `GameContent`, `LessonPlan`, và `summary`, kết hợp truy xuất RAG tài liệu Chương trình GDMN trên **Qdrant** (Hybrid Search + Payload Filtering theo `ageGroup`, `skillCode`, `criterionCode`).
 
 ---
 

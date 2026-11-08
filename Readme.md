@@ -33,8 +33,8 @@ Hệ thống giải quyết bài toán giảm tải thời gian soạn giáo án
 | **Quản lý mã nguồn** | **Monorepo (`pnpm` workspaces + Turborepo)** | Quản lý tập trung toàn bộ Frontend, Backend, AI Service và chia sẻ kiểu dữ liệu (`packages/shared`) |
 | **Frontend (`apps/web`)** | **Next.js (TypeScript)**, Tailwind CSS, shadcn/ui, `@dnd-kit`, Framer Motion, `@react-three/fiber` (chỉ ở Landing Page), IndexedDB (Dexie) | Giao diện Giáo viên/Phụ huynh; Landing Page 3D; màn hình trò chơi tương tác 2D của trẻ; hàng đợi lưu tạm sự kiện `InteractionEvent` khi mất mạng |
 | **Core Backend (`apps/api`)** | **NestJS (TypeScript)** – *Modular Monolith*, Prisma ORM, BullMQ, CASL/JWT | Quản lý toàn bộ 21 thực thể nghiệp vụ, phân quyền, nhận log phiên chơi, chạy Worker tính toán đánh giá tiêu chí/kỹ năng và cập nhật `ChildDevelopmentProfile` |
-| **AI Service (`services/ai`)** | **Python FastAPI**, Pydantic v2, Google GenAI SDK (Gemini API), RAG | AI Gateway mỏng: truy xuất tài liệu Chương trình GDMN (`pgvector`), sinh `LessonPlan`, sinh `GameContent` theo JSON schema, gợi ý nhận xét `summary` |
-| **Dữ liệu & Hạ tầng (`infra/`)** | **PostgreSQL 16 (`pgvector`)**, **Redis 7**, **MinIO (S3)**, **Docker Compose**, **k6** | Lưu trữ dữ liệu quan hệ & vector RAG; Cache & hàng đợi BullMQ; lưu trữ ảnh/học liệu; đóng gói môi trường và kiểm thử chịu tải |
+| **AI Service (`services/ai`)** | **Python FastAPI**, Pydantic v2, Google GenAI SDK (Gemini API), **Qdrant Client** | AI Gateway mỏng: truy xuất tài liệu Chương trình GDMN qua **Qdrant** (Hybrid Search + Metadata Filter), sinh `LessonPlan`, sinh `GameContent` theo JSON schema, gợi ý nhận xét `summary` |
+| **Dữ liệu & Hạ tầng (`infra/`)** | **PostgreSQL 16**, **Qdrant (Vector DB)**, **Redis 7**, **MinIO (S3)**, **Docker Compose**, **k6** | Postgres lưu 21 bảng quan hệ; **Qdrant** lưu vector RAG; Redis làm Cache & BullMQ; MinIO lưu trữ ảnh/học liệu; đóng gói môi trường và kiểm thử chịu tải |
 
 ---
 
@@ -61,7 +61,8 @@ flowchart TB
     end
 
     subgraph DataLayer["Tầng Dữ liệu & Lưu trữ (Stateful Infrastructure)"]
-        PG[("PostgreSQL 16 + pgvector<br/>(21 bảng nghiệp vụ + Vector RAG)<br/>(Port 5432)")]
+        PG[("PostgreSQL 16<br/>(21 bảng dữ liệu quan hệ)<br/>(Port 5432)")]
+        Qdrant[("Qdrant Vector DB<br/>(Vector RAG + Metadata Filter)<br/>(Port 6333/6334)")]
         Redis[("Redis 7<br/>(Cache & BullMQ Queue)<br/>(Port 6379)")]
         MinIO[("MinIO / S3 Storage<br/>(Hình ảnh & Học liệu trò chơi)<br/>(Port 9000/9001)")]
     end
@@ -85,7 +86,7 @@ flowchart TB
     Worker -->|"Cập nhật Criterion / Skill / CDP"| PG
     Worker -->|"REST (Sinh Summary / Nội dung)"| AIService
 
-    AIService -->|"Truy xuất Vector RAG & Log AI"| PG
+    AIService -->|"Hybrid Vector Search (RAG)"| Qdrant
     AIService -->|"HTTPS"| Gemini
 ```
 
@@ -99,12 +100,12 @@ LumiKids/
 │  ├─ web/                          # Next.js Frontend (Landing 3D + Cổng Giáo viên/Phụ huynh + Game 2D)
 │  └─ api/                          # NestJS Core Backend (3-Layer cho CRUD & Clean Arch cho Lõi tính toán)
 ├─ services/
-│  └─ ai/                           # Python FastAPI (Quản lý Prompt, RAG CT GDMN, gọi Gemini API)
+│  └─ ai/                           # Python FastAPI (Quản lý Prompt, RAG CT GDMN với Qdrant, gọi Gemini API)
 ├─ packages/
 │  ├─ shared/                       # Kiểu dữ liệu, Enum, Zod schema dùng chung (GameContent, ActionData)
 │  └─ ai-client/                    # Client TypeScript tự sinh từ OpenAPI của services/ai
 ├─ infra/
-│  ├─ docker-compose.yml            # Cấu hình PostgreSQL (pgvector), Redis, MinIO và các container
+│  ├─ docker-compose.yml            # Cấu hình PostgreSQL, Qdrant, Redis, MinIO và các container
 │  └─ k6/                           # Kịch bản kiểm thử chịu tải (Load Testing)
 ├─ docs/
 │  ├─ STRUCTURE.md                  # Định hướng công nghệ, thiết kế module & lộ trình Phase 0 -> 9
@@ -146,7 +147,7 @@ cp services/ai/.env.example services/ai/.env
 
 #### Bước 3: Khởi chạy hạ tầng Dữ liệu bằng Docker Compose
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres redis minio
+docker compose -f infra/docker-compose.yml up -d postgres qdrant redis minio
 ```
 Kiểm tra trạng thái các container đã `healthy`:
 ```bash
@@ -238,7 +239,7 @@ git commit -m "feat(learning-content): create new ActivityVersion on content upd
 git commit -m "feat(gameplay): calculate SessionPerformance from InteractionEvents"
 git commit -m "feat(evaluation-profile): implement domain rule for CriterionState update"
 git commit -m "fix(ai): validate GameContent JSON schema with Pydantic v2"
-git commit -m "chore(infra): add pgvector extension to postgres docker image"
+git commit -m "chore(infra): add qdrant vector db service to docker-compose"
 ```
 
 ### 6.3. Quy trình Pull Request (PR) & Code Review
@@ -260,4 +261,4 @@ Trong quá trình thiết kế và triển khai giai đoạn hiện tại (TLCN)
 | **TD-04** | **Kiểm soát phân quyền ở tầng Ứng dụng (NestJS Guards/CASL) thay vì Row-Level Security (RLS) dưới DB** | Toàn bộ kiểm tra quyền truy cập lớp học và hồ sơ trẻ hiện thực hiện ở tầng API NestJS để dễ kiểm soát lỗi và viết Unit/Integration Test nhanh. | Trung bình (Nếu viết thiếu điều kiện lọc ở một câu query mới có rủi ro lộ dữ liệu) | **Phase 6 (Củng cố bảo mật):** Rà soát bằng bộ Integration Test phủ 100% endpoint nhạy cảm, đồng thời bổ sung chính sách PostgreSQL RLS cho các bảng `Child`, `PlaySession`, `ChildDevelopmentProfile`. |
 | **TD-05** | **Đồng bộ hợp đồng API giữa NestJS và FastAPI chạy qua lệnh CLI thủ công** | Khi thay đổi Pydantic schema ở `services/ai`, lập trình viên cần chạy lệnh `pnpm gen:ai-client` để cập nhật kiểu dữ liệu cho `apps/api`. | Thấp – Trung bình (Có thể quên chạy lệnh khi sửa nhanh bên Python) | **Phase 1 – 2 (Cấu hình CI):** Đưa bước kiểm tra `pnpm gen:ai-client && git diff --exit-code` vào GitHub Actions để tự động chặn PR nếu quên đồng bộ kiểu dữ liệu. |
 | **TD-06** | **Giới hạn 3D ở Landing Page và chỉ hỗ trợ Web Responsive (chưa có App Mobile Native)** | Trẻ và phụ huynh hiện sử dụng trên trình duyệt Web/Tablet; chưa có ứng dụng iOS/Android riêng để gửi Push Notification hệ thống. | Thấp trong phạm vi TLCN | **Giai đoạn KLTN:** Khởi tạo thêm `apps/mobile` dùng **React Native (Expo)** trong cùng Monorepo, tái sử dụng toàn bộ kiểu dữ liệu từ `packages/shared` và các API hiện có của NestJS. |
-| **TD-07** | **Truy xuất RAG mới dùng Vector Search cơ bản trên `pgvector`** | Hiện tại RAG trên tài liệu Chương trình GDMN mới dùng tìm kiếm tương đồng vector (Cosine Similarity), chưa kết hợp tìm kiếm từ khóa (BM25 / Hybrid Search) và Reranker. | Trung bình (Đôi khi các thuật ngữ/mã tiêu chí chính xác cần khớp từ khóa) | **Phase 7 & KLTN:** Bổ sung kết hợp Full-Text Search của PostgreSQL + Vector Search (Hybrid Search) và đo lường định lượng bằng bộ công cụ **RAGAS**. |
+| **TD-07** | **Đồng bộ Metadata danh mục (`Skill`, `AssessmentCriterion`, `AgeGroup`) giữa PostgreSQL và Qdrant Payload** | PostgreSQL giữ danh mục gốc trong khi Qdrant giữ bản sao mã (`skillCode`, `criterionCode`, `ageGroup`) trong Payload của từng vector chunk để lọc nhanh; hiện nạp qua script ingestion. | Thấp (Danh mục Chương trình GDMN ít khi thay đổi mã) | **Phase 3 & KLTN:** Bổ sung tác vụ đồng bộ tự động qua BullMQ mỗi khi Admin cập nhật mã danh mục trong module `curriculum`, kết hợp đo lường chất lượng RAG bằng bộ **RAGAS**. |

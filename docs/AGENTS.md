@@ -13,9 +13,9 @@
 - **Monorepo:** Single Git repository managed via **`pnpm` workspaces** + Turborepo.
 - **Frontend (`apps/web`):** Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui, dnd-kit (drag-and-drop for lesson plans and games), Framer Motion, IndexedDB/Dexie (client-side queue for buffering `InteractionEvent`).
 - **Core Backend (`apps/api`):** NestJS (TypeScript) following a **Modular Monolith** architecture, Prisma ORM, BullMQ (asynchronous background processing via Worker), CASL/Guards (authorization).
-- **AI Service (`services/ai`):** Python FastAPI (thin AI Gateway), Pydantic v2, Google GenAI SDK (Gemini API), RAG with `pgvector`.
+- **AI Service (`services/ai`):** Python FastAPI (thin AI Gateway), Pydantic v2, Google GenAI SDK (Gemini API), RAG with **Qdrant** (`qdrant-client`).
 - **Shared Packages (`packages/shared`, `packages/ai-client`):** Shared TypeScript types, Enums, and Zod schemas between Web and API; auto-generated TypeScript client from FastAPI OpenAPI spec.
-- **Database & Infrastructure (`infra/`):** PostgreSQL 16 + `pgvector`, Redis (Cache + BullMQ), MinIO/S3 (learning media storage), Docker Compose, k6 (load testing).
+- **Database & Infrastructure (`infra/`):** PostgreSQL 16 (relational data), **Qdrant** (Vector DB for RAG), Redis (Cache + BullMQ), MinIO/S3 (learning media storage), Docker Compose, k6 (load testing).
 
 ---
 
@@ -36,7 +36,7 @@ LumiKids/
 │  ├─ shared/                       # Shared Types/Schemas: GameContent, ActionData, Enums
 │  └─ ai-client/                    # Auto-generated TS client from FastAPI OpenAPI
 ├─ infra/
-│  ├─ docker-compose.yml            # Postgres (pgvector), Redis, MinIO
+│  ├─ docker-compose.yml            # PostgreSQL, Qdrant, Redis, MinIO
 │  └─ k6/                           # Load testing scripts
 └─ docs/
    ├─ AGENTS.md                     # AI Agent guidelines (this file)
@@ -168,7 +168,7 @@ When writing Prisma schemas, DTOs, Entities, or queries, AI Agents **must use th
 # 1. Install dependencies (run from Monorepo root)
 pnpm install --frozen-lockfile     # Or: pnpm install
 
-# 2. Start infrastructure (PostgreSQL + pgvector, Redis, MinIO)
+# 2. Start infrastructure (PostgreSQL, Qdrant, Redis, MinIO)
 docker compose -f infra/docker-compose.yml up -d
 
 # 3. Prisma commands (run from root or inside apps/api)

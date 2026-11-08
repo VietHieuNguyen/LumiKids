@@ -26,8 +26,8 @@
 |---|---|---|
 | **Frontend (Web)** | **Next.js (TypeScript)**, Tailwind CSS, shadcn/ui, dnd-kit, Framer Motion, IndexedDB (Dexie) | Giao diện giáo viên/phụ huynh; màn hình trò chơi tương tác của trẻ; hàng đợi lưu tạm `InteractionEvent` khi mạng chập chờn |
 | **Backend chính** | **NestJS (TypeScript)** – *Modular Monolith*, Prisma, BullMQ | Quản lý toàn bộ nghiệp vụ, tài khoản, lớp học, giáo án, hoạt động, phiên chơi, đánh giá tiêu chí/kỹ năng và cập nhật `ChildDevelopmentProfile` |
-| **AI Service** | **Python FastAPI (mỏng)**, Pydantic, Google GenAI SDK (Gemini) | AI Gateway: quản lý prompt, RAG trên tài liệu Chương trình GDMN, gọi LLM sinh `LessonPlan`, `GameContent` cho `ActivityVersion`, gợi ý tóm tắt `summary` |
-| **Cơ sở dữ liệu** | **PostgreSQL + pgvector**, **Redis**, **MinIO (S3)** | Postgres lưu dữ liệu quan hệ + vector cho RAG; Redis làm cache & hàng đợi BullMQ; MinIO lưu ảnh/học liệu |
+| **AI Service** | **Python FastAPI (mỏng)**, Pydantic, Google GenAI SDK (Gemini), **Qdrant Client** | AI Gateway: quản lý prompt, RAG trên tài liệu Chương trình GDMN với **Qdrant**, gọi LLM sinh `LessonPlan`, `GameContent` cho `ActivityVersion`, gợi ý tóm tắt `summary` |
+| **Cơ sở dữ liệu** | **PostgreSQL**, **Qdrant (Vector DB)**, **Redis**, **MinIO (S3)** | Postgres lưu 21 bảng nghiệp vụ (thuần quan hệ); **Qdrant** lưu vector + metadata cho RAG; Redis làm cache & hàng đợi BullMQ; MinIO lưu ảnh/học liệu |
 | **Monorepo & Hạ tầng** | **npm / pnpm workspaces**, **uv** (Python), **Docker Compose**, **k6** | Quản lý code tập trung, đồng bộ kiểu dữ liệu, đóng gói môi trường và kiểm thử chịu tải |
 | **Định hướng Mobile (KLTN)** | **React Native (Expo)** | Mở rộng ở giai đoạn sau, dùng chung TypeScript và thư viện kiểu dữ liệu với Web/Backend |
 
@@ -46,8 +46,11 @@ Khả năng chịu tải phụ thuộc vào **kiến trúc**, không nằm ở v
 - **Tách tiến trình API và Worker (BullMQ):** API chỉ nhận request và trả lời nhanh; việc tính toán nặng sau phiên chơi (từ `SessionPerformance` cập nhật sang `CriterionEvaluation` → `CriterionState` → `SkillState` → `ChildDevelopmentProfile`) hoặc gọi AI chạy lâu được đẩy qua Worker xử lý bất đồng bộ.
 - **Tối ưu đường ghi `InteractionEvent`:** Trình duyệt gom sự kiện gửi theo lô (batch) kèm `eventId` chống trùng; bảng sự kiện trong PostgreSQL có thể chia phân vùng (partition) khi dữ liệu lớn.
 
-#### 3. Vì sao tách riêng một service FastAPI (mỏng) cho AI?
-- **Giai đoạn TLCN:** FastAPI đóng vai trò **AI Gateway mỏng** (RAG trên tài liệu mầm non, quản lý prompt, ép LLM trả về đúng cấu trúc JSON của `GameContent`, gợi ý `summary` đánh giá). Tách riêng giúp các lượt gọi AI chậm không làm nghẽn API nghiệp vụ.
+#### 3. Vì sao tách riêng một service FastAPI (mỏng) + Qdrant (Vector DB) cho AI?
+- **Tách biệt hoàn toàn Database giữa Nghiệp vụ và AI:**
+  - **NestJS (`apps/api`)** sở hữu **PostgreSQL** (thuần 21 bảng quan hệ). Khi hàng trăm trẻ chơi game và bắn `InteractionEvent` liên tục vào Postgres sẽ không bị tranh chấp RAM/CPU với tác vụ tìm kiếm Vector của AI.
+  - **FastAPI (`services/ai`)** sở hữu **Qdrant** (Vector DB viết bằng Rust, rất nhẹ RAM, hỗ trợ sẵn **Hybrid Search** + **Payload Filtering** lọc chính xác theo `ageGroup`, `skillCode`, `criterionCode` và có sẵn Web UI Dashboard `:6333/dashboard` trực quan để kiểm tra/báo cáo).
+- **Giai đoạn TLCN:** FastAPI đóng vai trò **AI Gateway mỏng** (RAG trên tài liệu mầm non qua Qdrant, quản lý prompt, ép LLM trả về đúng cấu trúc JSON của `GameContent`, gợi ý `summary` đánh giá). Tách riêng giúp các lượt gọi AI chậm không làm nghẽn API nghiệp vụ.
 - **Giai đoạn KLTN:** Khi nâng cấp thuật toán đánh giá/thích ứng sang mô hình học máy (Knowledge Tracing, IRT) hoặc đo chất lượng RAG bằng RAGAS, hệ sinh thái Python là bắt buộc.
 
 #### 4. Dùng `pnpm` hay `npm`?
@@ -147,7 +150,7 @@ LumiKids/                                   # 1 kho Git (Monorepo) duy nhất
 │  ├─ shared/                               # Kiểu dữ liệu dùng chung: GameContent, ActionData, Enums
 │  └─ ai-client/                            # Client TS tự sinh từ OpenAPI của FastAPI
 ├─ infra/
-│  ├─ docker-compose.yml                    # PostgreSQL (pgvector), Redis, MinIO
+│  ├─ docker-compose.yml                    # PostgreSQL, Qdrant, Redis, MinIO
 │  └─ k6/                                   # Kịch bản kiểm thử tải
 └─ docs/
    └─ STRUCTURE.md                          # Tài liệu này
@@ -163,22 +166,22 @@ LumiKids/                                   # 1 kho Git (Monorepo) duy nhất
 
 - **Mục tiêu:** Cả nhóm kéo code về chạy được ngay bằng Docker; chuyển toàn bộ 21 thực thể trong Domain Model thành schema Prisma hoàn chỉnh.
 - **Việc cần làm:**
-  - Khởi tạo monorepo (`apps/web`, `apps/api`, `services/ai`, `packages/shared`) và `docker-compose.yml` (Postgres + pgvector, Redis, MinIO).
+  - Khởi tạo monorepo (`apps/web`, `apps/api`, `services/ai`, `packages/shared`) và `docker-compose.yml` (PostgreSQL, Qdrant, Redis, MinIO).
   - Viết file `schema.prisma` định nghĩa đầy đủ 21 bảng và các kiểu `ENUM`, chạy migration tạo bảng thành công.
   - Định nghĩa các kiểu JSON dùng chung (`GameContent`, `ActionData`) trong `packages/shared`.
-  - Thiết lập kết nối mẫu từ NestJS sang FastAPI.
+  - Thiết lập kết nối mẫu từ NestJS sang FastAPI và từ FastAPI vào Qdrant.
 - **Ngoài phạm vi:** Chưa viết logic nghiệp vụ hay giao diện người dùng.
 - **TIÊU CHÍ HOÀN THÀNH:**
-  - [ ] Chạy `docker compose up` lên đủ dịch vụ, Prisma tạo xong toàn bộ 21 bảng trong PostgreSQL không lỗi.
+  - [ ] Chạy `docker compose up` lên đủ dịch vụ (bao gồm Qdrant Dashboard tại `:6333/dashboard`), Prisma tạo xong toàn bộ 21 bảng trong PostgreSQL không lỗi.
   - [ ] Cả 2 thành viên đều chạy được dự án trên máy cá nhân.
 
 ---
 
-### Phase 1: Kiểm chứng AI Service (FastAPI + RAG) (Khoảng 2 tuần)
+### Phase 1: Kiểm chứng AI Service (FastAPI + Qdrant RAG) (Khoảng 2 tuần)
 
-- **Mục tiêu:** Đảm bảo FastAPI gọi Gemini kết hợp RAG sinh ra được `LessonPlan`, `GameContent` (cho `ActivityVersion`) và đoạn tóm tắt `summary` đúng cấu trúc JSON trước khi ghép vào giao diện.
+- **Mục tiêu:** Đảm bảo FastAPI gọi Gemini kết hợp Qdrant RAG sinh ra được `LessonPlan`, `GameContent` (cho `ActivityVersion`) và đoạn tóm tắt `summary` đúng cấu trúc JSON trước khi ghép vào giao diện.
 - **Việc cần làm:**
-  - Đưa tài liệu Chương trình GDMN vào pgvector để tra cứu RAG.
+  - Đưa tài liệu Chương trình GDMN vào **Qdrant** (kèm metadata `ageGroup`, `skillCode`, `criterionCode`) để tra cứu RAG (Hybrid Search + Payload Filtering).
   - Viết 3 nhóm endpoint trên FastAPI:
     1. Sinh nội dung giáo án (`LessonPlan`: `title`, `objectives`, hoạt động gợi ý).
     2. Sinh nội dung trò chơi (`GameContent` theo đúng cấu trúc câu hỏi/đáp án, kèm `instruction`, `difficulty`).
