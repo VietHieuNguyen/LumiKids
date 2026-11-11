@@ -1,0 +1,33 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @lumikids/shared build && next dev --port 3000",
+    "build": "pnpm --filter @lumikids/shared build && next build",
+    "start": "next start --port 3000",
+    "typecheck": "pnpm --filter @lumikids/shared build && next typegen && tsc --noEmit",
+    "lint": "eslint",
+    "test": "pnpm test:game-assets && pnpm test:game-runtime && pnpm test:game-preview && pnpm test:game-creation",
+    "test:game-creation": "pnpm --filter @lumikids/shared build && node --import ./tests/register-tsx.mjs --test tests/game-creation.test.mjs",
+    "test:game-preview": "pnpm --filter @lumikids/shared build && node --import ./tests/register-tsx.mjs --test tests/game-preview.test.mjs",
+    "test:game-assets": "node --experimental-default-type=module --experimental-strip-types --test tests/game-assets.test.mjs",
+    "test:game-runtime": "pnpm --filter @lumikids/shared build && node --experimental-default-type=module --experimental-strip-types --test tests/game-runtime.test.mjs"
+  },
+  "dependencies": {
+    "@lumikids/shared": "workspace:*",
+    "next": "16.4.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

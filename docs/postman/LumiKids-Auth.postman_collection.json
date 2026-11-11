@@ -1,0 +1,430 @@
+{
+  "info": {
+    "name": "LumiKids Auth",
+    "description": "No embedded credentials. Apply the reviewed migration only after approval and insert your own active account. Cookie jar stores the HttpOnly refresh cookie. See docs/AUTH.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api/v1"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "otherUserId",
+      "value": "00000000-0000-4000-8000-000000000000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Login (set local email/password variables)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get('email'), password: pm.variables.get('password') }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));",
+              "if (pm.response.code === 200) { pm.collectionVariables.set('accessToken', result.data.accessToken); pm.collectionVariables.set('userId', result.data.user.userId); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Current user",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/auth/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Refresh using cookie jar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/refresh-token",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));",
+              "if (pm.response.code === 200) { pm.collectionVariables.set('accessToken', result.data.accessToken); pm.collectionVariables.set('userId', result.data.user.userId); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Owned account (requires READ_OWN_ACCOUNT)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/auth/accounts/{{userId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Different owner is forbidden",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/auth/accounts/{{otherUserId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(403));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin authorization (requires ROLE_ADMIN + MANAGE_USERS)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/auth/authorization-check",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{accessToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Logout current session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(200));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Refresh after logout is unauthorized",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/refresh-token",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(401));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Missing access token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/auth/me",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(401));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Missing login fields",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(400));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Cannot self-assign an admin role",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-Protection",
+            "value": "1"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"fixture@example.test\",\n  \"password\": \"not-a-real-password\",\n  \"roles\": [\n    \"ROLE_ADMIN\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.expect(pm.response.code).to.eql(400));",
+              "const result = pm.response.json();",
+              "pm.test('Uniform envelope', () => pm.expect(result).to.have.all.keys('success', 'code', 'message', 'data'));",
+              "pm.test('No password hash', () => pm.expect(pm.response.text()).not.to.include('passwordHash'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "PermissionCode" ADD VALUE 'GENERATE_GAME_CONTENT';

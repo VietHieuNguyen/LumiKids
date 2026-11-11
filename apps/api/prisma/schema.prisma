@@ -1,0 +1,130 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum RoleCode {
+  ROLE_ADMIN
+  ROLE_TEACHER
+  ROLE_GUARDIAN
+}
+
+enum PermissionCode {
+  READ_OWN_ACCOUNT
+  MANAGE_USERS
+  GENERATE_GAME_CONTENT
+  READ_GAME_ASSETS
+  MANAGE_GAME_ASSETS
+}
+
+enum GameAssetStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  userId       String        @id @default(uuid()) @db.Uuid
+  fullName     String
+  email        String        @unique
+  phone        String
+  address      String
+  passwordHash String
+  status       AccountStatus @default(DISABLED)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+  roles        UserRole[]
+  authSessions AuthSession[]
+  gameAssets   GameAsset[]
+}
+
+model GameAsset {
+  id               String          @id @default(uuid()) @db.Uuid
+  name             String          @db.VarChar(200)
+  objectKey        String          @unique @db.VarChar(200)
+  originalFileName String          @db.VarChar(255)
+  mimeType         String          @db.VarChar(30)
+  sizeBytes        Int
+  objectType       String          @db.VarChar(40)
+  tags             String[]        @default([])
+  attributes       Json            @default("{}") @db.JsonB
+  status           GameAssetStatus @default(ACTIVE)
+  createdBy        String?         @db.Uuid
+  creator          User?           @relation(fields: [createdBy], references: [userId], onDelete: SetNull)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@index([status, objectType, createdAt, id])
+  @@index([tags], type: Gin)
+  @@index([createdBy])
+}
+
+model Role {
+  roleId      String           @id @default(uuid()) @db.Uuid
+  code        RoleCode         @unique
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  permissionId String           @id @default(uuid()) @db.Uuid
+  code         PermissionCode   @unique
+  roles        RolePermission[]
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [permissionId], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model AuthSession {
+  sessionId String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime       @db.Timestamptz(3)
+  revokedAt DateTime?      @db.Timestamptz(3)
+  user      User           @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  tokens    RefreshToken[]
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  tokenId   String      @id @db.Uuid
+  sessionId String      @db.Uuid
+  verifier  String      @db.Char(64)
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime    @db.Timestamptz(3)
+  usedAt    DateTime?   @db.Timestamptz(3)
+  session   AuthSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([expiresAt])
+}
