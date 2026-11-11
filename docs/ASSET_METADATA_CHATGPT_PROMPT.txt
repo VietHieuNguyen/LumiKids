@@ -1,0 +1,90 @@
+Bạn giúp tôi chuẩn bị metadata cho thư viện hình ảnh của LumiKids, hệ thống tạo trò chơi mầm non từ prompt giáo viên.
+
+Tôi sẽ gửi ảnh. Hãy xem từng ảnh, mô tả đúng nội dung và trả metadata theo quy tắc dưới đây. Metadata được hệ thống dùng làm bằng chứng kiểm tra đáp án nên không được tự điền thông tin chưa chắc chắn.
+
+1. ĐẦU RA
+
+Với mỗi FILE ảnh, ghi tên file bên ngoài JSON rồi trả đúng một JSON object có bốn trường:
+{
+  "name": "Tên tiếng Việt",
+  "objectType": "MA_DOI_TUONG",
+  "tags": ["từ khóa tiếng việt", "english keyword"],
+  "attributes": {}
+}
+
+Sau JSON có thể ghi “Cần xác nhận” để chỉ rõ thông tin chưa chắc. Không thêm trường ghi chú vào JSON. Không tạo assetId, UUID, URL, objectKey, đường dẫn ảnh, độ khó, loại trò chơi hoặc supportedGames.
+
+Một file nên là một đối tượng hoặc một hình bóng. Nếu ảnh là bảng nhiều con vật/hình bóng, nói rõ cần tách thành các file riêng; không giả vờ các file đã được tách hoặc gán một loài duy nhất cho cả bảng.
+
+2. THÔNG TIN CHUNG
+
+- name: tiếng Việt có dấu, rõ nghĩa, tối đa 200 ký tự. Ví dụ “Con sư tử”, “Bóng con sư tử”, “Sư tử con”, “Đồng cỏ”.
+- objectType: mã viết hoa A–Z, số và dấu gạch dưới, bắt đầu bằng chữ, tối đa 40 ký tự. Ví dụ LION, PIG, BALL, APPLE, MANGO, STRAWBERRY, JACKFRUIT, BOOK, PENCIL, CAR, CIRCLE, ENVIRONMENT_GRASSLAND. Được dùng mã mới nếu phù hợp. Đây là mã loại đối tượng cho mọi học liệu, không chỉ con vật. Nếu cần đếm riêng từng loại, không gán chung FRUIT, TOY hoặc SHAPE cho các đối tượng khác nhau; dùng category để mô tả nhóm chung. Ảnh thường và bóng cùng đối tượng có thể cùng objectType, phân biệt bằng variant.
+- tags: chữ thường, từ khóa Việt/Anh và tên đồng nghĩa. Nên dùng 8–15 tags, tối đa 20 để tất cả được gửi tới AI; mỗi tag tối đa 50 ký tự. Không cần counting/matching/classification. Tags chỉ hỗ trợ tìm kiếm, không thay thế attributes trong việc kiểm tra đáp án.
+- attributes: chỉ dùng các khóa được hỗ trợ dưới đây. Giá trị chữ tối đa 200 ký tự; số phải hữu hạn; boolean được chấp nhận. Không dùng object lồng nhau. Chỉ aliases/habitats/specificHabitats dùng mảng 1–12 chuỗi, mỗi chuỗi tối đa 40 ký tự. Tổng attributes tối đa 16 KiB.
+- Chỉ khai báo đặc điểm đúng và có đủ bằng chứng. Không cố điền đủ mọi trường. Không suy ra loài, tuổi, môi trường sống hay quan hệ ghép từ màu nền hoặc tên file.
+
+3. CÁC KHÓA ATTRIBUTES ĐƯỢC HỖ TRỢ
+
+aliases, animalType, variant, matchKey, familyKey, lifeStage, visualStyle, assetSet, category, color, shape, habitat, habitats, specificHabitats, material, size, number.
+
+- category: nhóm ngữ nghĩa như ANIMAL, FRUIT, TOY, SHAPE, NUMBER, ENVIRONMENT. Không phải loại trò chơi.
+- aliases: mảng tên gọi ngắn và tên đồng nghĩa của ĐÚNG loại đối tượng, không phải tất cả tags. Ví dụ ảnh tên “Quả dâu tây đỏ”, objectType STRAWBERRY, dùng aliases ["dâu tây", "quả dâu tây", "trái dâu tây", "strawberry"]. Sách có thể dùng ["sách", "quyển sách", "cuốn sách", "book"], ô tô dùng ["ô tô", "xe hơi", "car"], bút chì dùng ["bút chì", "cây bút chì", "pencil"]. Tên dài có thể mô tả màu/kiểu ảnh; aliases phải có tên ngắn không kèm mô tả để giáo viên gọi tự nhiên. Không thêm tên đối tượng khác, màu đơn lẻ hoặc từ nhóm chung như fruit/toy/counting/classification vào aliases. Không dùng cùng một alias cho các loại đối tượng khác nhau.
+- animalType: mã loài như LION, PIG, TIGER, WHALE. Dùng nhất quán giữa ảnh thường, bóng, con trưởng thành và con non của loài đó. Không đoán loài cụ thể nếu chỉ nhìn thấy con vật chung chung.
+- animalType chỉ dành cho con vật; không điền trường này cho trái cây, sách, đồ chơi, phương tiện hoặc hình học. Các học liệu đó được nhận diện bằng objectType và aliases.
+- Bài đếm một loại giữa nhiều loài dùng animalType/objectType để xác định ảnh cần đếm: chim cánh cụt dùng PENGUIN khi đã xác định đúng, không gán chung BIRD. Hệ thống có thể lặp mỗi ảnh thành nhiều item, không cần metadata số lượng con vật cho một file đơn.
+- variant: NORMAL cho ảnh thường; SHADOW cho hình bóng đen. Bài đếm/phân loại thông thường loại SHADOW trừ khi giáo viên yêu cầu rõ hình bóng. Không thay NORMAL/SHADOW bằng ADULT/YOUNG.
+- visualStyle: REALISTIC cho ảnh chụp hoặc minh họa sát thực tế; CARTOON_2D cho hoạt hình 2D. Với bóng, dùng phong cách của ảnh gốc khi đã biết cặp. Không đoán khi thiếu căn cứ. Tôi đang ưu tiên bộ REALISTIC.
+- assetSet: tên bộ học liệu nhất quán, ví dụ ANIMALS_REALISTIC_01. Giữ cùng giá trị cho các ảnh gốc–bóng hoặc trưởng thành–con non trong cùng bộ. Không tự tạo bộ mới cho từng ảnh và không tự gộp các bộ khác nhau. Hỏi tôi tên bộ nếu tôi chưa cung cấp; có thể đề xuất một tên và ghi rõ cần xác nhận ngoài JSON.
+
+4. GHÉP ẢNH VỚI BÓNG
+
+- matchKey xác định ĐÚNG cặp ảnh gốc–bóng theo cùng tư thế và đường nét, ví dụ LION_POSE_01.
+- Ảnh gốc: variant NORMAL. Bóng tương ứng: variant SHADOW. Hai ảnh có cùng matchKey, cùng animalType nếu là con vật; visualStyle/assetSet phải nhất quán nếu được khai báo ở cả hai.
+- Hai ảnh khác tư thế dùng matchKey khác nhau, dù cùng loài. Không đặt chung matchKey LION cho tất cả ảnh sư tử.
+- Chỉ gán cùng matchKey khi đã xem cả cặp hoặc có thông tin xác nhận từ tôi. Khi chỉ nhận một ảnh, có thể đề xuất khóa cho ảnh đó nhưng phải nêu rõ chưa xác nhận cặp; không khẳng định một bóng khác là đúng.
+- Có thể dùng mã đối tượng trong khóa cho đồ vật/hình dạng, ví dụ BALL_POSE_01, TRIANGLE_POSE_01.
+- Trong một lượt ghép bóng, hệ thống dùng tối đa một cặp cho mỗi matchKey.
+- Với bài ghép ngữ nghĩa khác (ví dụ đồ vật với bộ phận tương ứng), matchKey cũng có thể xác nhận cặp đã được quản trị viên duyệt. Không tự đoán quan hệ từ hai ảnh rời rạc. Một ảnh hiện chỉ có một matchKey và một familyKey, không nhập mảng khóa hoặc danh sách phân cách bằng dấu phẩy.
+
+5. GHÉP TRƯỞNG THÀNH VỚI CON NON
+
+- lifeStage chỉ dùng ADULT hoặc YOUNG. Chỉ điền khi có đủ căn cứ; không suy ra tuổi từ kích thước ảnh trên màn hình. Không điền ADULT mặc định cho mọi ảnh.
+- familyKey xác định cặp trưởng thành–con non đã được xác nhận, ví dụ LION_FAMILY_01. Hai ảnh cần cùng animalType và familyKey, lifeStage lần lượt ADULT/YOUNG, đều variant NORMAL.
+- Không coi hai con cùng loài là mẹ con cụ thể ngoài đời; khóa này là quan hệ học liệu được quản trị viên chấp nhận.
+- familyKey khác matchKey: một ảnh sư tử trưởng thành có thể có matchKey LION_ADULT_POSE_01 để ghép bóng và familyKey LION_FAMILY_01 để ghép với sư tử con. Sư tử con có thể có matchKey riêng LION_YOUNG_POSE_01, không dùng matchKey của ảnh trưởng thành.
+- Nếu chưa có ảnh con non hoặc chưa xác định được cặp, bỏ familyKey và ghi việc cần xác nhận bên ngoài JSON. Không bịa quan hệ để đủ trường.
+- Trong một lượt ghép trưởng thành–con non, hệ thống dùng tối đa một cặp cho mỗi familyKey.
+
+6. MÀU SẮC VÀ HÌNH DẠNG
+
+- color chỉ dùng RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE, WHITE, BLACK.
+- Ghi màu của đối tượng cần chơi, không lấy màu nền. Ảnh nhiều màu hoặc màu không thuộc danh sách thì bỏ color; không ép sư tử thành YELLOW nếu màu thực tế không phù hợp. Với ảnh bóng đen rõ ràng có thể dùng BLACK.
+- Bài chỉ đếm bóng đỏ giữa các bóng khác màu cần color RED/BLUE/... cho từng ảnh; tags “đỏ” không đủ.
+- shape đang được kiểm tra tự động cho CIRCLE, SQUARE, TRIANGLE. Chỉ điền khi đối tượng thực sự là hình đó; không gán CIRCLE cho con vật vì đầu nó tròn.
+- material/size chỉ điền khi có căn cứ và quy ước rõ. Không suy ra LARGE/SMALL từ độ phân giải hoặc khung ảnh.
+- number là chữ số thực sự được vẽ/in trên ảnh (giá trị số), không phải số lần hệ thống sẽ lặp ảnh, không phải số lượng ảnh cần sinh.
+
+7. MÔI TRƯỜNG SỐNG
+
+- habitat là một chuỗi. habitats và specificHabitats là mảng chuỗi; không dùng chuỗi có nhiều mã phân cách bằng dấu phẩy.
+- Các mã được nhận hiện tại:
+  LAND: trên cạn; WATER: dưới nước; AIR: trên không;
+  SAVANNA: thảo nguyên; GRASSLAND: đồng cỏ; FOREST: rừng; TREE: trên cây;
+  SEA: biển; RIVER: sông; LAKE: hồ; FARM: nông trại; DESERT: sa mạc;
+  ARCTIC: Bắc cực; ANTARCTIC: Nam cực.
+- FOREST/TREE/SAVANNA/GRASSLAND/FARM/DESERT được hệ thống suy rộng thành LAND; SEA/RIVER/LAKE thành WATER. Không suy ngược LAND thành mọi môi trường trên cạn, không suy ngược WATER thành mọi môi trường nước. TREE không tự suy ra FOREST; SAVANNA không tự suy ra GRASSLAND.
+- Với con vật, khai báo tất cả môi trường được xác nhận là phù hợp với loài và mục tiêu học liệu. Không đoán sinh thái chỉ từ cảnh nền; không mặc định mọi chim đều bay, mọi cá đều sống ở cả sông và biển. Những đề xuất sinh thái chưa chắc phải để ngoài JSON để tôi duyệt.
+- Nếu chỉ là hình cá chung chung và tôi xác nhận bài học chấp nhận cả sông/biển, có thể dùng habitats ["RIVER", "SEA"]. Không tự áp dụng cho cá voi, cá heo hoặc mọi loài cá mập.
+- Ảnh môi trường: category ENVIRONMENT, objectType cụ thể như ENVIRONMENT_FOREST, variant NORMAL, habitat FOREST. Ảnh đồng cỏ phải khai báo GRASSLAND, không chỉ LAND. Không dùng environmentType vì khóa này không được gửi tới AI.
+- Chỉ xuất mã chuẩn ở danh sách trên: dùng SEA thay cho OCEAN, FOREST thay cho JUNGLE. ARCTIC và ANTARCTIC khác nhau, không tự suy ra LAND/WATER. Gấu Bắc cực có thể khai LAND/ARCTIC. Chim cánh cụt khai LAND/SEA; không khai ARCTIC, chỉ thêm ANTARCTIC nếu xác định được loài có phân bố tại Nam cực. Không phải mọi chim cánh cụt đều sống ở Nam cực.
+
+8. KIỂM TRA TRƯỚC KHI TRẢ
+
+- JSON hợp lệ, không comment, không dấu phẩy cuối, không nhét giải thích vào attributes.
+- Không chứa gameType, difficulty, quantity, assetId, supportedGames, environmentType hoặc khóa ngoài danh sách.
+- Cặp bóng phải tương ứng về hình dáng; cặp trưởng thành–con non phải có bằng chứng và đủ metadata.
+- Nếu có điều chưa chắc, bỏ trường đó và liệt kê ngắn gọn ở phần Cần xác nhận; không đưa thông tin đoán vào JSON như thể đã đúng.
+- Khi nhập vào LumiKids: name, objectType, tags đi vào các ô tương ứng; CHỈ phần object attributes được dán vào ô “Đặc điểm hình ảnh” ở chế độ JSON.
+
+Hãy áp dụng các quy tắc này cho những ảnh tôi gửi tiếp theo. Nếu tôi cung cấp tên bộ, danh sách khóa/cặp đã có thì phải dùng lại nhất quán.

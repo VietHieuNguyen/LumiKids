@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "gameType": "MATCHING",
+  "instruction": "Con hãy ghép mỗi con vật với hình bóng của nó nhé!",
+  "sourceItems": [
+    {
+      "id": "source-cat",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144002",
+      "label": "Con mèo"
+    },
+    {
+      "id": "source-dog",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144003",
+      "label": "Con chó"
+    }
+  ],
+  "targetItems": [
+    {
+      "id": "target-dog-shadow",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144004",
+      "label": "Bóng con chó"
+    },
+    {
+      "id": "target-cat-shadow",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144005",
+      "label": "Bóng con mèo"
+    }
+  ],
+  "pairs": [
+    { "sourceId": "source-cat", "targetId": "target-cat-shadow" },
+    { "sourceId": "source-dog", "targetId": "target-dog-shadow" }
+  ],
+  "completionRule": "ALL_PAIRS_CORRECT"
+}

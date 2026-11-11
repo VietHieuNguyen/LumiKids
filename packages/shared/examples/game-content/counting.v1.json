@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "gameType": "COUNTING",
+  "instruction": "Con hãy đếm số quả táo và chọn đáp án đúng nhé!",
+  "items": [
+    {
+      "id": "apple-1",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144001",
+      "label": "Quả táo"
+    },
+    {
+      "id": "apple-2",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144001",
+      "label": "Quả táo"
+    },
+    {
+      "id": "apple-3",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144001",
+      "label": "Quả táo"
+    },
+    {
+      "id": "apple-4",
+      "assetId": "8e180e94-9105-4be1-9fea-f6cf43144001",
+      "label": "Quả táo"
+    }
+  ],
+  "choices": [
+    { "id": "choice-3", "value": 3 },
+    { "id": "choice-4", "value": 4 },
+    { "id": "choice-5", "value": 5 }
+  ],
+  "correctChoiceId": "choice-4",
+  "completionRule": "CORRECT_CHOICE"
+}
