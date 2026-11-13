@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import type { ClassificationContent } from "@lumikids/shared";
-import type { ClassificationState } from "../model/types";
+import type { ClassificationState } from "@lumikids/shared";
 import type { RendererCommonProps } from "./types";
 import { MatchingCardRail } from "./matching-card-rail";
 import { GamePicture } from "./game-picture";
@@ -162,7 +162,6 @@ export function ClassificationGame({
                             assetRevisions={assetRevisions}
                             onAssetError={onAssetError}
                             className="classification-environment-picture"
-                            fit="cover"
                           />
                         ) : (
                           <span

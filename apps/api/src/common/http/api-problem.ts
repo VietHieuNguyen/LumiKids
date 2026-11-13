@@ -85,6 +85,27 @@ const problems = {
     'Số lượng vượt giới hạn: COUNTING/MATCHING tối đa 20 hình, COUNTING có 2–6 đáp án; CLASSIFICATION tối đa 50 hình và 2–10 nhóm.',
   ],
   GENERATION_BUSY: [429, 'Bạn đang có một yêu cầu tạo trò chơi đang xử lý.'],
+  CHILD_PROFILE_MISSING: [409, 'Tài khoản chưa có hồ sơ trẻ.'],
+  PLAY_SESSION_REQUEST_CONFLICT: [
+    409,
+    'Yêu cầu bắt đầu này đã được dùng cho trò chơi khác.',
+  ],
+  PLAY_SESSION_CLOSED: [409, 'Lượt chơi đã kết thúc.'],
+  PLAY_SESSION_BUSY: [
+    409,
+    'Lượt chơi đang được cập nhật. Hãy đồng bộ lại rồi gửi tiếp.',
+  ],
+  INTERACTION_OUT_OF_ORDER: [
+    409,
+    'Thao tác gửi chưa đúng thứ tự. Hãy đồng bộ lại lượt chơi.',
+  ],
+  INTERACTION_ID_CONFLICT: [409, 'Mã thao tác đã được dùng cho dữ liệu khác.'],
+  INTERACTION_LIMIT: [409, 'Lượt chơi đã đạt số thao tác tối đa.'],
+  INTERACTION_INVALID: [422, 'Thao tác không hợp lệ với trò chơi này.'],
+  INTERACTION_RESULT_MISMATCH: [
+    422,
+    'Kết quả thao tác không khớp với đáp án của trò chơi.',
+  ],
 } as const;
 export type GenerationProblemCode = keyof typeof problems;
 export class ApiProblem extends HttpException {

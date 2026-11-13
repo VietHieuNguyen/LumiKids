@@ -1,5 +1,5 @@
-import type { MatchingContent } from "@lumikids/shared";
-import type { MatchingState, GameAction, ActionEvaluation } from "./types";
+import type { MatchingContent } from "../game-content/matching.schema.js";
+import type { MatchingState, GameAction, ActionEvaluation } from "./types.js";
 
 export function evaluateMatching(
   content: MatchingContent,

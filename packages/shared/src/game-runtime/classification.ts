@@ -1,10 +1,10 @@
-import type { ClassificationContent } from "@lumikids/shared";
-import { getClassificationCorrectGroupIds } from "@lumikids/shared";
+import type { ClassificationContent } from "../game-content/classification.schema.js";
+import { getClassificationCorrectGroupIds } from "../game-content/classification.schema.js";
 import type {
   ClassificationState,
   GameAction,
   ActionEvaluation,
-} from "./types";
+} from "./types.js";
 
 export function evaluateClassification(
   content: ClassificationContent,

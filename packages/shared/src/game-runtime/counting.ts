@@ -1,5 +1,5 @@
-import type { CountingContent } from "@lumikids/shared";
-import type { CountingState, GameAction, ActionEvaluation } from "./types";
+import type { CountingContent } from "../game-content/counting.schema.js";
+import type { CountingState, GameAction, ActionEvaluation } from "./types.js";
 
 export function evaluateCounting(
   content: CountingContent,

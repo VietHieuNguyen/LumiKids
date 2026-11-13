@@ -55,6 +55,76 @@ model User {
   authSessions AuthSession[]
   gameAssets   GameAsset[]
   activities   Activity[]
+  child        Child?
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model Child {
+  childId      String        @id @default(uuid()) @db.Uuid
+  fullName     String        @db.VarChar(200)
+  dob          DateTime      @db.Date
+  gender       Gender
+  userId       String        @unique @db.Uuid
+  user         User          @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+  playSessions PlaySession[]
+}
+
+enum PlaySessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum InteractionEventType {
+  SELECT_CHOICE
+  MATCH_DROP
+  CLASSIFY_DROP
+}
+
+enum InteractionResult {
+  CORRECT
+  INCORRECT
+}
+
+model PlaySession {
+  sessionId      String             @id @default(uuid()) @db.Uuid
+  childId        String             @db.Uuid
+  child          Child              @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  versionId      String             @db.Uuid
+  version        ActivityVersion    @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  status         PlaySessionStatus  @default(IN_PROGRESS)
+  startRequestId String             @db.Uuid
+  eventCount     Int                @default(0)
+  startedAt      DateTime           @default(now()) @db.Timestamptz(3)
+  endedAt        DateTime?          @db.Timestamptz(3)
+  lastEventAt    DateTime?          @db.Timestamptz(3)
+  interactions   InteractionEvent[]
+
+  @@unique([childId, startRequestId])
+  @@index([childId, startedAt])
+  @@index([childId, status])
+  @@index([versionId])
+}
+
+model InteractionEvent {
+  eventId         String               @id @db.Uuid
+  sessionId       String               @db.Uuid
+  session         PlaySession          @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+  eventType       InteractionEventType
+  actionData      Json                 @db.JsonB
+  result          InteractionResult
+  attemptIndex    Int
+  schemaVersion   Int
+  clientTimestamp DateTime             @db.Timestamptz(3)
+  receivedAt      DateTime             @default(now()) @db.Timestamptz(3)
+
+  @@unique([sessionId, attemptIndex])
 }
 
 enum ActivityStatus {
@@ -129,6 +199,7 @@ model ActivityVersion {
   completionRule CompletionRule
   createdAt      DateTime                   @default(now()) @db.Timestamptz(3)
   criterions     ActivityVersionCriterion[]
+  playSessions   PlaySession[]
 
   @@unique([activityId, versionNumber])
   @@index([gameType, difficulty])

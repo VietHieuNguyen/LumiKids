@@ -31,9 +31,11 @@ Script riêng không chạy full seed, không đổi Admin/Teacher/Guardian. Ema
 
 Full development seed cũng biết tài khoản CHILD và cần thêm SEED_CHILD_PASSWORD khi được chủ động gọi. Không tự chạy seed khi start/migrate.
 
-## Khi triển khai gameplay tiếp
+## Gameplay (13/11/2026)
 
-Hiện chỉ chuẩn bị role/permission; chưa có endpoint chơi hoặc lưu InteractionEvent/PlaySession. Không thể gửi log bằng các quyền này cho đến khi có module gameplay.
+Module `apps/api/src/modules/gameplay` (migration `20261113000100_gameplay`, đã áp dụng trên DB dev ngày 13/11/2026) thêm bảng Child (liên kết 1–1 `userId` → User ROLE_CHILD), PlaySession và InteractionEvent, API `/api/v1/gameplay/*` và màn hình `/child/games`. Trẻ chơi mọi trò có Activity ACTIVE (tạm thời, chưa có ActivityAssignment). Server phát lại event bằng engine trong `@lumikids/shared` để tự tính kết quả, thứ tự và hoàn thành; eventId chống trùng. Tài khoản CHILD chưa có hồ sơ Child nhận 409 `CHILD_PROFILE_MISSING`.
+
+Seed child tạo/cập nhật hồ sơ Child khi truyền thêm `SEED_CHILD_DOB` (YYYY-MM-DD) và `SEED_CHILD_GENDER` (MALE/FEMALE) với dữ liệu thật; bỏ trống cả hai thì không tạo hồ sơ.
 
 Controller tương lai dùng `@Permissions('PLAY_GAMES')` để vào luồng chơi. Endpoint đọc phiên dùng READ_OWN_PLAY_SESSIONS, endpoint ingest dùng SUBMIT_OWN_INTERACTIONS. Permission guard chỉ kiểm tra capability; **service phải đọc session từ DB và kiểm tra CASL với `subject('PlaySession', {userId: ownerUserId})`**, không tin userId/childId do client gửi. Khi có Child profile, ownerUserId được resolve từ quan hệ profile/account, không so nhầm childId với userId.
 

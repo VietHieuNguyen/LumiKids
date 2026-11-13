@@ -694,6 +694,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
   background: #c7e9f4; box-shadow: 0 6px 0 #b0d5e3, 0 16px 40px rgb(41 95 121 / 12%);
   font-family: "Segoe UI", Tahoma, Arial, sans-serif;
 }
+/* Expanded: native element fullscreen, or a window-sized overlay where that API is missing. */
+.game-picture-only.is-expanded {
+  position: fixed; inset: 0; z-index: 60; overflow-y: auto;
+  border: 0; border-radius: 0; box-shadow: none;
+  --scene-height: max(480px, calc(100dvh - 70px));
+}
 .game-picture-only > header {
   display: flex; align-items: center; gap: 14px; padding: 10px 18px;
   border: 0; background: linear-gradient(90deg, #eafaff, #ffffffd9 55%, #fff9e9);
@@ -767,10 +773,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 .game-picture-only .matching-card-window { padding: 0; border: 0; background: transparent; }
 .game-picture-only .matching-card-note { width: fit-content; min-width: 28px; min-height: 20px; margin: 0 auto; padding: 1px 10px; border-radius: 999px; background: #fff2d2; font-size: 11px; line-height: 18px; }
 .game-picture-only .matching-picture-card { gap: 3px; }
-.game-picture-only .matching-card-list > .classification-environment-card { height: 164px; padding: 8px; }
+/* Environment scenes are shown whole (contain) in a landscape frame that grows with the scene height. */
+.game-picture-only { --environment-height: clamp(96px, calc(var(--scene-height) * 0.4 - 120px), 300px); }
+.game-picture-only .matching-card-list > .classification-environment-card { height: auto; padding: 8px; }
 .game-picture-only .classification-environment-button { padding: 0; }
-.game-picture-only .classification-environment-scene { min-height: 82px; border-radius: 10px; }
-.game-picture-only .classification-environment-picture { height: 82px; }
+.game-picture-only .classification-environment-scene { width: 100%; height: auto; min-height: 0; aspect-ratio: 16 / 10; max-height: var(--environment-height); border-radius: 10px; background: #eef8fb; }
+.game-picture-only .classification-environment-picture { width: 100%; height: 100%; }
 .game-picture-only .classification-scene-count { right: 5px; bottom: 5px; padding: 2px 7px; background: #fffdf1; font-size: 10px; }
 .game-picture-only .classification-placements { height: 36px; min-height: 36px; margin: 7px 0 0; padding: 3px; gap: 5px; border: 1px dashed #b9d9d0; border-radius: 10px; background: #f2faf6; overflow-y: hidden; }
 .game-picture-only .classification-placed-picture { width: 26px; height: 26px; }
@@ -804,8 +812,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 }
 @media (min-width: 1100px) {
   .game-picture-only { --hanging-height: 168px; --picture-height: 128px; }
-  .game-picture-only .matching-card-list > .classification-environment-card { height: 180px; }
-  .game-picture-only .classification-environment-picture, .game-picture-only .classification-environment-scene { height: 98px; min-height: 98px; }
 }
 @media (max-width: 600px) {
   .game-picture-only { --scene-height: clamp(640px, calc(100dvh - 155px), 820px); --hanging-height: 136px; --picture-height: 96px; }
@@ -818,8 +824,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
   .game-picture-only .hanging-rail-rope { left: 38px; width: calc(100% - 76px); }
   .game-picture-only .matching-card-list { gap: 10px; padding-inline: 5px; }
   .game-picture-only .matching-card-list > :is(.matching-picture-card, .classification-animal-card, .classification-environment-card, .counting-picture-card) { flex-basis: calc((100% - 10px) / 2); border-width: 4px; border-radius: 15px; padding-inline: 5px; }
-  .game-picture-only .matching-card-list > .classification-environment-card { height: 156px; }
-  .game-picture-only .classification-environment-picture, .game-picture-only .classification-environment-scene { height: 76px; min-height: 76px; }
   .game-picture-only .counting-answer-grid { gap: 12px; }
   .game-picture-only .game-choice.counting-number-choice { width: 58px; height: 58px; min-height: 58px; font-size: 31px; border-radius: 17px; }
 }

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { gameContentSchema, gameInteractionSchema } from "@lumikids/shared";
 import {
   applyGameAction,
   checkCompletion,
   createInitialState,
+  gameContentSchema,
+  gameInteractionSchema,
   getGameProgress,
-} from "../src/features/game-runtime/model/engine.ts";
+} from "@lumikids/shared";
 import { createGameController } from "../src/features/game-runtime/model/controller.ts";
 
 const load = (name) =>

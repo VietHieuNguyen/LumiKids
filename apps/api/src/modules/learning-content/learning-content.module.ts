@@ -6,6 +6,7 @@ import { GameGenerationModule } from '../game-generation/game-generation.module.
 import { GameLibraryController } from './game-library.controller.js';
 import { GameLibraryRepository } from './game-library.repository.js';
 import { GameLibraryService } from './game-library.service.js';
+import { PlayableGameService } from './playable-game.service.js';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { GameLibraryService } from './game-library.service.js';
     GameGenerationModule,
   ],
   controllers: [GameLibraryController],
-  providers: [GameLibraryRepository, GameLibraryService],
+  providers: [GameLibraryRepository, GameLibraryService, PlayableGameService],
+  exports: [PlayableGameService],
 })
 export class LearningContentModule {}

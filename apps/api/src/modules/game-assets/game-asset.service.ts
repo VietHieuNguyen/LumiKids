@@ -85,6 +85,17 @@ export class GameAssetService {
     return this.storage.getReadUrl(asset.objectKey, asset.mimeType);
   }
 
+  // Only gameplay calls this after verifying the asset belongs to a playable version.
+  async playableGameReadUrl(user: Principal, id: string) {
+    if (!buildAbility(user).can('PLAY_GAMES', 'Gameplay'))
+      throw new ForbiddenException();
+    const asset = await this.repository.findById(id);
+    if (!asset) throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
+    if (asset.status !== 'ACTIVE')
+      throw new ConflictException('Học liệu của trò chơi đang ngừng sử dụng.');
+    return this.storage.getReadUrl(asset.objectKey, asset.mimeType);
+  }
+
   async upload(user: Principal, metadata: CreateAssetInput, file?: AssetFile) {
     this.authorize(user, 'MANAGE_GAME_ASSETS');
     if (!file || !file.buffer?.length)

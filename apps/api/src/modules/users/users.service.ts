@@ -70,6 +70,13 @@ export class UsersService {
     };
   }
 
+  findChildByUserId(userId: string) {
+    return this.prisma.child.findUnique({
+      where: { userId },
+      select: { childId: true, userId: true },
+    });
+  }
+
   async getOwnAccount(actor: Principal, userId: string): Promise<Principal> {
     // Permission checks do not replace this resource ownership check.
     if (

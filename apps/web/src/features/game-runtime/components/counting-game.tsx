@@ -1,7 +1,7 @@
 "use client";
 
 import type { CountingContent } from "@lumikids/shared";
-import type { CountingState } from "../model/types";
+import type { CountingState } from "@lumikids/shared";
 import type { RendererCommonProps } from "./types";
 import { GamePicture } from "./game-picture";
 import { PlayBoard, PlayStep } from "./play-board";

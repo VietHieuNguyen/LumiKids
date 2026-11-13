@@ -17,6 +17,10 @@ export interface GamePreviewProps extends RuntimeCallbacks {
   backLabel?: string;
   controlsPosition?: "before" | "after";
   showDebug?: boolean;
+  mode?: "PREVIEW" | "PLAY";
+  /** Extra pause on top of image readiness, e.g. while a play session starts. */
+  paused?: boolean;
+  defaultExpanded?: boolean;
   onReset?: () => void;
 }
 function getAssetLabels(content: GameContent): Map<string, string> {
@@ -41,6 +45,9 @@ function ValidatedPreview({
   backLabel = "Quay lại",
   controlsPosition = "before",
   showDebug = false,
+  mode = "PREVIEW",
+  paused = false,
+  defaultExpanded = false,
   onInteraction,
   onComplete,
   onReset,
@@ -50,10 +57,12 @@ function ValidatedPreview({
   const [events, setEvents] = useState<GameInteraction[]>([]);
   const debug = process.env.NODE_ENV === "development" && showDebug;
   const labels = getAssetLabels(content);
+  const preview = mode === "PREVIEW";
   const controls = (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-slate-800">
-        Xem thử · {gameRegistry[content.gameType].label}
+        {preview ? "Xem thử" : "Trò chơi"} ·{" "}
+        {gameRegistry[content.gameType].label}
       </h2>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link className="asset-button-secondary" href={backHref}>
@@ -66,7 +75,9 @@ function ValidatedPreview({
           {completed
             ? "Đã hoàn thành"
             : snapshot.status === "ready"
-              ? "Đang chơi thử"
+              ? preview
+                ? "Đang chơi thử"
+                : "Đang chơi"
               : snapshot.status === "error"
                 ? "Chưa sẵn sàng"
                 : "Đang chuẩn bị hình ảnh"}
@@ -75,7 +86,10 @@ function ValidatedPreview({
     </div>
   );
   return (
-    <section className="space-y-4" aria-label="Xem thử trò chơi">
+    <section
+      className="space-y-4"
+      aria-label={preview ? "Xem thử trò chơi" : "Trò chơi"}
+    >
       {controlsPosition === "before" && controls}
       {snapshot.status === "loading" && (
         <div
@@ -127,10 +141,11 @@ function ValidatedPreview({
       <div hidden={!snapshot.hasLoaded}>
         <GameRuntime
           content={content}
-          mode="PREVIEW"
+          mode={mode}
+          defaultExpanded={defaultExpanded}
           assetUrls={snapshot.urls}
           assetRevisions={snapshot.revisions}
-          paused={snapshot.status !== "ready"}
+          paused={paused || snapshot.status !== "ready"}
           onAssetError={resolver.reportImageError}
           onInteraction={(event) => {
             if (debug) setEvents((current) => [...current.slice(-99), event]);
@@ -153,7 +168,9 @@ function ValidatedPreview({
           <span role="status" className="text-xs text-slate-500">
             {snapshot.refreshing
               ? "Đang làm mới ảnh…"
-              : "Chơi thử không lưu kết quả đánh giá."}
+              : preview
+                ? "Chơi thử không lưu kết quả đánh giá."
+                : "Lượt chơi của con đang được lưu lại."}
           </span>
           <button
             type="button"

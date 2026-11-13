@@ -6,4 +6,4 @@ export type {
   GameState,
   GameProgress,
   GameCompletion,
-} from "./model/types";
+} from "@lumikids/shared";

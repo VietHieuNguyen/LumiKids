@@ -1,11 +1,11 @@
+import type { GameType } from "../game-content/common.js";
+import type { MatchingPair } from "../game-content/matching.schema.js";
 import type {
   CountingInteraction,
   MatchingInteraction,
   ClassificationInteraction,
   GameInteraction,
-  GameType,
-  MatchingPair,
-} from "@lumikids/shared";
+} from "../game-content/interaction.schema.js";
 
 export type GameAction =
   | Pick<CountingInteraction, "actionType" | "sourceId">

@@ -1,7 +1,15 @@
-import { gameContentSchema } from "@lumikids/shared";
-import type { GameContent, GameInteraction } from "@lumikids/shared";
-import { applyGameAction, createInitialState } from "./engine.ts";
-import type { GameAction, GameCompletion, GameState } from "./types";
+import {
+  applyGameAction,
+  createInitialState,
+  gameContentSchema,
+} from "@lumikids/shared";
+import type {
+  GameAction,
+  GameCompletion,
+  GameContent,
+  GameInteraction,
+  GameState,
+} from "@lumikids/shared";
 
 function freezeSnapshot(state: GameState): GameState {
   if (state.lastInteraction) Object.freeze(state.lastInteraction);

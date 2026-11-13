@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useMemo, useState } from "react";
-import { gameContentSchema } from "@lumikids/shared";
-import type { GameContent } from "@lumikids/shared";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { gameContentSchema, getGameProgress } from "@lumikids/shared";
+import type { GameAction, GameContent } from "@lumikids/shared";
 import { createGameController } from "./model/controller";
 import type { RuntimeCallbacks } from "./model/controller";
-import { getGameProgress } from "./model/engine";
-import type { GameAction } from "./model/types";
 import type {
   ResolvedAssetUrls,
   AssetRevisions,
@@ -24,8 +29,47 @@ export interface GameRuntimeProps extends RuntimeCallbacks {
   assetRevisions?: AssetRevisions;
   paused?: boolean;
   mode?: "PREVIEW" | "PLAY";
+  /** Start covering the whole window (no browser-fullscreen gesture needed). */
+  defaultExpanded?: boolean;
   onAssetError?: AssetErrorHandler;
   onReset?: () => void;
+}
+
+function useGameFullscreen(defaultExpanded: boolean) {
+  const target = useRef<HTMLElement>(null);
+  const [native, setNative] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    const update = () =>
+      setNative(
+        document.fullscreenElement !== null &&
+          document.fullscreenElement === target.current,
+      );
+    document.addEventListener("fullscreenchange", update);
+    return () => document.removeEventListener("fullscreenchange", update);
+  }, []);
+  useEffect(() => {
+    if (!expanded) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [expanded]);
+  async function toggle() {
+    if (native || expanded) {
+      setExpanded(false);
+      if (document.fullscreenElement) await document.exitFullscreen();
+      return;
+    }
+    try {
+      await target.current?.requestFullscreen?.();
+    } catch {
+      // Handled below: no element fullscreen means a window-sized overlay.
+    }
+    if (!document.fullscreenElement) setExpanded(true);
+  }
+  return { target, active: native || expanded, toggle };
 }
 
 function GameRun({
@@ -34,11 +78,17 @@ function GameRun({
   assetRevisions,
   paused = false,
   mode = "PREVIEW",
+  defaultExpanded = false,
   onInteraction,
   onComplete,
   onReset,
   onAssetError,
 }: GameRuntimeProps) {
+  const {
+    target: fullscreenTarget,
+    active: fullscreenActive,
+    toggle: toggleFullscreen,
+  } = useGameFullscreen(defaultExpanded);
   const [controller] = useState(() => createGameController(content));
   useLayoutEffect(() => {
     controller.setCallbacks({ onInteraction, onComplete });
@@ -76,6 +126,7 @@ function GameRun({
   const last = state.lastInteraction;
   return (
     <section
+      ref={fullscreenTarget}
       aria-labelledby={headingId}
       data-game-design="hanging-cards-v1"
       style={
@@ -83,7 +134,7 @@ function GameRun({
           "--game-scene": `url("${gameBackground}")`,
         } as CSSProperties
       }
-      className={`game-picture-only overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${content.gameType === "CLASSIFICATION" ? "game-runtime-classification" : `game-runtime-playful game-runtime-${content.gameType.toLowerCase()}`}`}
+      className={`game-picture-only overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${fullscreenActive ? "is-expanded" : ""} ${content.gameType === "CLASSIFICATION" ? "game-runtime-classification" : `game-runtime-playful game-runtime-${content.gameType.toLowerCase()}`}`}
     >
       <header className="border-b border-slate-100 px-5 py-6 sm:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -91,6 +142,34 @@ function GameRun({
             {mode === "PREVIEW" ? "Chơi thử" : "Trò chơi"} ·{" "}
             {registration.label}
           </span>
+          <button
+            type="button"
+            className="asset-button-secondary"
+            aria-label={fullscreenActive ? "Thu nhỏ" : "Toàn màn hình"}
+            aria-pressed={fullscreenActive}
+            onClick={() => void toggleFullscreen()}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {fullscreenActive ? (
+                <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
+              ) : (
+                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+              )}
+            </svg>
+            <span className="sr-only">
+              {fullscreenActive ? "Thu nhỏ" : "Toàn màn hình"}
+            </span>
+          </button>
           <button
             type="button"
             className="asset-button-secondary"

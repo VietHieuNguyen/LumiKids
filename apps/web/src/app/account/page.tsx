@@ -85,6 +85,11 @@ export default function AccountPage() {
         <p className="mt-6 text-sm leading-6 text-slate-600">
           Bạn đã truy cập được hệ thống bằng tài khoản của mình.
         </p>
+        {user.permissions.includes("PLAY_GAMES") && (
+          <Link href="/child/games" className="asset-button-primary mt-6">
+            Chơi trò chơi →
+          </Link>
+        )}
         {user.permissions.includes("READ_GAMES") && (
           <Link
             href={

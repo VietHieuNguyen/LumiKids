@@ -1,12 +1,12 @@
 import {
   GAME_INTERACTION_SCHEMA_VERSION,
   gameInteractionSchema,
-  getClassificationCorrectGroupIds,
-} from "@lumikids/shared";
-import type { GameContent } from "@lumikids/shared";
-import { evaluateCounting } from "./counting.ts";
-import { evaluateMatching } from "./matching.ts";
-import { evaluateClassification } from "./classification.ts";
+} from "../game-content/interaction.schema.js";
+import { getClassificationCorrectGroupIds } from "../game-content/classification.schema.js";
+import type { GameContent } from "../game-content/game-content.schema.js";
+import { evaluateCounting } from "./counting.js";
+import { evaluateMatching } from "./matching.js";
+import { evaluateClassification } from "./classification.js";
 import type {
   ActionEvaluation,
   GameAction,
@@ -14,7 +14,7 @@ import type {
   GameState,
   GameTransition,
   InteractionIdentity,
-} from "./types";
+} from "./types.js";
 
 export function createInitialState(content: GameContent): GameState {
   const base = { attemptCount: 0, completed: false, lastInteraction: null };

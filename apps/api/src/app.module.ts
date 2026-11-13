@@ -10,6 +10,7 @@ import { GameAssetModule } from './modules/game-assets/game-asset.module.js';
 import { GameGenerationModule } from './modules/game-generation/game-generation.module.js';
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { LearningContentModule } from './modules/learning-content/learning-content.module.js';
+import { GameplayModule } from './modules/gameplay/gameplay.module.js';
 import { apiEnvFiles } from './common/config/env-files.js';
 import {
   ApiExceptionFilter,
@@ -29,6 +30,7 @@ import {
     GameGenerationModule,
     CurriculumModule,
     LearningContentModule,
+    GameplayModule,
   ],
   controllers: [AppController],
   providers: [

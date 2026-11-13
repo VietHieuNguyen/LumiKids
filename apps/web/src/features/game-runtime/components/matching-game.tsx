@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 
 import type { MatchingContent } from "@lumikids/shared";
-import type { MatchingState } from "../model/types";
+import type { MatchingState } from "@lumikids/shared";
 import type { RendererCommonProps } from "./types";
 import { GamePicture } from "./game-picture";
 import { usePointerPairing } from "./use-pointer-pairing";

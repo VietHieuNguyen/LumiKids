@@ -105,3 +105,22 @@ export type {
   ClassificationInteraction,
   GameInteraction,
 } from "./game-content/interaction.schema.js";
+export {
+  applyGameAction,
+  checkCompletion,
+  createInitialState,
+  getGameProgress,
+} from "./game-runtime/engine.js";
+export type {
+  GameAction,
+  CountingState,
+  MatchingState,
+  ClassificationState,
+  GameState,
+  GameProgress,
+  GameCompletion,
+  ActionEvaluation,
+  GameTransition,
+  InteractionIdentity,
+} from "./game-runtime/types.js";
+export * from "./gameplay.js";

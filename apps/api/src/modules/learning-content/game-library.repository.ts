@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { GameLibraryQuery, SaveGameInput } from '@lumikids/shared';
+import type {
+  GameLibraryQuery,
+  PlayableGameQuery,
+  SaveGameInput,
+} from '@lumikids/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -9,6 +13,17 @@ const include = {
 } as const;
 export type LibraryVersion = Prisma.ActivityVersionGetPayload<{
   include: typeof include;
+}>;
+// Learner projection: no creator, description or selected criteria.
+const playableSelect = {
+  versionId: true,
+  difficulty: true,
+  gameType: true,
+  content: true,
+  activity: { select: { name: true } },
+} as const satisfies Prisma.ActivityVersionSelect;
+export type PlayableVersion = Prisma.ActivityVersionGetPayload<{
+  select: typeof playableSelect;
 }>;
 
 @Injectable()
@@ -95,6 +110,43 @@ export class GameLibraryRepository {
       this.prisma.activityVersion.findMany({
         where,
         include,
+        orderBy: [{ createdAt: 'desc' }, { versionId: 'desc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.activityVersion.count({ where }),
+    ]);
+    return {
+      items,
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total,
+        totalPages: Math.ceil(total / query.pageSize),
+      },
+    };
+  }
+  findPlayable(versionId: string) {
+    return this.prisma.activityVersion.findFirst({
+      where: { versionId, activity: { status: 'ACTIVE' } },
+      select: playableSelect,
+    });
+  }
+  findVersionContent(versionId: string) {
+    return this.prisma.activityVersion.findUnique({
+      where: { versionId },
+      select: { versionId: true, content: true },
+    });
+  }
+  async listPlayable(query: PlayableGameQuery) {
+    const where: Prisma.ActivityVersionWhereInput = {
+      gameType: query.gameType,
+      activity: { status: 'ACTIVE' },
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.activityVersion.findMany({
+        where,
+        select: playableSelect,
         orderBy: [{ createdAt: 'desc' }, { versionId: 'desc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,

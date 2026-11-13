@@ -1,5 +1,5 @@
 import type { GameContent } from "@lumikids/shared";
-import type { GameAction, GameState } from "../model/types";
+import type { GameAction, GameState } from "@lumikids/shared";
 
 export type ResolvedAssetUrls = Readonly<Record<string, string | undefined>>;
 export type AssetRevisions = Readonly<Record<string, number | undefined>>;
