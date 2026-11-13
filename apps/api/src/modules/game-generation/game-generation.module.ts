@@ -18,6 +18,7 @@ import authConfig from '../../common/config/auth.config.js';
     GameAssetModule,
   ],
   controllers: [GameGenerationController],
+  exports: [GamePreviewAccessService],
   providers: [
     GameGenerationService,
     GamePreviewAccessService,

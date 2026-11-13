@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth-provider";
 import { GameGenerationApi } from "@/features/game-creation/api";
 import { GameCreator } from "@/features/game-creation/game-creator";
 import { canCreateGames } from "@/features/game-creation/types";
+import { GameLibraryApi } from "@/features/game-library/api";
 
 export default function CreateTeacherGamePage() {
   const { session, loading, invalidateSession } = useAuth();
@@ -25,6 +26,10 @@ export default function CreateTeacherGamePage() {
     invalidateSession();
     router.replace("/login");
   }, [invalidateSession, router, token]);
+  const libraryApi = useMemo(
+    () => (token ? new GameLibraryApi(token, unauthorized) : null),
+    [token, unauthorized],
+  );
   useEffect(() => {
     if (!loading && !session) router.replace("/login");
   }, [loading, session, router]);
@@ -54,6 +59,17 @@ export default function CreateTeacherGamePage() {
       api={api}
       fullName={session.user.fullName}
       onUnauthorized={unauthorized}
+      libraryApi={
+        session.user.permissions.includes("SAVE_GAMES") &&
+        session.user.permissions.includes("READ_GAMES")
+          ? libraryApi
+          : null
+      }
+      libraryHref={
+        session.user.permissions.includes("MANAGE_ALL_GAMES")
+          ? "/admin/games"
+          : "/teacher/games"
+      }
     />
   );
 }

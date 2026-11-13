@@ -16,6 +16,8 @@ import { GamePreview } from "../game-preview/game-preview";
 import { GameGenerationApi } from "./api";
 import { createGameCreationController } from "./controller";
 import { MAX_GAME_PROMPT_LENGTH } from "./types";
+import { GameLibraryApi } from "../game-library/api";
+import { SaveGamePanel } from "../game-library/save-game-panel";
 
 export const gameCreationOptions: {
   type: GameType;
@@ -45,6 +47,8 @@ export const gameCreationOptions: {
   },
 ];
 interface GameCreatorProps {
+  libraryApi?: GameLibraryApi | null;
+  libraryHref?: string;
   api: GameGenerationApi;
   fullName: string;
   onUnauthorized: () => void;
@@ -53,6 +57,8 @@ export function GameCreator({
   api,
   fullName,
   onUnauthorized,
+  libraryApi,
+  libraryHref = "/teacher/games",
 }: GameCreatorProps) {
   const [gameType, setGameType] = useState<GameType>("COUNTING");
   const [prompt, setPrompt] = useState("");
@@ -134,6 +140,11 @@ export function GameCreator({
           </Link>
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
             <span>{fullName}</span>
+            {libraryApi && (
+              <Link href={libraryHref} className="asset-button-secondary">
+                Kho trò chơi
+              </Link>
+            )}
             <Link href="/account" className="asset-button-secondary">
               ← Tài khoản
             </Link>
@@ -348,7 +359,8 @@ export function GameCreator({
                 )}
                 <p className="mt-4 text-xs leading-5 text-slate-500">
                   Bản chơi thử chỉ giữ trong trang này và có thể mất khi tải lại
-                  hoặc rời trang. Chưa lưu bản nháp hay xuất bản.
+                  hoặc rời trang. Sau khi duyệt, hãy chọn chỉ số và lưu vào kho
+                  ở bên dưới bảng chơi.
                 </p>
               </form>
             </section>
@@ -414,6 +426,16 @@ export function GameCreator({
                     công cần chọn lại.
                   </p>
                 </fieldset>
+                {libraryApi && (
+                  <SaveGamePanel
+                    key={`save-${draft.revision}`}
+                    api={libraryApi}
+                    game={draft.game}
+                    difficulty={draft.difficulty}
+                    libraryHref={libraryHref}
+                    disabled={busy}
+                  />
+                )}
                 {draft.game.gameContent.gameType === "CLASSIFICATION" && (
                   <details className="rounded-xl border border-slate-200 bg-white p-4">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">

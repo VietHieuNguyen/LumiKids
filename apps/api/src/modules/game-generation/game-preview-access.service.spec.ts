@@ -49,6 +49,25 @@ describe('Generated Preview access (offline; real signing, mocked assets)', () =
     assets as unknown as GameAssetService,
     config,
   );
+  it('binds new save proofs to exact content while allowing object key reordering', async () => {
+    const proof = await service.issue(user, content);
+    await expect(
+      service.verifyForSave(user, proof.token, { ...content }),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.verifyForSave(user, proof.token, {
+        ...content,
+        instruction: 'Changed',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      service.verifyForSave(
+        { ...user, userId: randomUUID() },
+        proof.token,
+        content,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+  });
   const key = createHmac('sha256', config.secret)
     .update('lumikids.generated-preview.v1')
     .digest('base64url');

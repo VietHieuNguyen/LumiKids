@@ -21,6 +21,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "password:hash": "pnpm build && node dist/modules/auth/hash-password.js",
     "db:seed:dev": "pnpm build && node dist/modules/auth/seed-development.js",
+    "db:seed:child": "pnpm build && node dist/modules/auth/seed-child-development.js",
     "test:integration": "pnpm --filter @lumikids/shared build && pnpm --filter @lumikids/ai-client build && pnpm prisma:generate && vitest run --config ./vitest.config.integration.ts",
     "db:check": "pnpm build && node dist/prisma/check-connection.js",
     "lint": "pnpm --filter @lumikids/shared build && pnpm --filter @lumikids/ai-client build && pnpm prisma:generate && oxlint --type-aware src/ test/",

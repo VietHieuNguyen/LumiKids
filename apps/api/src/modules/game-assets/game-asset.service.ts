@@ -74,6 +74,17 @@ export class GameAssetService {
       throw new ForbiddenException('Insufficient generation permission.');
   }
 
+  // Internal only: caller must first verify the asset belongs to an accessible saved version.
+  async savedGameReadUrl(user: Principal, id: string) {
+    if (!buildAbility(user).can('READ_GAMES', 'GameLibrary'))
+      throw new ForbiddenException();
+    const asset = await this.repository.findById(id);
+    if (!asset) throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
+    if (asset.status !== 'ACTIVE')
+      throw new ConflictException('Học liệu của trò chơi đang ngừng sử dụng.');
+    return this.storage.getReadUrl(asset.objectKey, asset.mimeType);
+  }
+
   async upload(user: Principal, metadata: CreateAssetInput, file?: AssetFile) {
     this.authorize(user, 'MANAGE_GAME_ASSETS');
     if (!file || !file.buffer?.length)

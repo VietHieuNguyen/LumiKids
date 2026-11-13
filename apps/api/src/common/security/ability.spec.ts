@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { randomUUID } from 'node:crypto';
-import { buildAbility } from './ability.js';
+import { buildAbility, permissionSubject } from './ability.js';
+import { childPermissions } from '../../modules/auth/child-permissions.js';
 import type { Principal } from './principal.js';
 
 describe('CASL account ownership', () => {
@@ -57,5 +58,72 @@ describe('CASL account ownership', () => {
         'GameContentGeneration',
       ),
     ).toBe(false);
+  });
+  it('grants the child gameplay capabilities without authoring or library access', () => {
+    const child: Principal = {
+      ...principal,
+      roles: ['ROLE_CHILD'],
+      permissions: [...childPermissions],
+    };
+    const ability = buildAbility(child);
+    expect(ability.can('PLAY_GAMES', 'Gameplay')).toBe(true);
+    expect(ability.can('GENERATE_GAME_CONTENT', 'GameContentGeneration')).toBe(
+      false,
+    );
+    for (const permission of [
+      'READ_GAMES',
+      'SAVE_GAMES',
+      'MANAGE_ALL_GAMES',
+    ] as const)
+      expect(ability.can(permission, 'GameLibrary')).toBe(false);
+    for (const permission of [
+      'READ_GAME_ASSETS',
+      'MANAGE_GAME_ASSETS',
+    ] as const)
+      expect(ability.can(permission, 'GameAsset')).toBe(false);
+    expect(ability.can('MANAGE_USERS', 'Administration')).toBe(false);
+  });
+  it('limits child session reading and interaction submission to the authenticated owner', () => {
+    const child: Principal = {
+      ...principal,
+      roles: ['ROLE_CHILD'],
+      permissions: [...childPermissions],
+    };
+    const ability = buildAbility(child);
+    for (const permission of [
+      'SUBMIT_OWN_INTERACTIONS',
+      'READ_OWN_PLAY_SESSIONS',
+    ] as const) {
+      expect(
+        ability.can(
+          permission,
+          subject('PlaySession', { userId: child.userId }),
+        ),
+      ).toBe(true);
+      expect(
+        ability.can(
+          permission,
+          subject('PlaySession', { userId: randomUUID() }),
+        ),
+      ).toBe(false);
+      expect(permissionSubject(permission)).toBe('PlaySession');
+    }
+    expect(permissionSubject('PLAY_GAMES')).toBe('Gameplay');
+  });
+  it('does not grant gameplay from a child or admin role alone', () => {
+    for (const role of ['ROLE_CHILD', 'ROLE_ADMIN'] as const) {
+      const ability = buildAbility({
+        ...principal,
+        roles: [role],
+        permissions: ['READ_OWN_ACCOUNT'],
+      });
+      expect(ability.can('PLAY_GAMES', 'Gameplay')).toBe(false);
+      expect(
+        ability.can(
+          'SUBMIT_OWN_INTERACTIONS',
+          subject('PlaySession', { userId: principal.userId }),
+        ),
+      ).toBe(false);
+    }
   });
 });

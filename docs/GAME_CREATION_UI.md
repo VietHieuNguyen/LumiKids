@@ -1,5 +1,7 @@
 # Teacher AI Game Creation & Preview — Bước 6B
 
+> Bổ sung kho: sau bảng chơi/độ khó có form đặt tên, chọn nhiều Chỉ số thuộc Chuẩn 15–17 và xác nhận duyệt để lưu PostgreSQL. Xem [GAME_LIBRARY.md](./GAME_LIBRARY.md) về migration, quyền và routes. Các mô tả “chưa lưu DB” bên dưới thuộc giai đoạn 6B; draft chưa bấm lưu vẫn chỉ ở memory.
+
 > Cập nhật bố cục: Preview dùng toàn chiều ngang trang, bỏ cột prompt cố định. Nút Tạo trò chơi/Chỉnh mô tả mở native dialog có focus trap và đóng bằng Escape/nút đóng; form luôn được mount để giữ prompt, không hủy generation khi đóng. Generation thành công tự đóng dialog; thất bại giữ nội dung và tiến độ Preview. Nút Toàn màn hình dùng Fullscreen API cho vùng làm việc, không remount runtime; thoát bằng nút hoặc Escape. Lỗi generation vẫn có nút mở lại mô tả bên ngoài dialog. Auth/refresh/controller không thay đổi. Chưa kiểm thử thao tác trình duyệt cho bố cục này.
 
 

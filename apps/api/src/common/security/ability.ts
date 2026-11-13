@@ -4,13 +4,32 @@ import type { Principal } from './principal.js';
 import type { PermissionCode } from '../../generated/prisma/enums.js';
 
 type AppAbility = MongoAbility<
-  [PermissionCode, string | ({ userId: string } & ForcedSubject<'Account'>)]
+  [
+    PermissionCode,
+    string | ({ userId: string } & ForcedSubject<'Account' | 'PlaySession'>),
+  ]
 >;
 
 export function buildAbility(principal: Principal): AppAbility {
   const rules: RawRuleOf<AppAbility>[] = [];
   for (const permission of principal.permissions) {
     switch (permission) {
+      case 'PLAY_GAMES':
+        rules.push({ action: permission, subject: 'Gameplay' });
+        break;
+      case 'SUBMIT_OWN_INTERACTIONS':
+      case 'READ_OWN_PLAY_SESSIONS':
+        rules.push({
+          action: permission,
+          subject: 'PlaySession',
+          conditions: { userId: principal.userId },
+        });
+        break;
+      case 'READ_GAMES':
+      case 'SAVE_GAMES':
+      case 'MANAGE_ALL_GAMES':
+        rules.push({ action: permission, subject: 'GameLibrary' });
+        break;
       case 'READ_GAME_ASSETS':
       case 'MANAGE_GAME_ASSETS':
         rules.push({ action: permission, subject: 'GameAsset' });
@@ -37,6 +56,15 @@ export function permissionSubject(
   permission: PermissionCode,
 ): string | undefined {
   switch (permission) {
+    case 'PLAY_GAMES':
+      return 'Gameplay';
+    case 'SUBMIT_OWN_INTERACTIONS':
+    case 'READ_OWN_PLAY_SESSIONS':
+      return 'PlaySession';
+    case 'READ_GAMES':
+    case 'SAVE_GAMES':
+    case 'MANAGE_ALL_GAMES':
+      return 'GameLibrary';
     case 'READ_GAME_ASSETS':
     case 'MANAGE_GAME_ASSETS':
       return 'GameAsset';

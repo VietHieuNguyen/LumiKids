@@ -88,6 +88,8 @@ export {
   declaredHabitats,
 } from "./game-content/habitats.js";
 export { gameDifficultySchema } from "./game-content/authoring.js";
+export * from "./game-library.js";
+export { cognitiveCurriculum } from "./cognitive-curriculum.js";
 export type { GameDifficulty } from "./game-content/authoring.js";
 export {
   AI_ASSET_ATTRIBUTE_KEYS,

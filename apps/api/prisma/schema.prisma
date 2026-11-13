@@ -19,6 +19,7 @@ enum RoleCode {
   ROLE_ADMIN
   ROLE_TEACHER
   ROLE_GUARDIAN
+  ROLE_CHILD
 }
 
 enum PermissionCode {
@@ -27,6 +28,12 @@ enum PermissionCode {
   GENERATE_GAME_CONTENT
   READ_GAME_ASSETS
   MANAGE_GAME_ASSETS
+  READ_GAMES
+  SAVE_GAMES
+  MANAGE_ALL_GAMES
+  PLAY_GAMES
+  SUBMIT_OWN_INTERACTIONS
+  READ_OWN_PLAY_SESSIONS
 }
 
 enum GameAssetStatus {
@@ -47,6 +54,94 @@ model User {
   roles        UserRole[]
   authSessions AuthSession[]
   gameAssets   GameAsset[]
+  activities   Activity[]
+}
+
+enum ActivityStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum GameDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum GameType {
+  COUNTING
+  MATCHING
+  CLASSIFICATION
+}
+
+enum CompletionRule {
+  CORRECT_CHOICE
+  ALL_PAIRS_CORRECT
+  ALL_ITEMS_CLASSIFIED_CORRECTLY
+}
+
+model Skill {
+  skillCode    String                @id @db.VarChar(20)
+  name         String                @db.VarChar(200)
+  description  String
+  displayOrder Int
+  criterions   AssessmentCriterion[]
+}
+
+model AssessmentCriterion {
+  criterionCode String                     @id @db.VarChar(20)
+  description   String
+  skillCode     String                     @db.VarChar(20)
+  displayOrder  Int
+  skill         Skill                      @relation(fields: [skillCode], references: [skillCode], onDelete: Restrict)
+  versions      ActivityVersionCriterion[]
+
+  @@index([skillCode, displayOrder])
+}
+
+model Activity {
+  activityId      String            @id @default(uuid()) @db.Uuid
+  name            String            @db.VarChar(200)
+  description     String            @default("") @db.VarChar(1000)
+  createdBy       String            @db.Uuid
+  creator         User              @relation(fields: [createdBy], references: [userId], onDelete: Restrict)
+  status          ActivityStatus    @default(ACTIVE)
+  saveRequestId   String            @db.Uuid
+  saveFingerprint String            @db.Char(64)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(3)
+  versions        ActivityVersion[]
+
+  @@unique([createdBy, saveRequestId])
+  @@index([status, createdAt, activityId])
+  @@index([createdBy, status])
+}
+
+model ActivityVersion {
+  versionId      String                     @id @default(uuid()) @db.Uuid
+  activityId     String                     @db.Uuid
+  activity       Activity                   @relation(fields: [activityId], references: [activityId], onDelete: Restrict)
+  versionNumber  Int
+  instruction    String
+  difficulty     GameDifficulty
+  gameType       GameType
+  content        Json                       @db.JsonB
+  completionRule CompletionRule
+  createdAt      DateTime                   @default(now()) @db.Timestamptz(3)
+  criterions     ActivityVersionCriterion[]
+
+  @@unique([activityId, versionNumber])
+  @@index([gameType, difficulty])
+}
+
+model ActivityVersionCriterion {
+  versionId     String              @db.Uuid
+  criterionCode String              @db.VarChar(20)
+  version       ActivityVersion     @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  criterion     AssessmentCriterion @relation(fields: [criterionCode], references: [criterionCode], onDelete: Restrict)
+
+  @@id([versionId, criterionCode])
+  @@index([criterionCode])
 }
 
 model GameAsset {

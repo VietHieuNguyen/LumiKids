@@ -10,6 +10,7 @@ import { ApiProblem } from '../../common/http/api-problem.js';
 import { buildAbility } from '../../common/security/ability.js';
 import type { Principal } from '../../common/security/principal.js';
 import { GameAssetService } from '../game-assets/game-asset.service.js';
+import { contentDigest } from './content-digest.js';
 
 const AUDIENCE = 'lumikids-generated-preview';
 const TTL_SECONDS = 3600;
@@ -18,6 +19,10 @@ const scopeSchema = z.object({
   tokenUse: z.literal('generated-preview'),
   assetIds: z.array(z.uuid()).min(1).max(40),
   exp: z.number().int(),
+  contentDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 });
 
 /** Stateless proof issued only after GameGenerationService validates the result. */
@@ -48,7 +53,12 @@ export class GamePreviewAccessService {
       throw new ApiProblem('AI_OUTPUT_INVALID');
     const now = Math.floor(Date.now() / 1000);
     const token = await this.jwt.signAsync(
-      { tokenUse: 'generated-preview', assetIds, iat: now },
+      {
+        tokenUse: 'generated-preview',
+        assetIds,
+        contentDigest: contentDigest(content),
+        iat: now,
+      },
       {
         secret: this.key(),
         algorithm: 'HS256',
@@ -64,6 +74,31 @@ export class GamePreviewAccessService {
     };
   }
   async readUrl(user: Principal, assetId: string, previewToken: string) {
+    const scope = await this.verifyScope(user, previewToken);
+    if (!scope.assetIds.includes(assetId))
+      throw new ForbiddenException(
+        'Ảnh không thuộc bản chơi thử của tài khoản này.',
+      );
+    return this.assets.generatedPreviewReadUrl(user, assetId);
+  }
+  async verifyForSave(
+    user: Principal,
+    previewToken: string,
+    content: GameContent,
+  ) {
+    const scope = await this.verifyScope(user, previewToken);
+    if (
+      getGameContentAssetIds(content).some(
+        (id) => !scope.assetIds.includes(id),
+      ) ||
+      (scope.contentDigest && scope.contentDigest !== contentDigest(content))
+    )
+      throw new ForbiddenException(
+        'Nội dung không thuộc bản trò chơi đã được xác thực.',
+      );
+    // Legacy proofs (issued before content binding) retain their original asset scope and TTL.
+  }
+  private async verifyScope(user: Principal, previewToken: string) {
     this.authorize(user);
     let payload: unknown;
     try {
@@ -81,14 +116,10 @@ export class GamePreviewAccessService {
       );
     }
     const parsed = scopeSchema.safeParse(payload);
-    if (
-      !parsed.success ||
-      parsed.data.sub !== user.userId ||
-      !parsed.data.assetIds.includes(assetId)
-    )
+    if (!parsed.success || parsed.data.sub !== user.userId)
       throw new ForbiddenException(
         'Ảnh không thuộc bản chơi thử của tài khoản này.',
       );
-    return this.assets.generatedPreviewReadUrl(user, assetId);
+    return parsed.data;
   }
 }

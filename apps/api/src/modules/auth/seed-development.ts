@@ -4,6 +4,7 @@ import databaseConfig from '../../common/config/database.config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PasswordService } from './password.service.js';
 import type { PermissionCode, RoleCode } from '../../generated/prisma/enums.js';
+import { childPermissions } from './child-permissions.js';
 
 config({ path: apiEnvFiles(), quiet: true });
 
@@ -31,6 +32,12 @@ const accounts: {
     role: 'ROLE_GUARDIAN',
     passwordKey: 'SEED_GUARDIAN_PASSWORD',
   },
+  {
+    email: 'child1@lumikids.local',
+    fullName: 'Trẻ test 1',
+    role: 'ROLE_CHILD',
+    passwordKey: 'SEED_CHILD_PASSWORD',
+  },
 ];
 const grants: Record<RoleCode, PermissionCode[]> = {
   ROLE_ADMIN: [
@@ -39,9 +46,18 @@ const grants: Record<RoleCode, PermissionCode[]> = {
     'GENERATE_GAME_CONTENT',
     'READ_GAME_ASSETS',
     'MANAGE_GAME_ASSETS',
+    'READ_GAMES',
+    'SAVE_GAMES',
+    'MANAGE_ALL_GAMES',
   ],
-  ROLE_TEACHER: ['READ_OWN_ACCOUNT', 'GENERATE_GAME_CONTENT'],
+  ROLE_TEACHER: [
+    'READ_OWN_ACCOUNT',
+    'GENERATE_GAME_CONTENT',
+    'READ_GAMES',
+    'SAVE_GAMES',
+  ],
   ROLE_GUARDIAN: ['READ_OWN_ACCOUNT'],
+  ROLE_CHILD: [...childPermissions],
 };
 
 let prisma: PrismaService | undefined;

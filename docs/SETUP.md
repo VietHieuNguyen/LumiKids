@@ -47,6 +47,10 @@ Frontend đọc `NEXT_PUBLIC_API_URL=http://localhost:4000` từ `apps/web/.env.
 
 Chỉ chạy một bộ server tại một thời điểm. Nếu chạy `pnpm dev` ở thư mục gốc thì không chạy thêm `pnpm dev` trong apps/web, vì cả hai cùng dùng cổng 3000. Nếu muốn hai terminal riêng, dùng `pnpm --filter api start:dev` và `pnpm --filter web dev` từ root.
 
+## Kho trò chơi dùng chung
+
+Kho Admin/Teacher, lựa chọn nhiều Chỉ số và lưu ActivityVersion được mô tả trong [GAME_LIBRARY.md](./GAME_LIBRARY.md). Cần hai migration mới của kho sau khi chủ dự án cho phép; không chạy seed/reset. Các phần bên dưới nói “chưa lưu GameContent” mô tả giai đoạn trước khi bổ sung kho.
+
 ## Kiểm tra và build
 
 ```sh
