@@ -110,7 +110,7 @@ test("creator renders three choices, prompt limit, samples, disabled empty submi
       onUnauthorized: () => {},
     }),
   );
-  assert.match(html, /AI Game Creator/);
+  assert.match(html, /Thiết kế trò chơi bằng AI/);
   assert.equal((html.match(/type="radio"/g) ?? []).length, 3);
   assert.match(html, new RegExp(`maxLength="${MAX_GAME_PROMPT_LENGTH}"`, "i"));
   assert.match(html, /Generate Game/);

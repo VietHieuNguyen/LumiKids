@@ -22,6 +22,10 @@ export const LANDING_COPY = {
   sound: { on: "Bật âm thanh", off: "Tắt âm thanh", label: "Âm thanh" },
   /** What each animal "says" in a little bubble when it is tapped. */
   friends: { rabbit: "Xin chào!", bear: "Chào bé!", elephant: "Tu tu!", dog: "Gâu gâu!", duck: "Quạc quạc!" },
+  /** Little quest in the valley: tap each kind of animal once. */
+  quest: { label: "Tìm các bạn nhỏ", done: "Giỏi quá! Bé đã tìm đủ 5 bạn" },
+  /** Sample game opened from a game card, playable without an account. */
+  demo: { title: "Chơi thử", close: "Đóng trò chơi", note: "Đây là trò chơi mẫu, kết quả không được lưu.", login: "Đăng nhập để chơi những trò cô giáo đã soạn." },
   guide: "Cùng khám phá thung lũng LumiKids",
   guideNote: "Mỗi khúc quanh là một hoạt động quan sát, so sánh và đếm. Chạm vào các bạn nhỏ để chào nhé!",
   encounter: {
@@ -61,7 +65,8 @@ export const LANDING_COPY = {
       { id: "count", title: "Đếm số lượng", description: "Quan sát nhóm đồ vật, đếm từng món và chọn số.", tag: "Đếm" },
       { id: "classify", title: "Phân loại", description: "Đưa đồ vật vào nhóm có đặc điểm chung.", tag: "So sánh" },
     ],
-    cardCta: "Chơi cùng bé",
+    cardCta: "Chơi thử ngay",
+    cardLogin: "Đăng nhập để chơi cùng bé",
     note: "Mọi trò chơi đều được giáo viên duyệt trước khi đến tay trẻ.",
   },
   footer: {

@@ -3,7 +3,9 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
 import { ValleyAudio, audioSupported } from "./landing-audio";
 import { LANDING_ASSETS } from "./landing-assets";
@@ -11,10 +13,16 @@ import type { CharacterId } from "./landing-assets";
 import { GAME_CARD_TYPES, HOTSPOTS, LANDING_COPY } from "./landing-copy";
 import { loginHref } from "@/lib/safe-return-path";
 import { clamp, easeInOutCubic, seg, smooth } from "./scroll-math";
-import type { ValleyStage } from "./valley-scene";
+import type { FriendId, ValleyStage } from "./valley-scene";
 import "./landing.css";
 
 type StageMode = "loading" | "live" | "static";
+
+/** The game runtime is only downloaded when a visitor opens a sample game. */
+const LandingDemo = dynamic(() => import("./landing-demo"), { ssr: false });
+
+/** The five kinds of animal to find in the valley, in the order their dots are shown. */
+const QUEST: readonly FriendId[] = ["duck", "elephant", "rabbit", "bear", "dog"];
 type NavTarget = (typeof LANDING_COPY.nav.links)[number]["target"];
 
 /** Scroll progress that each nav target lands on inside the pinned story. */
@@ -154,6 +162,8 @@ export function LandingPage() {
   const [missing, setMissing] = useState<CharacterId[]>([]);
   const [soundOn, setSoundOn] = useState(false);
   const [canSound, setCanSound] = useState(false);
+  const [found, setFound] = useState<readonly FriendId[]>([]);
+  const [demo, setDemo] = useState<GameType | null>(null);
 
   useEffect(() => { openCardRef.current = openCard; }, [openCard]);
 
@@ -400,6 +410,7 @@ export function LandingPage() {
       const hit = valley.poke(event.clientX - rect.left, event.clientY - rect.top);
       if (!hit) return;
       if (soundOnRef.current) audioRef.current?.voice(hit.id);
+      setFound((current) => (current.includes(hit.id) ? current : [...current, hit.id]));
       const bubble = sayRef.current;
       if (!bubble) return;
       bubble.textContent = LANDING_COPY.friends[hit.id];
@@ -680,6 +691,12 @@ export function LandingPage() {
             </div>
 
             <div ref={sayRef} className="lk-say" role="status" aria-live="polite" data-show="false" />
+            {found.length > 0 ? (
+              <p className="lk-quest" role="status" data-done={found.length === QUEST.length}>
+                <span>{found.length === QUEST.length ? LANDING_COPY.quest.done : `${LANDING_COPY.quest.label} ${found.length}/${QUEST.length}`}</span>
+                <span className="lk-questDots" aria-hidden="true">{QUEST.map((id) => <i key={id} data-found={found.includes(id)} />)}</span>
+              </p>
+            ) : null}
             {canSound ? (
               <button type="button" className="lk-sound" aria-pressed={soundOn} aria-label={soundOn ? LANDING_COPY.sound.off : LANDING_COPY.sound.on} onClick={toggleSound}>
                 <SoundIcon on={soundOn} />
@@ -727,8 +744,11 @@ export function LandingPage() {
                     <span className="lk-tag">{card.tag}</span>
                     <h3>{card.title}</h3>
                     <p>{card.description}</p>
-                    {/* Sign in, then land on the child game list filtered to this kind of game. */}
-                    <Link className="lk-cardLink" href={loginHref(`/child/games?type=${GAME_CARD_TYPES[card.id]}`)}>{LANDING_COPY.games.cardCta}<ArrowIcon /></Link>
+                    {/* Play a sample right here, or sign in and land on the child game list filtered to this kind of game. */}
+                    <div className="lk-cardActions">
+                      <button type="button" className="lk-cardPlay" onClick={() => setDemo(GAME_CARD_TYPES[card.id])}>{LANDING_COPY.games.cardCta}<ArrowIcon /></button>
+                      <Link className="lk-cardLink" href={loginHref(`/child/games?type=${GAME_CARD_TYPES[card.id]}`)}>{LANDING_COPY.games.cardLogin}</Link>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -748,6 +768,7 @@ export function LandingPage() {
           </footer>
         </section>
       </main>
+      {demo ? <LandingDemo key={demo} type={demo} loginHref={loginHref(`/child/games?type=${demo}`)} onClose={() => setDemo(null)} /> : null}
     </div>
   );
 }

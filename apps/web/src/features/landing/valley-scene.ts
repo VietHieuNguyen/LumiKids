@@ -30,6 +30,8 @@ type Friend = {
   baseRotY: number;
   baseScale: THREE.Vector3;
   mixer: THREE.AnimationMixer | null;
+  /** Its own extra move when tapped (the ducks quack or flap); without one the idle clip just speeds up. */
+  onPoke: (() => void) | null;
   /** Seconds (render clock) when the current reaction began, or -1. */
   started: number;
   shown: () => boolean;
@@ -840,12 +842,38 @@ export class ValleyStage {
       }
       this.ducks.push({ root, mixer, radius: spec.radius, speed: spec.speed, phase: spec.phase });
       // The root is steered around the pond every frame, so the reaction moves the model inside it.
-      this.addFriend("duck", root, duck, size.y * s, mixer);
+      this.addFriend("duck", root, duck, size.y * s, mixer, () => true, this.duckCall(mixer, clips, swim));
     });
   }
 
-  private addFriend(id: FriendId, anchor: THREE.Object3D, object: THREE.Object3D, height: number, mixer: THREE.AnimationMixer | null, shown: () => boolean = () => true): void {
-    this.friends.push({ id, anchor, object, height, baseY: object.position.y, baseRotY: object.rotation.y, baseScale: object.scale.clone(), mixer, started: -1, shown });
+  /** A tapped duck quacks, and on the next tap flaps its wings, then goes back to paddling. */
+  private duckCall(mixer: THREE.AnimationMixer, clips: THREE.AnimationClip[], swim: THREE.AnimationClip | undefined): (() => void) | null {
+    const calls = ["Quack", "Flap"].flatMap((name) => {
+      const clip = clips.find((candidate) => candidate.name === name);
+      if (!clip) return [];
+      const action = mixer.clipAction(clip);
+      action.setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
+      return [action];
+    });
+    if (!swim || calls.length === 0) return null;
+    const paddle = mixer.clipAction(swim);
+    mixer.addEventListener("finished", (event) => {
+      event.action.fadeOut(0.25);
+      paddle.fadeIn(0.25);
+    });
+    let turn = 0;
+    return () => {
+      const call = calls[turn % calls.length];
+      turn += 1;
+      for (const other of calls) if (other !== call) other.stop();
+      paddle.fadeOut(0.15);
+      call.reset().fadeIn(0.15).play();
+    };
+  }
+
+  private addFriend(id: FriendId, anchor: THREE.Object3D, object: THREE.Object3D, height: number, mixer: THREE.AnimationMixer | null, shown: () => boolean = () => true, onPoke: (() => void) | null = null): void {
+    this.friends.push({ id, anchor, object, height, baseY: object.position.y, baseRotY: object.rotation.y, baseScale: object.scale.clone(), mixer, onPoke, started: -1, shown });
   }
 
   /** The animal under a point of the canvas (CSS pixels), nearest first. Small or distant ones get a generous target. */
@@ -878,6 +906,7 @@ export class ValleyStage {
     const friend = this.findFriend(x, y);
     if (!friend) return null;
     friend.started = Math.max(0, this.lastTime);
+    friend.onPoke?.();
     friend.anchor.getWorldPosition(this.scratch);
     this.scratch.y += friend.height * 1.15;
     this.scratch.project(this.camera);
@@ -894,7 +923,7 @@ export class ValleyStage {
       friend.object.position.y = friend.baseY + Math.abs(Math.sin(t * Math.PI * 2)) * fade * friend.height * 0.3;
       friend.object.rotation.y = friend.baseRotY + Math.sin(t * Math.PI * 3) * 0.22 * fade;
       friend.object.scale.set(friend.baseScale.x * (1 - squash * 0.5), friend.baseScale.y * (1 + squash), friend.baseScale.z * (1 - squash * 0.5));
-      if (friend.mixer) friend.mixer.timeScale = 1 + 2 * fade;
+      if (friend.mixer && !friend.onPoke) friend.mixer.timeScale = 1 + 2 * fade;
       if (t >= 1) friend.started = -1;
     }
   }
