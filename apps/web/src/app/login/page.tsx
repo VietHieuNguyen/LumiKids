@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { safeReturnPath } from "@/lib/safe-return-path";
 
 export default function LoginPage() {
+  // useSearchParams needs a Suspense boundary on a statically prerendered page.
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  // `?next=` brings the user back to what they picked (e.g. a game from the landing page).
+  const destination = safeReturnPath(useSearchParams().get("next")) ?? "/account";
   const { session, loading, login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,7 +26,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => { if (!loading && session) router.replace("/account"); }, [loading, session, router]);
+  useEffect(() => { if (!loading && session) router.replace(destination); }, [loading, session, router, destination]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +36,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       setPassword("");
-      router.replace("/account");
+      router.replace(destination);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Đăng nhập không thành công. Vui lòng thử lại.");
     } finally { setSubmitting(false); }
