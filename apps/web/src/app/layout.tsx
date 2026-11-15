@@ -10,9 +10,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
+    // Browser extensions may add classes to <html> (e.g. "mdl-js") before hydration; ignore that one level only.
     <html
       lang="vi"
       className="h-full antialiased"
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col"><AuthProvider>{children}</AuthProvider></body>
     </html>
