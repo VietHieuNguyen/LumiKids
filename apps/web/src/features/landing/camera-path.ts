@@ -19,7 +19,7 @@ export type CameraShot = {
 
 /**
  * Camera poses in valley world units (Y up, lake surface at y = 0, trail plateau at y ≈ 2.7).
- * Calibrated against the bounding boxes of LumiKids_Pastel_Valley.glb and its "Hero Camera".
+ * Calibrated against the bounding boxes of models/source/valley.glb and its "Hero Camera".
  */
 export const CAMERA_SHOTS: readonly CameraShot[] = [
   { name: "vista", position: [12.6, 16.8, 29.9], target: [-0.6, 2.4, -3.2], fov: 40, shiftX: 0.2, fogNear: 37, fogFar: 85, portrait: { shiftX: 0.03, shiftY: 0.12 } },

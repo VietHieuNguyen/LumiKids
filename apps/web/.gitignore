@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editable source models (large); only the optimised copies in public/models/landing ship
+/public/models/source/

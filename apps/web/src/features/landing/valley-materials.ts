@@ -477,7 +477,7 @@ export function setTerrainLite(material: THREE.Material, lite: boolean): void {
   material.needsUpdate = true;
 }
 
-/** Map GLB material names (see LumiKids_Pastel_Valley.glb) to a surface treatment. */
+/** Map GLB material names (see models/source/valley.glb) to a surface treatment. */
 export function surfaceForMaterial(name: string): SurfaceKind | null {
   switch (name) {
     case "Clay and Grass": return "terrain";

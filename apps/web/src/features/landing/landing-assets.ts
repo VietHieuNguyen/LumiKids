@@ -1,7 +1,7 @@
 /**
- * Landing-page asset manifest. The GLBs under /models/landing are meshopt-compressed
- * copies of the source models in /models (LumiKids_Pastel_Valley.glb, pink_rabbit.glb,
- * low_poly_polar_bear.glb); keep the originals as the editable sources.
+ * Landing-page asset manifest. Each GLB under /models/landing is the optimised (meshopt/webp)
+ * copy of the editable source with the same name in /models/source (e.g. source/valley.glb ->
+ * landing/valley.glb); source/valley-kit and source/duck-pack hold the original asset packs.
  */
 export const LANDING_ASSETS = {
   valley: "/models/landing/valley.glb",
