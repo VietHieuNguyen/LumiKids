@@ -17,10 +17,7 @@ export const LANDING_ASSETS = {
   dog: "/models/landing/dog.glb",
   /** "Cattail Plant" by SXuno (Sketchfab, CC BY 4.0), webp textures. */
   cattail: "/models/landing/cattail.glb",
-  /**
-   * "Tree low poly lowpoly" by 00amza (Sketchfab, CC BY 4.0). Fixed in Blender: leaf cards switched from
-   * BLEND (82% opacity, sorting artefacts) to an alpha MASK, white texture fringe padded with leaf colour, metalness 0.
-   */
+  /** LumiKids low-poly birches ("Tree 1", "Tree 2"): generated flat-shaded trunks and leaf blobs, vertex colours only. */
   birch: "/models/landing/birch.glb",
   poster: "/models/landing/poster.webp",
   gameImages: {
@@ -44,7 +41,8 @@ export const CHARACTER_PLACEMENT: Record<CharacterId, { x: number; z: number; he
  */
 export const SUMMIT_FRIENDS: Record<CharacterId, { x: number; z: number }> = {
   rabbit: { x: 5.5, z: -8.5 },
-  bear: { x: 4.5, z: -7.55 },
+  // Clear of the pine at (4.9, -8.1), which hid half of Bear from the summit camera.
+  bear: { x: 4.25, z: -7.7 },
 };
 
 /**

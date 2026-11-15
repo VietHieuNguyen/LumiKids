@@ -220,14 +220,15 @@ const SURFACE_GLSL: Record<SurfaceKind, string> = {
     float up = n.y * 0.5 + 0.5;
     float hue = lkNoise(p * 0.45 + 2.0);
     vec3 tint = mix(vec3(0.9, 1.0, 0.98), vec3(1.08, 1.04, 0.84), smoothstep(0.3, 0.7, hue));
-    float clump = lkFbm(p * 4.2);
-    float pocket = smoothstep(0.42, 0.24, clump);
+    // Broad, soft clumps: close to the camera a tighter, darker pattern reads as blotches rather than leaves.
+    float clump = lkFbm(p * 2.4);
+    float pocket = smoothstep(0.44, 0.22, clump);
     float leaf = lkNoise(p * 17.0);
     vec3 col = diffuseColor.rgb * tint;
-    col *= mix(vec3(0.72, 0.84, 0.88), vec3(1.12, 1.08, 0.86), smoothstep(0.25, 0.85, lit * 0.6 + up * 0.4));
+    col *= mix(vec3(0.78, 0.88, 0.9), vec3(1.1, 1.07, 0.88), smoothstep(0.25, 0.85, lit * 0.6 + up * 0.4));
     // Pockets between clumps go cool and deep (not grey-brown), like shade inside a crown.
-    col = mix(col, col * vec3(0.66, 0.8, 0.84), pocket * 0.55);
-    col *= 0.93 + 0.14 * (leaf - 0.5) + 0.1 * (clump - 0.5);
+    col = mix(col, col * vec3(0.8, 0.9, 0.9), pocket * 0.3);
+    col *= 0.97 + 0.06 * (leaf - 0.5) + 0.06 * (clump - 0.5);
     // Lower needles and leaves sit in the crown's own shade.
     col *= 0.88 + 0.12 * smoothstep(1.0, 6.5, p.y);
     diffuseColor.rgb = col;
@@ -252,6 +253,18 @@ const SURFACE_GLSL: Record<SurfaceKind, string> = {
     diffuseColor.rgb *= mix(0.78, 1.0, depthTint);
     diffuseColor.rgb += vec3(0.035, 0.05, 0.045) * smoothstep(0.55, 0.85, caustic);
     diffuseColor.rgb += vec3(0.022, 0.03, 0.028) * smoothstep(0.15, 0.9, lkLakeRipple(vLkWorldPos).y);
+    {
+      // A slow swell of lighter and deeper blue, and sun glints that drift and twinkle, so the surface reads
+      // as water rather than a flat sheet when the camera comes down to the shore.
+      vec2 w = vLkWorldPos.xz;
+      float swell = lkFbm(vec3(w * 0.5 + vec2(uTime * 0.05, uTime * 0.03), 1.7));
+      diffuseColor.rgb *= 0.93 + 0.14 * swell;
+      float lanes = sin(w.x * 2.1 + w.y * 3.4 + lkNoise(vec3(w * 0.8, uTime * 0.12)) * 5.0 + uTime * 0.5);
+      diffuseColor.rgb += vec3(0.03, 0.04, 0.04) * smoothstep(0.55, 1.0, lanes);
+      float field = smoothstep(0.42, 0.72, lkNoise(vec3(w * 1.1 + 4.0, uTime * 0.08)));
+      float glint = smoothstep(0.8, 0.96, lkNoise(vec3(w * 8.0 + vec2(uTime * 0.22, -uTime * 0.16), uTime * 0.9)));
+      diffuseColor.rgb += vec3(0.2, 0.21, 0.19) * glint * field;
+    }
     lkRoughness = 0.16;
   `,
   cascade: /* glsl */ `
@@ -387,7 +400,7 @@ const NORMAL_GLSL: Partial<Record<SurfaceKind, string>> = {
         lkNoise(q + vec3(0.0, 0.0, e)) + 0.5 * lkNoise((q + vec3(0.0, 0.0, e)) * 2.3)) - n0;
       g /= e;
       g -= vLkWorldNormal * dot(g, vLkWorldNormal);
-      normal = normalize(normal + (viewMatrix * vec4(-g * 0.11 * fade, 0.0)).xyz);
+      normal = normalize(normal + (viewMatrix * vec4(-g * 0.05 * fade, 0.0)).xyz);
     }
   `,
   cascade: /* glsl */ `

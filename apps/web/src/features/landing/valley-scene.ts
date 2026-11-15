@@ -15,6 +15,28 @@ export type StageQuality = "high" | "low";
 
 export type ScreenAnchor = { x: number; y: number; visible: boolean };
 
+/** Every animal a visitor can tap. */
+export type FriendId = CharacterId | AnimalId | "duck";
+
+/** A tappable animal: where it is, how big, and what to nudge when it reacts. */
+type Friend = {
+  id: FriendId;
+  /** World position comes from here (the ducks' moves every frame). */
+  anchor: THREE.Object3D;
+  /** Node that hops and squashes; nothing else animates its transform. */
+  object: THREE.Object3D;
+  height: number;
+  baseY: number;
+  baseRotY: number;
+  baseScale: THREE.Vector3;
+  mixer: THREE.AnimationMixer | null;
+  /** Seconds (render clock) when the current reaction began, or -1. */
+  started: number;
+  shown: () => boolean;
+};
+
+const REACTION_SECONDS = 0.95;
+
 type CharacterRig = {
   root: THREE.Group;
   body: THREE.Group;
@@ -120,6 +142,10 @@ export class ValleyStage {
   );
   private readonly ferns: Fern[] = [];
   private readonly animals = new Map<AnimalId, Animal>();
+  private readonly friends: Friend[] = [];
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly pointer = new THREE.Vector2();
+  private readonly pickSphere = new THREE.Sphere();
   private readonly lastCamera = new THREE.Vector3();
   private readonly cameraVelocity = new THREE.Vector3();
   private readonly positionCurve: THREE.CatmullRomCurve3;
@@ -483,6 +509,7 @@ export class ValleyStage {
     root.rotation.y = yaw + THREE.MathUtils.degToRad(place.faceOffsetDeg);
     this.scene.add(root);
     this.characters.set(id, { root, body, height: place.height, phase: id === "rabbit" ? 0 : 1.7 });
+    this.addFriend(id, root, root, place.height, null);
     this.addSummitFriend(id, root, place.height);
   }
 
@@ -499,6 +526,7 @@ export class ValleyStage {
     root.visible = false;
     this.scene.add(root);
     this.summitFriends.push({ id, root, body, height, phase: id === "rabbit" ? 0.4 : 1.9 });
+    this.addFriend(id, root, root, height, null, () => root.visible);
   }
 
   /** Stylised birds (two flapping wing triangles each) circling high over the valley at dusk. */
@@ -652,6 +680,7 @@ export class ValleyStage {
       mixer.clipAction(idle).play();
     }
     this.animals.set(id, { root, mixer });
+    this.addFriend(id, root, root, place.height, mixer);
   }
 
   /** Cattail clumps in the pond shallows; they reuse the fern sway (wind + lean as the camera passes). */
@@ -810,7 +839,64 @@ export class ValleyStage {
         action.play();
       }
       this.ducks.push({ root, mixer, radius: spec.radius, speed: spec.speed, phase: spec.phase });
+      // The root is steered around the pond every frame, so the reaction moves the model inside it.
+      this.addFriend("duck", root, duck, size.y * s, mixer);
     });
+  }
+
+  private addFriend(id: FriendId, anchor: THREE.Object3D, object: THREE.Object3D, height: number, mixer: THREE.AnimationMixer | null, shown: () => boolean = () => true): void {
+    this.friends.push({ id, anchor, object, height, baseY: object.position.y, baseRotY: object.rotation.y, baseScale: object.scale.clone(), mixer, started: -1, shown });
+  }
+
+  /** The animal under a point of the canvas (CSS pixels), nearest first. Small or distant ones get a generous target. */
+  private findFriend(x: number, y: number): Friend | null {
+    this.pointer.set((x / this.width) * 2 - 1, -(y / this.height) * 2 + 1);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    let best: Friend | null = null;
+    let bestDistance = Infinity;
+    for (const friend of this.friends) {
+      if (!friend.shown()) continue;
+      friend.anchor.getWorldPosition(this.pickSphere.center);
+      this.pickSphere.center.y += friend.height * 0.5;
+      const distance = this.pickSphere.center.distanceTo(this.camera.position);
+      this.pickSphere.radius = Math.max(friend.height * 0.62, distance * 0.022);
+      if (distance < bestDistance && this.raycaster.ray.intersectsSphere(this.pickSphere)) {
+        best = friend;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  /** Which animal is under the pointer, if any (for the hover cursor). */
+  friendAt(x: number, y: number): FriendId | null {
+    return this.findFriend(x, y)?.id ?? null;
+  }
+
+  /** Tap an animal: it hops and wiggles. Returns who it was and where its head is on screen. */
+  poke(x: number, y: number): { id: FriendId; x: number; y: number } | null {
+    const friend = this.findFriend(x, y);
+    if (!friend) return null;
+    friend.started = Math.max(0, this.lastTime);
+    friend.anchor.getWorldPosition(this.scratch);
+    this.scratch.y += friend.height * 1.15;
+    this.scratch.project(this.camera);
+    return { id: friend.id, x: (this.scratch.x * 0.5 + 0.5) * this.width, y: (-this.scratch.y * 0.5 + 0.5) * this.height };
+  }
+
+  /** Two quick bounces with squash and stretch and a wiggle, while the idle clip (ears, tail, paddling) speeds up. */
+  private updateFriends(timeSeconds: number): void {
+    for (const friend of this.friends) {
+      if (friend.started < 0) continue;
+      const t = (timeSeconds - friend.started) / REACTION_SECONDS;
+      const fade = t >= 1 ? 0 : 1 - t;
+      const squash = Math.sin(t * Math.PI * 4) * 0.1 * fade;
+      friend.object.position.y = friend.baseY + Math.abs(Math.sin(t * Math.PI * 2)) * fade * friend.height * 0.3;
+      friend.object.rotation.y = friend.baseRotY + Math.sin(t * Math.PI * 3) * 0.22 * fade;
+      friend.object.scale.set(friend.baseScale.x * (1 - squash * 0.5), friend.baseScale.y * (1 + squash), friend.baseScale.z * (1 - squash * 0.5));
+      if (friend.mixer) friend.mixer.timeScale = 1 + 2 * fade;
+      if (t >= 1) friend.started = -1;
+    }
   }
 
   hasCharacter(id: CharacterId): boolean {
@@ -931,6 +1017,7 @@ export class ValleyStage {
       this.updateMist(timeSeconds);
       this.updateEnding(timeSeconds);
       for (const animal of this.animals.values()) animal.mixer?.update(dt);
+      this.updateFriends(timeSeconds);
       for (const [id, rig] of this.characters) {
         const t = timeSeconds + rig.phase;
         const breathe = Math.sin(t * 2.1) * 0.018;

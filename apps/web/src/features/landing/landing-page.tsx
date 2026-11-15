@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import Link from "next/link";
 import { STORY } from "./camera-path";
+import { ValleyAudio, audioSupported } from "./landing-audio";
 import { LANDING_ASSETS } from "./landing-assets";
 import type { CharacterId } from "./landing-assets";
 import { GAME_CARD_TYPES, HOTSPOTS, LANDING_COPY } from "./landing-copy";
@@ -58,6 +59,17 @@ function ArrowIcon() {
   return (
     <svg className="lk-arrow" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
       <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 6.8h2.6L9 3.6v10.8l-3.9-3.2H2.5z" fill="currentColor" stroke="none" />
+      {on
+        ? <><path d="M11.6 6.6a3.2 3.2 0 0 1 0 4.8" /><path d="M13.7 4.6a6 6 0 0 1 0 8.8" /></>
+        : <path d="m11.8 6.8 4 4.4m0-4.4-4 4.4" />}
     </svg>
   );
 }
@@ -131,12 +143,17 @@ export function LandingPage() {
   const typedRef = useRef<HTMLSpanElement>(null);
   const progressValue = useRef(0);
   const openCardRef = useRef<CharacterId | null>(null);
+  const sayRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<ValleyAudio | null>(null);
+  const soundOnRef = useRef(false);
 
   const [mode, setMode] = useState<StageMode>("loading");
   const [ready, setReady] = useState(false);
   const [openCard, setOpenCard] = useState<CharacterId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [missing, setMissing] = useState<CharacterId[]>([]);
+  const [soundOn, setSoundOn] = useState(false);
+  const [canSound, setCanSound] = useState(false);
 
   useEffect(() => { openCardRef.current = openCard; }, [openCard]);
 
@@ -158,7 +175,11 @@ export function LandingPage() {
     const staticMode = reduceMotion.matches || !supportsWebGL();
     let disposed = false;
     // Mode is only knowable in the browser; commit it after the effect instead of during it.
-    queueMicrotask(() => { if (!disposed) setMode(staticMode ? "static" : "live"); });
+    queueMicrotask(() => {
+      if (disposed) return;
+      setMode(staticMode ? "static" : "live");
+      setCanSound(!staticMode && audioSupported());
+    });
     if (staticMode) return () => { disposed = true; };
 
     const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -247,6 +268,7 @@ export function LandingPage() {
         }
       }
       applyLayers(pCam);
+      if (soundOnRef.current) audioRef.current?.setProgress(pCam);
       if (running) raf = requestAnimationFrame(frame);
     };
 
@@ -350,9 +372,12 @@ export function LandingPage() {
       // Re-entering: jump straight to the current scroll position instead of easing from stale state.
       pCam = rawProgress();
       raf = requestAnimationFrame(frame);
+      if (soundOnRef.current) void audioRef.current?.start();
     };
     const stop = () => {
       running = false;
+      // The valley left the screen or the tab was hidden: no water or birds over the rest of the page.
+      audioRef.current?.stop();
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
     };
@@ -360,6 +385,30 @@ export function LandingPage() {
     const onPointer = (event: PointerEvent) => {
       pointerX = event.clientX / window.innerWidth - 0.5;
       pointerY = event.clientY / window.innerHeight - 0.5;
+      if (!finePointer || !valley) return;
+      // A hand cursor over any animal that can be tapped (not over buttons, links or an open card).
+      const overUi = event.target instanceof Element && event.target.closest("a, button, .lk-card");
+      const rect = stage.getBoundingClientRect();
+      const friend = overUi ? null : valley.friendAt(event.clientX - rect.left, event.clientY - rect.top);
+      const cursor = friend ? "pointer" : "";
+      if (stage.style.cursor !== cursor) stage.style.cursor = cursor;
+    };
+    // Tap an animal: it hops, says hello in a little bubble and, with sound on, calls out.
+    const onStageClick = (event: MouseEvent) => {
+      if (!valley || !(event.target instanceof Element) || event.target.closest("a, button, .lk-card")) return;
+      const rect = stage.getBoundingClientRect();
+      const hit = valley.poke(event.clientX - rect.left, event.clientY - rect.top);
+      if (!hit) return;
+      if (soundOnRef.current) audioRef.current?.voice(hit.id);
+      const bubble = sayRef.current;
+      if (!bubble) return;
+      bubble.textContent = LANDING_COPY.friends[hit.id];
+      bubble.style.left = `${clamp(hit.x, 70, width - 70).toFixed(1)}px`;
+      bubble.style.top = `${clamp(hit.y, 120, height - 60).toFixed(1)}px`;
+      // Restart the pop animation even when the same animal is tapped again.
+      bubble.dataset.show = "false";
+      void bubble.offsetWidth;
+      bubble.dataset.show = "true";
     };
     const onLeave = () => { pointerX = 0; pointerY = 0; };
     const onVisibility = () => (document.hidden ? stop() : start());
@@ -404,6 +453,7 @@ export function LandingPage() {
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
     window.addEventListener("pointermove", onPointer, { passive: true });
+    stage.addEventListener("click", onStageClick);
     document.documentElement.addEventListener("pointerleave", onLeave);
     document.addEventListener("visibilitychange", onVisibility);
     void document.fonts?.ready.then(measure);
@@ -417,6 +467,9 @@ export function LandingPage() {
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
       window.removeEventListener("pointermove", onPointer);
+      stage.removeEventListener("click", onStageClick);
+      audioRef.current?.dispose();
+      audioRef.current = null;
       document.documentElement.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
       valley?.dispose();
@@ -433,6 +486,24 @@ export function LandingPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [closeCard]);
+
+  // Sound is off until asked for; the audio context has to be created from this click.
+  const toggleSound = useCallback(() => {
+    const next = !soundOnRef.current;
+    if (next) {
+      try {
+        audioRef.current ??= new ValleyAudio();
+        audioRef.current.setProgress(progressValue.current);
+        void audioRef.current.start();
+      } catch {
+        return;
+      }
+    } else {
+      audioRef.current?.stop();
+    }
+    soundOnRef.current = next;
+    setSoundOn(next);
+  }, []);
 
   const goTo = (target: NavTarget) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
     setMenuOpen(false);
@@ -608,6 +679,13 @@ export function LandingPage() {
               </div>
             </div>
 
+            <div ref={sayRef} className="lk-say" role="status" aria-live="polite" data-show="false" />
+            {canSound ? (
+              <button type="button" className="lk-sound" aria-pressed={soundOn} aria-label={soundOn ? LANDING_COPY.sound.off : LANDING_COPY.sound.on} onClick={toggleSound}>
+                <SoundIcon on={soundOn} />
+                <span>{LANDING_COPY.sound.label}</span>
+              </button>
+            ) : null}
             <div className="lk-progress" aria-hidden="true"><span ref={progressRef} /></div>
           </div>
         </section>

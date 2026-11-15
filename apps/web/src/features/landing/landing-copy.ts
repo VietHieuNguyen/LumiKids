@@ -18,8 +18,12 @@ export const LANDING_COPY = {
     cta: "Khám phá trò chơi",
     scrollHint: "Cuộn để khám phá",
   },
+  /** Sound toggle (off by default). */
+  sound: { on: "Bật âm thanh", off: "Tắt âm thanh", label: "Âm thanh" },
+  /** What each animal "says" in a little bubble when it is tapped. */
+  friends: { rabbit: "Xin chào!", bear: "Chào bé!", elephant: "Tu tu!", dog: "Gâu gâu!", duck: "Quạc quạc!" },
   guide: "Cùng khám phá thung lũng LumiKids",
-  guideNote: "Mỗi khúc quanh là một hoạt động quan sát, so sánh và đếm.",
+  guideNote: "Mỗi khúc quanh là một hoạt động quan sát, so sánh và đếm. Chạm vào các bạn nhỏ để chào nhé!",
   encounter: {
     caption: "Gặp các bạn nhỏ của thung lũng",
   },
@@ -67,7 +71,7 @@ export const LANDING_COPY = {
       { label: "Kho trò chơi", href: "/teacher/games" },
       { label: "Tạo trò chơi", href: "/teacher/games/create" },
     ],
-    credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Voi của Ozor, Chó con của kenchoo, Cỏ đuôi nến của SXuno, Cây bạch dương của 00amza — Sketchfab, CC BY 4.0, đã giảm lưới và thêm hoạt ảnh chờ.",
+    credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Voi của Ozor, Chó con của kenchoo và Cỏ đuôi nến của SXuno — Sketchfab, CC BY 4.0, đã giảm lưới, làm mịn, đổi màu và thêm hoạt ảnh chờ.",
   },
 } as const;
 

@@ -21,11 +21,12 @@ export type CameraShot = {
  * Camera poses in valley world units (Y up, lake surface at y = 0, trail plateau at y ≈ 2.7).
  * Calibrated against the bounding boxes of models/source/valley.glb and its "Hero Camera".
  */
+// The pond and elephant shots stay a little inside the lake's rim, so its outer edge never shows in a corner.
 export const CAMERA_SHOTS: readonly CameraShot[] = [
   { name: "vista", position: [12.6, 16.8, 29.9], target: [-0.6, 2.4, -3.2], fov: 40, shiftX: 0.2, fogNear: 37, fogFar: 85, portrait: { shiftX: 0.03, shiftY: 0.12 } },
   { name: "lake", position: [8.6, 6.2, 15.4], target: [2.2, 1.6, 1.2], fov: 42, shiftX: 0.06, fogNear: 22, fogFar: 64, portrait: { shiftX: 0.04, shiftY: 0.08 } },
-  { name: "pond", position: [7.4, 1.25, 10.4], target: [3.6, 0.9, 6.6], fov: 40, shiftX: 0.04, fogNear: 18, fogFar: 60, portrait: { shiftX: 0, shiftY: 0.16, position: [4.9, 2.3, 10.1], target: [3.2, 0.25, 7.4] } },
-  { name: "elephant", position: [8.8, 1.85, 9.4], target: [6.7, 0.6, 5.5], fov: 40, shiftX: -0.06, fogNear: 16, fogFar: 58, portrait: { shiftX: 0, shiftY: 0.02, position: [8.3, 1.55, 8.9], target: [7.05, 0.85, 5.6] } },
+  { name: "pond", position: [7.05, 1.25, 10.05], target: [3.6, 0.9, 6.6], fov: 42, shiftX: 0.04, fogNear: 18, fogFar: 60, portrait: { shiftX: 0, shiftY: 0.16, position: [4.9, 2.3, 10.1], target: [3.2, 0.25, 7.4] } },
+  { name: "elephant", position: [8.3, 1.95, 8.7], target: [6.7, 0.6, 5.5], fov: 43, shiftX: 0.02, fogNear: 16, fogFar: 58, portrait: { shiftX: 0, shiftY: 0.02, position: [8.3, 1.55, 8.9], target: [7.05, 0.85, 5.6] } },
   { name: "waterfall", position: [10.4, 6.3, 8.2], target: [3.2, 4.3, -2.6], fov: 44, shiftX: 0, fogNear: 16, fogFar: 52, portrait: { shiftX: 0, shiftY: 0.04 } },
   { name: "characters", position: [-0.45, 3.46, 6.0], target: [-0.3, 3.0, 2.5], fov: 44, shiftX: 0, fogNear: 14, fogFar: 60, portrait: { shiftX: 0, shiftY: 0.05 } },
   { name: "cabin", position: [2.3, 3.62, 3.4], target: [-0.65, 3.25, -0.55], fov: 45, shiftX: 0.15, fogNear: 14, fogFar: 60, portrait: { shiftX: 0.06, shiftY: 0.3 } },

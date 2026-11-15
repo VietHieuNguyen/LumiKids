@@ -193,7 +193,7 @@
 @keyframes lk-fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .lk-hint {
-  right: var(--pad); bottom: calc(40px + env(safe-area-inset-bottom));
+  right: var(--pad); bottom: calc(76px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 10px;
   font-size: 13px; font-weight: 500; color: var(--ink-soft);
 }
@@ -215,7 +215,7 @@
   text-wrap: balance;
   text-shadow: 0 2px 30px rgba(250, 248, 239, 0.95), 0 0 2px rgba(250, 248, 239, 0.8);
 }
-.lk-guideNote { margin-top: 14px; font-size: 17px; color: var(--ink-soft); text-shadow: 0 0 18px rgba(250, 248, 239, 1); }
+.lk-guideNote { text-wrap: balance; margin-top: 14px; font-size: 17px; color: var(--ink-soft); text-shadow: 0 0 18px rgba(250, 248, 239, 1); }
 
 /* Encounter */
 .lk-encounter { left: var(--pad); top: 104px; visibility: hidden; opacity: 0; }
@@ -375,6 +375,33 @@
 }
 .lk-progress span { display: block; height: 100%; background: var(--ink); transform-origin: left; transform: scaleX(0); }
 
+/* Sound toggle (off by default) and the bubble an animal "says" when tapped. */
+.lk-sound {
+  position: absolute; right: var(--pad); bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 4;
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 13px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--glass); color: var(--ink);
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s, border-color 0.2s, transform 0.2s var(--ease);
+}
+.lk-sound:hover { transform: translateY(-1px); }
+.lk-sound[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-edge); }
+.lk-say {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; opacity: 0;
+  padding: 5px 15px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line);
+  font-family: var(--display); font-size: 19px; font-weight: 700; line-height: 1.4; white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(24, 56, 41, 0.16);
+  transform: translate(-50%, -100%);
+}
+.lk-say[data-show="true"] { animation: lk-say 1.3s var(--ease) both; }
+@keyframes lk-say {
+  0% { opacity: 0; transform: translate(-50%, -80%) scale(0.7); }
+  16% { opacity: 1; transform: translate(-50%, -112%) scale(1.06); }
+  28% { transform: translate(-50%, -106%) scale(1); }
+  76% { opacity: 1; transform: translate(-50%, -106%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -132%) scale(1); }
+}
+
 /* ---------- Games panel ---------- */
 .lk-games {
   position: relative; z-index: 5; margin-top: -13svh;
@@ -462,6 +489,9 @@
 }
 
 @media (max-width: 820px) {
+  /* Icon-only sound button with a full-size touch target. */
+  .lk-sound { width: 44px; height: 44px; padding: 0; justify-content: center; right: 16px; }
+  .lk-sound span { display: none; }
   .lk-root { --story-height: 615svh; font-size: 16px; }
   .lk-nav { grid-template-columns: 1fr auto; height: 64px; }
   .lk-navLinks { display: none; }
@@ -478,7 +508,7 @@
   .lk-heroLine > span { white-space: normal; }
   .lk-heroSubtitle { font-size: 16px; margin-top: 14px; }
   .lk-ctaLarge { height: 48px; margin-top: 18px; }
-  .lk-hint { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(44px + env(safe-area-inset-bottom)); }
+  .lk-hint { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom)); }
 
   .lk-guide { top: 92px; }
   .lk-encounter { top: 80px; }
