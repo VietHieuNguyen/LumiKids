@@ -1,0 +1,675 @@
+"use client";
+/* eslint-disable @next/next/no-img-element -- Small static SVG illustrations and a poster that cross-fades with the WebGL canvas; next/image adds no benefit here. */
+
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
+import Link from "next/link";
+import { STORY } from "./camera-path";
+import { LANDING_ASSETS } from "./landing-assets";
+import type { CharacterId } from "./landing-assets";
+import { GAME_CARD_TYPES, HOTSPOTS, LANDING_COPY } from "./landing-copy";
+import { loginHref } from "@/lib/safe-return-path";
+import { clamp, easeInOutCubic, seg, smooth } from "./scroll-math";
+import type { ValleyStage } from "./valley-scene";
+import "./landing.css";
+
+type StageMode = "loading" | "live" | "static";
+type NavTarget = (typeof LANDING_COPY.nav.links)[number]["target"];
+
+/** Scroll progress that each nav target lands on inside the pinned story. */
+const NAV_PROGRESS: Record<Exclude<NavTarget, "games">, number> = { explore: 0.41, teacher: 0.61 };
+const CHARACTER_IDS: readonly CharacterId[] = ["rabbit", "bear"];
+/** Hotspots are clickable only while Rabbit and Bear are framed. */
+const INTERACTION_ZONE = [STORY.charactersHold[0], 0.48] as const;
+
+/**
+ * WebGL that is actually hardware accelerated. Browsers on some Linux/driver setups silently fall back to a
+ * CPU rasteriser (SwiftShader, llvmpipe), which renders the valley at a few frames per second; those get the
+ * static poster version instead of a stuttering, blurry scene.
+ */
+function supportsWebGL(): boolean {
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+    if (!gl) return false;
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return !/swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
+  } catch {
+    return false;
+  }
+}
+
+function setLayer(el: HTMLElement | null, opacity: number, transform: string, blur = 0): void {
+  if (!el) return;
+  const visible = opacity > 0.002;
+  el.style.opacity = visible ? opacity.toFixed(3) : "0";
+  el.style.transform = transform;
+  el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none";
+  if (el.dataset.visible !== String(visible)) {
+    el.dataset.visible = String(visible);
+    el.style.visibility = visible ? "visible" : "hidden";
+    el.inert = !visible;
+  }
+}
+
+function ArrowIcon() {
+  return (
+    <svg className="lk-arrow" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LogoMark() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="14" fill="#183829" />
+      <path d="M16 7.5c1.2 3.6 3.4 5.8 7 7-3.6 1.2-5.8 3.4-7 7-1.2-3.6-3.4-5.8-7-7 3.6-1.2 5.8-3.4 7-7z" fill="#F2C868" />
+      <circle cx="23.5" cy="8.5" r="1.6" fill="#BFE3D0" />
+    </svg>
+  );
+}
+
+function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
+  const [answer, setAnswer] = useState<string | null>(null);
+  const assets = LANDING_ASSETS.gameImages;
+  const correct = kind === "shadow" ? "cat" : "3";
+  const options = kind === "shadow"
+    ? [{ id: "dog", label: "Bóng thứ nhất", src: assets.shadowMatch.other }, { id: "cat", label: "Bóng thứ hai", src: assets.shadowMatch.shadow }]
+    : [{ id: "2", label: "2" }, { id: "3", label: "3" }, { id: "4", label: "4" }];
+  const feedback = answer === null ? "" : answer === correct ? "Đúng rồi! Bé giỏi quá." : "Chưa đúng, thử lại nhé.";
+
+  return (
+    <div className="lk-mini">
+      <div className="lk-miniBoard" aria-hidden="true">
+        {kind === "shadow"
+          ? <img src={assets.shadowMatch.subject} alt="" width={64} height={64} />
+          : <div className="lk-basket">{[0, 1, 2].map((i) => <img key={i} src={assets.counting.item} alt="" width={30} height={30} />)}</div>}
+      </div>
+      <div className="lk-miniChoices" role="group" aria-label="Chọn đáp án">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className="lk-miniChoice"
+            data-state={answer === option.id ? (option.id === correct ? "correct" : "wrong") : undefined}
+            aria-pressed={answer === option.id}
+            onClick={() => setAnswer(option.id)}
+          >
+            {"src" in option ? <img src={option.src} alt={option.label} width={44} height={44} /> : option.label}
+          </button>
+        ))}
+      </div>
+      <p className="lk-miniFeedback" role="status" aria-live="polite">{feedback}</p>
+    </div>
+  );
+}
+
+export function LandingPage() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const storyRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const summitRef = useRef<HTMLDivElement>(null);
+  const farewellRef = useRef<HTMLDivElement>(null);
+  const endScrimRef = useRef<HTMLDivElement>(null);
+  const duskRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const encounterRef = useRef<HTMLDivElement>(null);
+  const teacherRef = useRef<HTMLDivElement>(null);
+  const teacherScrimRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLSpanElement>(null);
+  const pinRefs = useRef<Record<CharacterId, HTMLDivElement | null>>({ rabbit: null, bear: null });
+  const cardRefs = useRef<Record<CharacterId, HTMLDivElement | null>>({ rabbit: null, bear: null });
+  const stepRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const typedRef = useRef<HTMLSpanElement>(null);
+  const progressValue = useRef(0);
+  const openCardRef = useRef<CharacterId | null>(null);
+
+  const [mode, setMode] = useState<StageMode>("loading");
+  const [ready, setReady] = useState(false);
+  const [openCard, setOpenCard] = useState<CharacterId | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [missing, setMissing] = useState<CharacterId[]>([]);
+
+  useEffect(() => { openCardRef.current = openCard; }, [openCard]);
+
+  const closeCard = useCallback((returnFocus: boolean) => {
+    const current = openCardRef.current;
+    if (!current) return;
+    setOpenCard(null);
+    if (returnFocus) pinRefs.current[current]?.querySelector("button")?.focus();
+  }, []);
+
+  // Story controller: one rAF loop drives the camera and every overlay layer.
+  useEffect(() => {
+    const story = storyRef.current;
+    const stage = stageRef.current;
+    const canvas = canvasRef.current;
+    if (!story || !stage || !canvas) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const staticMode = reduceMotion.matches || !supportsWebGL();
+    let disposed = false;
+    // Mode is only knowable in the browser; commit it after the effect instead of during it.
+    queueMicrotask(() => { if (!disposed) setMode(staticMode ? "static" : "live"); });
+    if (staticMode) return () => { disposed = true; };
+
+    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const lowPower = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
+
+    let valley: ValleyStage | null = null;
+    let raf = 0;
+    let running = false;
+    let inView = true;
+    let last = performance.now();
+    let pCam = 0;
+    let storyTop = 0;
+    let travel = 1;
+    let pointerX = 0;
+    let pointerY = 0;
+    let smoothX = 0;
+    let smoothY = 0;
+    let firstFrame = false;
+    // Adaptive resolution: start near the screen's density and step down in small notches while frames
+    // stay slow, so a busy GPU gets a slightly softer image instead of a stutter (or one big drop to 1x).
+    let dprLimit = Infinity;
+    let warm = false;
+    let windowFrames = 0;
+    let windowTime = 0;
+    let degraded = false;
+    let width = 0;
+    let height = 0;
+
+    const measure = () => {
+      const rect = story.getBoundingClientRect();
+      storyTop = rect.top + window.scrollY;
+      travel = Math.max(1, story.offsetHeight - stage.offsetHeight);
+      width = stage.clientWidth;
+      height = stage.clientHeight;
+      const desktop = width > 1100;
+      // Render at (close to) the screen's real density so edges and foliage stay crisp; the FPS guard lowers it if needed.
+      const cap = lowPower ? 1.25 : desktop ? 1.75 : 1.5;
+      valley?.resize(width, height, Math.max(1, Math.min(window.devicePixelRatio || 1, cap, dprLimit)), width > 820);
+    };
+
+    const rawProgress = () => clamp((window.scrollY - storyTop) / travel);
+
+    const frame = (now: number) => {
+      raf = 0;
+      if (!running) return;
+      const dt = Math.min(64, now - last);
+      last = now;
+
+      const p = rawProgress();
+      const alpha = 1 - Math.exp(-dt / 105);
+      pCam += (p - pCam) * alpha;
+      if (Math.abs(p - pCam) < 0.0002) pCam = p;
+      progressValue.current = pCam;
+
+      const parallaxOn = finePointer && width > 1100 && pCam < 0.07;
+      const damp = parallaxOn ? 1 - seg(pCam, 0.03, 0.07) : 0;
+      smoothX += (pointerX * damp - smoothX) * 0.06;
+      smoothY += (pointerY * damp - smoothY) * 0.06;
+
+      if (valley) {
+        valley.render(pCam, now / 1000, smoothX * 8, smoothY * 5, true);
+        if (!firstFrame) {
+          firstFrame = true;
+          setReady(true);
+        }
+        // Adaptive quality: every ~45 frames, if the average frame is slower than ~45 fps, lower the
+        // render resolution by one notch; at 1x, drop shadows and fine terrain detail as the last step.
+        if (warm) {
+          windowFrames += 1;
+          windowTime += dt;
+          if (windowFrames >= 45) {
+            if (windowTime / windowFrames > 22) {
+              const current = valley.pixelRatio();
+              if (current > 1.01) {
+                dprLimit = Math.max(1, current - 0.25);
+                measure();
+              } else if (!degraded) {
+                degraded = true;
+                valley.degrade();
+              }
+            }
+            windowFrames = 0;
+            windowTime = 0;
+          }
+        }
+      }
+      applyLayers(pCam);
+      if (running) raf = requestAnimationFrame(frame);
+    };
+
+    const applyLayers = (p: number) => {
+      const progress = p;
+      const heroOut = smooth(seg(p, 0.033, 0.086));
+      setLayer(heroRef.current, 1 - heroOut, `translate3d(${(-smoothX * 6).toFixed(2)}px, ${(-heroOut * 48).toFixed(2)}px, 0)`, heroOut * 6);
+      setLayer(hintRef.current, 1 - smooth(seg(p, 0.01, 0.033)), "none");
+
+      // Pond caption: in as the camera settles on the pond, out as it pans to the elephant bank.
+      const gIn = smooth(seg(p, 0.115, STORY.pondHold[0]));
+      const gOut = smooth(seg(p, STORY.pondHold[1] - 0.004, STORY.elephantHold[0] - 0.005));
+      setLayer(guideRef.current, gIn * (1 - gOut), `translate3d(0, ${((1 - gIn) * 22 - gOut * 24).toFixed(2)}px, 0)`, (1 - gIn) * 6 + gOut * 4);
+      if (scrimRef.current) scrimRef.current.style.opacity = (gIn * (1 - gOut)).toFixed(3);
+
+      const pinsOut = smooth(seg(p, STORY.charactersHold[1], 0.495));
+      const encounterIn = smooth(seg(p, 0.325, STORY.charactersHold[0]));
+      // Hotspots fade in during the approach and only arm once the characters are framed.
+      const armed = p >= INTERACTION_ZONE[0] && p <= INTERACTION_ZONE[1];
+      setLayer(encounterRef.current, encounterIn * (1 - pinsOut), `translate3d(0, ${((1 - encounterIn) * 18).toFixed(2)}px, 0)`);
+      const anchors: Partial<Record<CharacterId, { x: number; y: number }>> = {};
+      CHARACTER_IDS.forEach((id, index) => {
+        const pin = pinRefs.current[id];
+        if (!pin) return;
+        const pinIn = smooth(seg(p, 0.315 + index * 0.012, 0.348 + index * 0.012));
+        const anchor = valley?.anchor(id);
+        let opacity = pinIn * (1 - pinsOut);
+        if (!anchor || !anchor.visible) opacity = 0;
+        let x = anchor?.x ?? 0;
+        let y = anchor?.y ?? 0;
+        const other = anchors.rabbit;
+        if (id === "bear" && other && Math.abs(other.x - x) < 150 && Math.abs(other.y - y) < 56) y = other.y - 60;
+        anchors[id] = { x, y };
+        x = clamp(x, 70, width - 70);
+        y = clamp(y, 110, height - 90);
+        pin.style.setProperty("--pin-x", `${x.toFixed(1)}px`);
+        pin.style.setProperty("--pin-y", `${y.toFixed(1)}px`);
+        pin.dataset.side = x > width * 0.55 ? "left" : "right";
+        setLayer(pin, opacity, `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -100%) scale(${(0.85 + 0.15 * pinIn).toFixed(3)})`);
+        const live = armed && opacity > 0.002;
+        if (pin.dataset.armed !== String(live)) {
+          pin.dataset.armed = String(live);
+          pin.inert = !live;
+        }
+        const card = cardRefs.current[id];
+        // Desktop popover sits beside its character, on the side with open space, so it never covers them.
+        // The mobile stylesheet turns it into a bottom sheet instead.
+        if (card && openCardRef.current === id) {
+          const toLeft = x > width * 0.5;
+          const cardX = clamp(toLeft ? x - 96 - 296 : x + 96, 16, width - 312);
+          const cardY = clamp(y - 24, 96, height - card.offsetHeight - 40);
+          card.style.transform = `translate3d(${cardX.toFixed(1)}px, ${cardY.toFixed(1)}px, 0)`;
+        }
+      });
+
+      const tIn = easeInOutCubic(seg(p, 0.475, 0.528)) * (1 - smooth(seg(progress, 0.675, 0.705)));
+      // The same left-side scrim keeps hero copy readable where the valley reaches behind it (tablet widths).
+      const heroScrim = (1 - heroOut) * (width <= 1100 ? 0.9 : 0.45);
+      if (teacherScrimRef.current) teacherScrimRef.current.style.opacity = Math.max(tIn, heroScrim).toFixed(3);
+      setLayer(teacherRef.current, tIn, `translate3d(0, ${((1 - tIn) * 28).toFixed(2)}px, 0)`);
+      stepRefs.current.forEach((step, index) => {
+        if (!step) return;
+        const k = smooth(seg(p, 0.495 + index * 0.0165, 0.521 + index * 0.0165));
+        step.style.opacity = k.toFixed(3);
+        step.style.transform = `translate3d(${((1 - k) * 18).toFixed(2)}px, 0, 0)`;
+      });
+      if (typedRef.current) {
+        const text = LANDING_COPY.teacher.examplePrompt;
+        const count = Math.round(text.length * seg(p, 0.488, STORY.cabinHold[0]));
+        if (typedRef.current.dataset.count !== String(count)) {
+          typedRef.current.dataset.count = String(count);
+          typedRef.current.textContent = text.slice(0, count);
+        }
+      }
+
+      const sIn = smooth(seg(progress, 0.765, 0.795)) * (1 - smooth(seg(progress, 0.845, 0.875)));
+      setLayer(summitRef.current, sIn, `translate3d(0, ${((1 - sIn) * 24).toFixed(2)}px, 0)`, (1 - sIn) * 6);
+      // Farewell copy and CTA once the wide sunset shot has settled.
+      const fIn = smooth(seg(progress, STORY.farewellHold[0] - 0.008, STORY.farewellHold[0] + 0.02));
+      setLayer(farewellRef.current, fIn, `translate3d(0, ${((1 - fIn) * 24).toFixed(2)}px, 0)`, (1 - fIn) * 6);
+      if (endScrimRef.current) endScrimRef.current.style.opacity = Math.max(sIn, fIn).toFixed(3);
+      if (duskRef.current) duskRef.current.style.opacity = smooth(seg(progress, STORY.duskStart, STORY.farewellHold[0])).toFixed(3);
+
+      if (progressRef.current) progressRef.current.style.transform = `scaleX(${progress.toFixed(4)})`;
+      const solid = window.scrollY > 24 && (p > 0.09 || window.scrollY > storyTop + travel);
+      if (navRef.current && navRef.current.dataset.solid !== String(solid)) navRef.current.dataset.solid = String(solid);
+
+      if (openCardRef.current && (progress < INTERACTION_ZONE[0] || progress > INTERACTION_ZONE[1])) {
+        const active = document.activeElement;
+        const openId = openCardRef.current;
+        const focusInside = active instanceof HTMLElement && Boolean(pinRefs.current[openId]?.contains(active) || cardRefs.current[openId]?.contains(active));
+        setOpenCard(null);
+        if (focusInside) stageRef.current?.focus({ preventScroll: true });
+      }
+    };
+
+    const start = () => {
+      if (running || disposed || !inView || document.hidden) return;
+      running = true;
+      last = performance.now();
+      // Re-entering: jump straight to the current scroll position instead of easing from stale state.
+      pCam = rawProgress();
+      raf = requestAnimationFrame(frame);
+    };
+    const stop = () => {
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+
+    const onPointer = (event: PointerEvent) => {
+      pointerX = event.clientX / window.innerWidth - 0.5;
+      pointerY = event.clientY / window.innerHeight - 0.5;
+    };
+    const onLeave = () => { pointerX = 0; pointerY = 0; };
+    const onVisibility = () => (document.hidden ? stop() : start());
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      if (inView) start(); else stop();
+    });
+    const resizeObserver = new ResizeObserver(() => measure());
+
+    void (async () => {
+      try {
+        const { ValleyStage: Stage } = await import("./valley-scene");
+        if (disposed) return;
+        valley = new Stage(canvas, lowPower ? "low" : "high");
+        measure();
+        const result = await valley.load(() => {
+          measure();
+        });
+        if (disposed) return;
+        await valley.warmUp();
+        if (disposed) return;
+        // Judge speed only after loading and shader compiles, which are one-off costs.
+        window.setTimeout(() => { warm = true; }, 600);
+        setMissing(CHARACTER_IDS.filter((id) => !valley?.hasCharacter(id)));
+        if (result.missing.length) console.warn("[LumiKids landing] Thiếu mô hình:", result.missing.join(", "));
+        const debug = new URLSearchParams(window.location.search).has("debug");
+        if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
+      } catch (error) {
+        console.error(`[LumiKids landing] Không tải được thung lũng 3D: ${LANDING_ASSETS.valley}`, error);
+        if (!disposed) {
+          valley?.dispose();
+          valley = null;
+          setReady(false);
+        }
+      }
+    })();
+
+    measure();
+    observer.observe(stage);
+    resizeObserver.observe(stage);
+    resizeObserver.observe(story);
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    document.addEventListener("visibilitychange", onVisibility);
+    void document.fonts?.ready.then(measure);
+    start();
+
+    return () => {
+      disposed = true;
+      stop();
+      observer.disconnect();
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("pointermove", onPointer);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      document.removeEventListener("visibilitychange", onVisibility);
+      valley?.dispose();
+    };
+  }, []);
+
+  // Escape closes the open card (returning focus to its pin) and the mobile menu.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (openCardRef.current) closeCard(true);
+      setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [closeCard]);
+
+  const goTo = (target: NavTarget) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    setMenuOpen(false);
+    const behavior: ScrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    if (target === "games" || mode === "static") {
+      const id = target === "games" ? "tro-choi" : target === "teacher" ? "giao-vien" : "kham-pha";
+      const el = document.getElementById(id);
+      if (!el) return;
+      event.preventDefault();
+      el.scrollIntoView({ behavior });
+      return;
+    }
+    const story = storyRef.current;
+    const stage = stageRef.current;
+    if (!story || !stage) return;
+    event.preventDefault();
+    const top = story.getBoundingClientRect().top + window.scrollY;
+    const travel = story.offsetHeight - stage.offsetHeight;
+    window.scrollTo({ top: top + travel * NAV_PROGRESS[target], behavior });
+  };
+
+  const rootStyle = { "--poster": `url(${LANDING_ASSETS.poster})` } as CSSProperties;
+
+  return (
+    <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} style={rootStyle}>
+      <a className="lk-skip" href="#tro-choi">Bỏ qua phần giới thiệu</a>
+
+      <header ref={navRef} className="lk-nav" data-solid="false" data-menu={menuOpen}>
+        <a className="lk-brand" href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label="LumiKids — về đầu trang">
+          <LogoMark />
+          <span>LumiKids</span>
+        </a>
+        <nav className="lk-navLinks" aria-label="Điều hướng chính">
+          {LANDING_COPY.nav.links.map((link) => (
+            <a key={link.href} href={link.href} onClick={goTo(link.target)}>{link.label}</a>
+          ))}
+        </nav>
+        <div className="lk-navRight">
+          <Link className="lk-navLogin" href="/login">{LANDING_COPY.nav.login}</Link>
+          <a className="lk-cta" href="#tro-choi" onClick={goTo("games")}>
+            <span className="lk-ctaLong">{LANDING_COPY.nav.cta}</span>
+            <span className="lk-ctaShort">{LANDING_COPY.nav.ctaShort}</span>
+            <ArrowIcon />
+          </a>
+          <button
+            type="button"
+            className="lk-menuButton"
+            aria-expanded={menuOpen}
+            aria-controls="landing-menu"
+            aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span /><span />
+          </button>
+        </div>
+        <div id="landing-menu" className="lk-drawer" hidden={!menuOpen}>
+          {LANDING_COPY.nav.links.map((link) => (
+            <a key={link.href} href={link.href} onClick={goTo(link.target)}>{link.label}</a>
+          ))}
+          <Link href="/login" onClick={() => setMenuOpen(false)}>{LANDING_COPY.nav.login}</Link>
+        </div>
+      </header>
+
+      <main>
+        <section ref={storyRef} id="kham-pha" className="lk-story" aria-label="Hành trình vào thung lũng LumiKids">
+          <div ref={stageRef} className="lk-stage" tabIndex={-1}>
+            <div className="lk-sky" aria-hidden="true" />
+            <div ref={duskRef} className="lk-dusk" aria-hidden="true" />
+            <img className="lk-poster" src={LANDING_ASSETS.poster} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.hidden = true; }} />
+            {/* Sky haze sits behind the transparent canvas so it softens the sky only, never the scene's corners. */}
+            <div className="lk-mist" aria-hidden="true" />
+            <canvas ref={canvasRef} className="lk-canvas" aria-hidden="true" />
+            <div ref={scrimRef} className="lk-scrim" aria-hidden="true" />
+            <div ref={teacherScrimRef} className="lk-teacherScrim" aria-hidden="true" />
+            <div ref={endScrimRef} className="lk-endScrim" aria-hidden="true" />
+
+            <div ref={heroRef} className={`lk-layer lk-hero`}>
+              <p className="lk-eyebrow">{LANDING_COPY.hero.eyebrow}</p>
+              <h1 className="lk-heroTitle">
+                {LANDING_COPY.hero.titleLines.map((line, index) => (
+                  <span key={line} className="lk-heroLine">
+                    <span style={{ animationDelay: `${index * 90}ms` }}>{line}</span>
+                  </span>
+                ))}
+              </h1>
+              <p className="lk-heroSubtitle">{LANDING_COPY.hero.subtitle}</p>
+              <a className={`lk-cta lk-ctaLarge`} href="#tro-choi" onClick={goTo("games")}>
+                {LANDING_COPY.hero.cta}<ArrowIcon />
+              </a>
+            </div>
+
+            <div ref={hintRef} className={`lk-layer lk-hint`} aria-hidden="true">
+              <span className="lk-hintDot"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></span>
+              {LANDING_COPY.hero.scrollHint}
+            </div>
+
+            <div ref={guideRef} className={`lk-layer lk-guide`}>
+              <p className="lk-guideTitle">{LANDING_COPY.guide}</p>
+              <p className="lk-guideNote">{LANDING_COPY.guideNote}</p>
+            </div>
+
+            <div ref={encounterRef} className={`lk-layer lk-encounter`}>
+              <p className="lk-eyebrow">{LANDING_COPY.encounter.caption}</p>
+            </div>
+
+            {CHARACTER_IDS.map((id) => {
+              const content = HOTSPOTS[id];
+              const open = openCard === id;
+              return (
+                <Fragment key={id}>
+                  <div ref={(el) => { pinRefs.current[id] = el; }} className="lk-pin" data-open={open} data-missing={missing.includes(id)}>
+                    <button
+                      type="button"
+                      className="lk-pinButton"
+                      aria-expanded={open}
+                      aria-controls={`hotspot-${id}`}
+                      onClick={() => setOpenCard(open ? null : id)}
+                    >
+                      <span className="lk-pinDot" aria-hidden="true" />
+                      {content.pin}
+                      <svg className="lk-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                  <div ref={(el) => { cardRefs.current[id] = el; }} id={`hotspot-${id}`} className="lk-card" role="region" aria-label={content.title} hidden={!open}>
+                    <h3>{content.title}</h3>
+                    <p>{content.body}</p>
+                    <p className="lk-cardQuestion">{content.question}</p>
+                    {open ? <MiniActivity kind={content.kind} /> : null}
+                    <button type="button" className="lk-cardClose" onClick={() => closeCard(true)}>Đóng</button>
+                  </div>
+                </Fragment>
+              );
+            })}
+
+            <div ref={teacherRef} id="giao-vien" className={`lk-layer lk-teacher`}>
+              <p className="lk-eyebrow">{LANDING_COPY.teacher.eyebrow}</p>
+              <h2 className="lk-teacherTitle">{LANDING_COPY.teacher.title}</h2>
+              <p className="lk-teacherSubtitle">{LANDING_COPY.teacher.subtitle}</p>
+              <div className="lk-flowCard">
+                <p className="lk-flowLabel">{LANDING_COPY.teacher.exampleLabel}</p>
+                <p className="lk-prompt">
+                  <span className="lk-srOnly">{LANDING_COPY.teacher.examplePrompt}</span>
+                  <span ref={typedRef} aria-hidden="true" data-count="-1">{mode === "static" ? LANDING_COPY.teacher.examplePrompt : ""}</span>
+                  <span className="lk-caret" aria-hidden="true" />
+                </p>
+                <ol className="lk-steps">
+                  {LANDING_COPY.teacher.steps.map((step, index) => (
+                    <li key={step.title} ref={(el) => { stepRefs.current[index] = el; }}>
+                      <span className="lk-stepIndex">{index + 1}</span>
+                      <span><strong>{step.title}</strong><small>{step.detail}</small></span>
+                    </li>
+                  ))}
+                </ol>
+                <Link className={`lk-cta lk-ctaBlock`} href="/teacher/games/create">{LANDING_COPY.teacher.cta}<ArrowIcon /></Link>
+              </div>
+            </div>
+
+            <div ref={summitRef} className={`lk-layer lk-summit`}>
+              <p className="lk-eyebrow">{LANDING_COPY.summit.eyebrow}</p>
+              <h2 className="lk-summitTitle">{LANDING_COPY.summit.title}</h2>
+              <p className="lk-summitBody">{LANDING_COPY.summit.body}</p>
+              <ul className="lk-skills" aria-label="Kỹ năng bé rèn luyện">
+                {LANDING_COPY.summit.skills.map((skill) => <li key={skill}>{skill}</li>)}
+              </ul>
+            </div>
+
+            <div ref={farewellRef} className={`lk-layer lk-farewell`}>
+              <h2 className="lk-farewellTitle">{LANDING_COPY.farewell.title}</h2>
+              <p className="lk-farewellSubtitle">{LANDING_COPY.farewell.subtitle}</p>
+              <div className="lk-farewellActions">
+                <a className={`lk-cta lk-ctaLarge`} href="#tro-choi" onClick={goTo("games")}>{LANDING_COPY.farewell.cta}<ArrowIcon /></a>
+                <Link className="lk-ghostLink" href="/login">{LANDING_COPY.farewell.secondary}</Link>
+              </div>
+            </div>
+
+            <div className="lk-progress" aria-hidden="true"><span ref={progressRef} /></div>
+          </div>
+        </section>
+
+        <section id="tro-choi" className="lk-games" aria-labelledby="games-title">
+          <div className="lk-gamesInner">
+            <div className="lk-gamesHead">
+              <div>
+                <p className="lk-eyebrow">{LANDING_COPY.games.eyebrow}</p>
+                <h2 id="games-title" className="lk-gamesTitle">{LANDING_COPY.games.title}</h2>
+              </div>
+              <p className="lk-gamesSubtitle">{LANDING_COPY.games.subtitle}</p>
+            </div>
+            <div className="lk-cards">
+              {LANDING_COPY.games.cards.map((card) => (
+                <article key={card.id} className="lk-gameCard">
+                  <div className="lk-thumb" data-kind={card.id} aria-hidden="true">
+                    <div className="lk-thumbArt">
+                      {card.id === "shadow" ? (
+                        <>
+                          <img src={LANDING_ASSETS.gameImages.shadowMatch.subject} alt="" />
+                          <span className="lk-thumbLink" />
+                          <img src={LANDING_ASSETS.gameImages.shadowMatch.shadow} alt="" />
+                        </>
+                      ) : card.id === "count" ? (
+                        <>
+                          <div className="lk-thumbApples">{[0, 1, 2, 3].map((i) => <img key={i} src={LANDING_ASSETS.gameImages.counting.item} alt="" />)}</div>
+                          <span className="lk-thumbNumber">4</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="lk-thumbSort"><img src={LANDING_ASSETS.gameImages.classification.red} alt="" /><img src={LANDING_ASSETS.gameImages.classification.basketRed} alt="" /></div>
+                          <div className="lk-thumbSort"><img src={LANDING_ASSETS.gameImages.classification.blue} alt="" /><img src={LANDING_ASSETS.gameImages.classification.basketBlue} alt="" /></div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="lk-cardBody">
+                    <span className="lk-tag">{card.tag}</span>
+                    <h3>{card.title}</h3>
+                    <p>{card.description}</p>
+                    {/* Sign in, then land on the child game list filtered to this kind of game. */}
+                    <Link className="lk-cardLink" href={loginHref(`/child/games?type=${GAME_CARD_TYPES[card.id]}`)}>{LANDING_COPY.games.cardCta}<ArrowIcon /></Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <p className="lk-gamesNote">{LANDING_COPY.games.note}</p>
+          </div>
+
+          <footer className="lk-footer">
+            <div className="lk-footerBrand">
+              <span className="lk-brand"><LogoMark /><span>LumiKids</span></span>
+              <p>{LANDING_COPY.footer.tagline}</p>
+            </div>
+            <nav aria-label="Liên kết cuối trang" className="lk-footerLinks">
+              {LANDING_COPY.footer.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
+            </nav>
+            <p className="lk-credits">{LANDING_COPY.footer.credits} © {new Date().getFullYear()} LumiKids.</p>
+          </footer>
+        </section>
+      </main>
+    </div>
+  );
+}
