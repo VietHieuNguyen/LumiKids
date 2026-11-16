@@ -9,7 +9,6 @@ const roleLabels: Record<string, string> = {
   ROLE_ADMIN: "Quản trị viên",
   ROLE_TEACHER: "Giáo viên",
   ROLE_GUARDIAN: "Người giám hộ",
-  ROLE_CHILD: "Trẻ em",
 };
 
 export default function AccountPage() {
@@ -85,9 +84,14 @@ export default function AccountPage() {
         <p className="mt-6 text-sm leading-6 text-slate-600">
           Bạn đã truy cập được hệ thống bằng tài khoản của mình.
         </p>
-        {user.permissions.includes("PLAY_GAMES") && (
-          <Link href="/child/games" className="asset-button-primary mt-6">
-            Chơi trò chơi →
+        {user.permissions.includes("MANAGE_CLASSROOMS") && (
+          <Link href="/admin/classrooms" className="asset-button-primary mt-6">
+            Quản lý lớp học →
+          </Link>
+        )}
+        {user.permissions.includes("READ_OWN_CLASSROOMS") && (
+          <Link href="/teacher/classrooms" className="asset-button-primary mt-6">
+            Lớp của tôi →
           </Link>
         )}
         {user.permissions.includes("READ_GAMES") && (

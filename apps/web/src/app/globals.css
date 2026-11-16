@@ -832,3 +832,10 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 @media (prefers-reduced-motion: reduce) {
   .game-picture-only .matching-card-list > *, .game-picture-only > [data-feedback="complete"] { animation: none; transition: none; }
 }
+
+/* Printing a child's login card prints only the card (see features/classrooms/login-code-dialog). */
+@media print {
+  body * { visibility: hidden; }
+  .print-card, .print-card * { visibility: visible; }
+  .print-card { position: fixed; top: 0; left: 0; width: 9cm; }
+}

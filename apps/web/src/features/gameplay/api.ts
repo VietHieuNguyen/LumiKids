@@ -30,8 +30,6 @@ const messages: Record<number, string> = {
   429: "Có quá nhiều yêu cầu. Đợi một chút nhé.",
 };
 const codeMessages: Record<string, string> = {
-  CHILD_PROFILE_MISSING:
-    "Tài khoản này chưa có hồ sơ trẻ nên chưa chơi được. Nhờ người lớn liên hệ giáo viên nhé.",
   PLAY_SESSION_CLOSED: "Lượt chơi đã kết thúc. Con bấm Thử lại để chơi lượt mới nhé.",
 };
 

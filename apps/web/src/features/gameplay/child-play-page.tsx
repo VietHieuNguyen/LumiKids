@@ -23,7 +23,7 @@ export function ChildPlayPage({ versionId }: { versionId: string }) {
     return <main className="p-8">Tài khoản này chưa được phép chơi.</main>;
   return (
     <PlayContent
-      key={`${session.user.userId}:${versionId}`}
+      key={`${session.child.childId}:${versionId}`}
       api={api}
       versionId={versionId}
     />

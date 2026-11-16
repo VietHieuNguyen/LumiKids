@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { gameTypeSchema } from "@lumikids/shared";
 import type { GameType, PlayableGame } from "@lumikids/shared";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
@@ -22,7 +22,7 @@ function ChildGames() {
   // `?type=` comes from the landing page game cards; invalid values fall back to every game.
   const parsedType = gameTypeSchema.safeParse(useSearchParams().get("type"));
   const gameType = parsedType.success ? parsedType.data : null;
-  const { session, loading, api, canPlay } = useGameplaySession();
+  const { session, loading, api, canPlay, logout } = useGameplaySession();
   if (loading || !session || !api)
     return (
       <main className="p-8" role="status">
@@ -33,13 +33,31 @@ function ChildGames() {
     return (
       <main className="p-8">
         <p>Tài khoản này chưa được phép chơi.</p>
-        <Link className="asset-button-secondary mt-4" href="/account">← Về tài khoản</Link>
       </main>
     );
-  return <GameList key={`${session.user.userId}:${gameType ?? "ALL"}`} api={api} gameType={gameType} />;
+  return <GameList key={`${session.child.childId}:${gameType ?? "ALL"}`} api={api} gameType={gameType} childName={session.child.fullName} logout={logout} />;
 }
 
-function GameList({ api, gameType }: { api: GameplayApi; gameType: GameType | null }) {
+function SignOutButton({ logout }: { logout: () => Promise<void> }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      className="asset-button-secondary"
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        // Leave even if the server is unreachable: the next child must not inherit this session.
+        logout().catch(() => {}).finally(() => router.replace("/login?mode=child"));
+      }}
+    >
+      {busy ? "Đang thoát…" : "Thoát"}
+    </button>
+  );
+}
+
+function GameList({ api, gameType, childName, logout }: { api: GameplayApi; gameType: GameType | null; childName: string; logout: () => Promise<void> }) {
   const [items, setItems] = useState<PlayableGame[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -91,7 +109,7 @@ function GameList({ api, gameType }: { api: GameplayApi; gameType: GameType | nu
       <div className="mx-auto max-w-5xl">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Cùng chơi nào!</h1>
+            <h1 className="text-2xl font-bold">Cùng chơi nào, {childName}!</h1>
             {gameType && (
               <p className="mt-1 text-sm text-slate-600">
                 Trò {gameTypeLabels[gameType]} ·{" "}
@@ -99,9 +117,7 @@ function GameList({ api, gameType }: { api: GameplayApi; gameType: GameType | nu
               </p>
             )}
           </div>
-          <Link className="asset-button-secondary" href="/account">
-            ← Tài khoản
-          </Link>
+          <SignOutButton logout={logout} />
         </header>
         {error && (
           <div role="alert" className="asset-error mb-4">

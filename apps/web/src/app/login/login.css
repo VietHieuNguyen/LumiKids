@@ -91,6 +91,25 @@
 }
 .lg-reveal:hover { background: rgba(47, 138, 77, 0.08); }
 
+/* Who is signing in: an adult account or a child with a code. */
+.lg-modes {
+  margin-top: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+  border: 1.5px solid var(--line); border-radius: 16px; background: #fff;
+}
+.lg-mode {
+  min-height: 44px; border: 0; border-radius: 12px; background: transparent;
+  font: inherit; font-size: 15px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.lg-mode:hover:not(:disabled) { background: rgba(47, 138, 77, 0.08); }
+.lg-mode[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.lg-mode:disabled { cursor: wait; }
+.lg-codeInput {
+  min-height: 72px; text-align: center; text-transform: uppercase;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.14em;
+}
+.lg-codeInput::placeholder { color: #c6d1cb; letter-spacing: 0.14em; }
+.lg-hint { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
+
 .lg-error {
   padding: 10px 14px; border-radius: 12px;
   background: #fff1ee; border: 1px solid #f6c3b8; color: #a3321d;
