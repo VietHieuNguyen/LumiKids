@@ -11,6 +11,7 @@ import { ApiProblem } from '../../../common/http/api-problem.js';
 import { buildAbility } from '../../../common/security/ability.js';
 import type { ChildPrincipal } from '../../../common/security/principal.js';
 import type { PermissionCode } from '../../../generated/prisma/enums.js';
+import { AssignmentsService } from '../../learning-content/assignments.service.js';
 import { PlayableGameService } from '../../learning-content/playable-game.service.js';
 import {
   GameplayRuleError,
@@ -38,7 +39,16 @@ export class GameplayService {
   constructor(
     private readonly sessions: PlaySessionRepository,
     private readonly games: PlayableGameService,
+    private readonly assignments: AssignmentsService,
   ) {}
+
+  /** What the child has been given to play, open assignments first. */
+  listAssignments(child: ChildPrincipal) {
+    return this.assignments.forChild(child);
+  }
+  requestReplay(child: ChildPrincipal, assignmentId: string) {
+    return this.assignments.requestReplay(child, assignmentId);
+  }
 
   listGames(child: ChildPrincipal, query: PlayableGameQuery) {
     return this.games.list(child, query);

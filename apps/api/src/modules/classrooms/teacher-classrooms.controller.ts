@@ -1,6 +1,10 @@
 import {
   BadRequestException,
+  Body,
   Controller,
+  Delete,
+  HttpCode,
+  Patch,
   Get,
   Header,
   Param,
@@ -8,7 +12,11 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { playHistoryQuerySchema } from '@lumikids/shared';
+import {
+  createClassGroupSchema,
+  playHistoryQuerySchema,
+  updateClassGroupSchema,
+} from '@lumikids/shared';
 import {
   CurrentUser,
   Permissions,
@@ -57,6 +65,49 @@ export class TeacherClassroomsController {
       childId,
       parsed.data,
     );
+  }
+  @Get(':classId/groups')
+  groups(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+  ) {
+    return this.classrooms.listGroups(teacher, classId);
+  }
+  @Post(':classId/groups')
+  @Permissions('READ_OWN_CLASSROOMS', 'ASSIGN_ACTIVITIES')
+  createGroup(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Body() value: unknown,
+  ) {
+    const parsed = createClassGroupSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException('Kiểm tra tên nhóm và danh sách trẻ.');
+    return this.classrooms.createGroup(teacher, classId, parsed.data);
+  }
+  @Patch(':classId/groups/:groupId')
+  @Permissions('READ_OWN_CLASSROOMS', 'ASSIGN_ACTIVITIES')
+  updateGroup(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() value: unknown,
+  ) {
+    const parsed = updateClassGroupSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException('Kiểm tra tên nhóm và danh sách trẻ.');
+    return this.classrooms.updateGroup(teacher, classId, groupId, parsed.data);
+  }
+  @Delete(':classId/groups/:groupId')
+  @Permissions('READ_OWN_CLASSROOMS', 'ASSIGN_ACTIVITIES')
+  @HttpCode(200)
+  async deleteGroup(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ) {
+    await this.classrooms.deleteGroup(teacher, classId, groupId);
+    return null;
   }
   /** The new code is in this response only; never cached. */
   @Post(':classId/children/:childId/login-code')

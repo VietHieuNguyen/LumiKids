@@ -58,6 +58,7 @@ const grants: Record<RoleCode, PermissionCode[]> = {
     'SAVE_GAMES',
     'READ_OWN_CLASSROOMS',
     'RESET_CHILD_LOGIN_CODES',
+    'ASSIGN_ACTIVITIES',
   ],
   ROLE_GUARDIAN: ['READ_OWN_ACCOUNT'],
   ROLE_CHILD: [...childPermissions],

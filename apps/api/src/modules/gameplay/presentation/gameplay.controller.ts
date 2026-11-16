@@ -30,6 +30,25 @@ import { GameplayService } from '../application/gameplay.service.js';
 export class GameplayController {
   constructor(private readonly gameplay: GameplayService) {}
 
+  @Get('assignments')
+  @Permissions('PLAY_GAMES')
+  assignments(@CurrentChild() child: ChildPrincipal) {
+    return this.gameplay.listAssignments(child);
+  }
+
+  /** After the deadline the child asks the teacher to play again; idempotent while pending. */
+  @Post('assignments/:assignmentId/replay-requests')
+  @Permissions('PLAY_GAMES')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  requestReplay(
+    @CurrentChild() child: ChildPrincipal,
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+  ) {
+    return this.gameplay.requestReplay(child, assignmentId);
+  }
+
   @Get('games')
   @Permissions('PLAY_GAMES')
   list(@CurrentChild() child: ChildPrincipal, @Query() value: unknown) {

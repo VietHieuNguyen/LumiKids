@@ -138,8 +138,9 @@ export class GameLibraryRepository {
       select: { versionId: true, content: true },
     });
   }
-  async listPlayable(query: PlayableGameQuery) {
+  async listPlayable(query: PlayableGameQuery, versionIds: readonly string[]) {
     const where: Prisma.ActivityVersionWhereInput = {
+      versionId: { in: [...versionIds] },
       gameType: query.gameType,
       activity: { status: 'ACTIVE' },
     };

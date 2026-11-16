@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AgeGroup,
+  ClassGroup,
+  CreateClassGroupInput,
+  UpdateClassGroupInput,
   ClassroomChild,
   ClassroomChildDetail,
   ClassroomDetail,
@@ -316,9 +319,111 @@ export class ClassroomsService {
   // ---------- Teacher ----------
 
   /** A teacher sees only classes they belong to; anything else is reported as missing. */
-  private async requireTeacherOf(teacher: Principal, classId: string) {
+  async requireTeacherOf(teacher: Principal, classId: string): Promise<void> {
     if (!(await this.repository.isClassTeacher(classId, teacher.userId)))
       throw new NotFoundException(NOT_FOUND);
+  }
+  /** Membership plus an ACTIVE class: required for anything that changes a class (groups, assignments). */
+  async requireTeacherOfActive(teacher: Principal, classId: string) {
+    await this.requireTeacherOf(teacher, classId);
+    const row = await this.repository.findClassroom(classId);
+    if (!row) throw new NotFoundException(NOT_FOUND);
+    if (row.status !== 'ACTIVE') throw new ApiProblem('CLASSROOM_ARCHIVED');
+    return { classId: row.classId, className: row.className };
+  }
+
+  // ---------- For the assignments module ----------
+
+  currentChildren(classId: string) {
+    return this.repository.currentChildren(classId);
+  }
+  async currentClassId(childId: string): Promise<string | null> {
+    return (
+      (await this.repository.findCurrentEnrollment(childId))?.classId ?? null
+    );
+  }
+  async childNames(childIds: readonly string[]): Promise<Map<string, string>> {
+    const rows = await this.repository.childNames(childIds);
+    return new Map(rows.map((row) => [row.childId, row.fullName]));
+  }
+  /** A group of this class, with its current members only. */
+  async group(classId: string, groupId: string): Promise<ClassGroup> {
+    const row = await this.repository.findGroup(classId, groupId);
+    if (!row) throw new NotFoundException('Không tìm thấy nhóm.');
+    return {
+      groupId: row.groupId,
+      name: row.name,
+      childIds: row.members.map((m) => m.childId),
+    };
+  }
+
+  // ---------- Teacher: groups ----------
+
+  async listGroups(teacher: Principal, classId: string): Promise<ClassGroup[]> {
+    await this.requireTeacherOf(teacher, classId);
+    return (await this.repository.listGroups(classId)).map((row) => ({
+      groupId: row.groupId,
+      name: row.name,
+      childIds: row.members.map((m) => m.childId),
+    }));
+  }
+  private async requireCurrentChildren(
+    classId: string,
+    childIds: readonly string[],
+  ) {
+    const current = new Set(
+      (await this.repository.currentChildren(classId)).map((c) => c.childId),
+    );
+    if (childIds.some((id) => !current.has(id)))
+      throw new ApiProblem('GROUP_MEMBERS_INVALID');
+  }
+  async createGroup(
+    teacher: Principal,
+    classId: string,
+    input: CreateClassGroupInput,
+  ): Promise<ClassGroup> {
+    await this.requireTeacherOfActive(teacher, classId);
+    await this.requireCurrentChildren(classId, input.childIds);
+    try {
+      const { groupId } = await this.repository.createGroup(
+        classId,
+        input.name,
+        input.childIds,
+        teacher.userId,
+      );
+      return this.group(classId, groupId);
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ApiProblem('GROUP_NAME_TAKEN');
+      throw error;
+    }
+  }
+  async updateGroup(
+    teacher: Principal,
+    classId: string,
+    groupId: string,
+    input: UpdateClassGroupInput,
+  ): Promise<ClassGroup> {
+    await this.requireTeacherOfActive(teacher, classId);
+    await this.group(classId, groupId);
+    if (input.childIds)
+      await this.requireCurrentChildren(classId, input.childIds);
+    try {
+      await this.repository.updateGroup(groupId, input);
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ApiProblem('GROUP_NAME_TAKEN');
+      throw error;
+    }
+    return this.group(classId, groupId);
+  }
+  /** Deleting a group never touches assignments already given to it (their recipients are a snapshot). */
+  async deleteGroup(
+    teacher: Principal,
+    classId: string,
+    groupId: string,
+  ): Promise<void> {
+    await this.requireTeacherOfActive(teacher, classId);
+    await this.group(classId, groupId);
+    await this.repository.deleteGroup(groupId);
   }
   async teacherClassrooms(teacher: Principal): Promise<ClassroomSummary[]> {
     return (

@@ -72,12 +72,10 @@ describe('Saved game library (offline)', () => {
       find: vi.fn().mockResolvedValue(structuredClone(row)),
       findRequest: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ versions: [{ versionId }] }),
-      list: vi
-        .fn()
-        .mockResolvedValue({
-          items: [structuredClone(row)],
-          pagination: { page: 1, pageSize: 12, total: 1, totalPages: 1 },
-        }),
+      list: vi.fn().mockResolvedValue({
+        items: [structuredClone(row)],
+        pagination: { page: 1, pageSize: 12, total: 1, totalPages: 1 },
+      }),
       setStatus: vi.fn(),
     };
     const curriculum = {
@@ -141,12 +139,10 @@ describe('Saved game library (offline)', () => {
   it('resolves a concurrent duplicate only if its content fingerprint is identical', async () => {
     const { service, repository } = fixture();
     repository.create.mockRejectedValue({ code: 'P2002' });
-    repository.findRequest
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        saveFingerprint: fingerprint(),
-        versions: [{ versionId }],
-      });
+    repository.findRequest.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      saveFingerprint: fingerprint(),
+      versions: [{ versionId }],
+    });
     await expect(service.save(user, input)).resolves.toMatchObject({
       versionId,
     });

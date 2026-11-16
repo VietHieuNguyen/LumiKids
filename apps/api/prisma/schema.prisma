@@ -37,6 +37,7 @@ enum PermissionCode {
   MANAGE_CLASSROOMS
   READ_OWN_CLASSROOMS
   RESET_CHILD_LOGIN_CODES
+  ASSIGN_ACTIVITIES
 }
 
 enum GameAssetStatus {
@@ -45,20 +46,23 @@ enum GameAssetStatus {
 }
 
 model User {
-  userId       String        @id @default(uuid()) @db.Uuid
-  fullName     String
-  email        String        @unique
-  phone        String
-  address      String
-  passwordHash String
-  status       AccountStatus @default(DISABLED)
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
-  roles        UserRole[]
-  authSessions AuthSession[]
-  gameAssets   GameAsset[]
-  activities   Activity[]
-  classrooms   ClassroomTeacher[]
+  userId          String               @id @default(uuid()) @db.Uuid
+  fullName        String
+  email           String               @unique
+  phone           String
+  address         String
+  passwordHash    String
+  status          AccountStatus        @default(DISABLED)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
+  roles           UserRole[]
+  authSessions    AuthSession[]
+  gameAssets      GameAsset[]
+  activities      Activity[]
+  classrooms      ClassroomTeacher[]
+  classGroups     ClassGroup[]
+  assignments     ActivityAssignment[]
+  replayDecisions ReplayRequest[]
 }
 
 enum Gender {
@@ -86,6 +90,8 @@ model Child {
   playSessions      PlaySession[]
   enrollments       ClassroomEnrollment[]
   authSessions      ChildAuthSession[]
+  groupMemberships  ClassGroupMember[]
+  assignments       ActivityRecipient[]
 }
 
 model SchoolYear {
@@ -123,6 +129,8 @@ model Classroom {
   updatedAt    DateTime              @updatedAt @db.Timestamptz(3)
   teachers     ClassroomTeacher[]
   enrollments  ClassroomEnrollment[]
+  groups       ClassGroup[]
+  assignments  ActivityAssignment[]
 
   @@unique([schoolYearId, className])
   @@index([status])
@@ -279,6 +287,7 @@ model ActivityVersion {
   createdAt      DateTime                   @default(now()) @db.Timestamptz(3)
   criterions     ActivityVersionCriterion[]
   playSessions   PlaySession[]
+  assignments    ActivityAssignmentItem[]
 
   @@unique([activityId, versionNumber])
   @@index([gameType, difficulty])
@@ -399,4 +408,115 @@ model RefreshToken {
 
   @@index([sessionId])
   @@index([expiresAt])
+}
+
+enum AssignmentTargetType {
+  CLASS
+  GROUP
+  CHILDREN
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum ReplayRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A fixed group of children inside one class, made by its teachers (e.g. from results) to assign games to.
+model ClassGroup {
+  groupId   String             @id @default(uuid()) @db.Uuid
+  classId   String             @db.Uuid
+  classroom Classroom          @relation(fields: [classId], references: [classId], onDelete: Cascade)
+  name      String             @db.VarChar(100)
+  createdBy String             @db.Uuid
+  creator   User               @relation(fields: [createdBy], references: [userId], onDelete: Restrict)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+  members   ClassGroupMember[]
+
+  @@unique([classId, name])
+}
+
+model ClassGroupMember {
+  groupId String     @db.Uuid
+  group   ClassGroup @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  childId String     @db.Uuid
+  child   Child      @relation(fields: [childId], references: [childId], onDelete: Cascade)
+  addedAt DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@id([groupId, childId])
+  @@index([childId])
+}
+
+/// A teacher hands a class (or a group, or picked children) a set of game versions to play.
+model ActivityAssignment {
+  assignmentId String                   @id @default(uuid()) @db.Uuid
+  classId      String                   @db.Uuid
+  classroom    Classroom                @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  title        String                   @db.VarChar(200)
+  note         String                   @default("") @db.VarChar(1000)
+  createdBy    String                   @db.Uuid
+  creator      User                     @relation(fields: [createdBy], references: [userId], onDelete: Restrict)
+  /// Children see the assignment from this instant.
+  opensAt      DateTime                 @db.Timestamptz(3)
+  /// Optional deadline; after it only children with an extension may still start a game.
+  dueAt        DateTime?                @db.Timestamptz(3)
+  targetType   AssignmentTargetType
+  /// Name of the group or "N trẻ" at assignment time; recipients are a snapshot.
+  targetLabel  String                   @db.VarChar(120)
+  status       AssignmentStatus         @default(ACTIVE)
+  createdAt    DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime                 @updatedAt @db.Timestamptz(3)
+  items        ActivityAssignmentItem[]
+  recipients   ActivityRecipient[]
+
+  @@index([classId, opensAt])
+}
+
+model ActivityAssignmentItem {
+  assignmentId String             @db.Uuid
+  assignment   ActivityAssignment @relation(fields: [assignmentId], references: [assignmentId], onDelete: Cascade)
+  versionId    String             @db.Uuid
+  version      ActivityVersion    @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  position     Int
+
+  @@id([assignmentId, versionId])
+  @@unique([assignmentId, position])
+  @@index([versionId])
+}
+
+/// One child receiving an assignment. Completion is derived from COMPLETED play sessions, never stored.
+model ActivityRecipient {
+  recipientId    String             @id @default(uuid()) @db.Uuid
+  assignmentId   String             @db.Uuid
+  assignment     ActivityAssignment @relation(fields: [assignmentId], references: [assignmentId], onDelete: Cascade)
+  childId        String             @db.Uuid
+  child          Child              @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  /// Set by an approved replay request or a teacher extension: the child may play until then.
+  extendedUntil  DateTime?          @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  replayRequests ReplayRequest[]
+
+  @@unique([assignmentId, childId])
+  @@index([childId])
+}
+
+/// A child asks to play an assignment again after its deadline; a teacher approves (new deadline) or rejects.
+model ReplayRequest {
+  requestId    String              @id @default(uuid()) @db.Uuid
+  recipientId  String              @db.Uuid
+  recipient    ActivityRecipient   @relation(fields: [recipientId], references: [recipientId], onDelete: Cascade)
+  status       ReplayRequestStatus @default(PENDING)
+  requestedAt  DateTime            @default(now()) @db.Timestamptz(3)
+  decidedAt    DateTime?           @db.Timestamptz(3)
+  decidedBy    String?             @db.Uuid
+  decider      User?               @relation(fields: [decidedBy], references: [userId], onDelete: Restrict)
+  grantedUntil DateTime?           @db.Timestamptz(3)
+
+  @@index([recipientId, status])
 }

@@ -61,6 +61,7 @@ export function buildAbility(actor: AbilityActor): AppAbility {
         break;
       case 'READ_OWN_CLASSROOMS':
       case 'RESET_CHILD_LOGIN_CODES':
+      case 'ASSIGN_ACTIVITIES':
         // Which classes a teacher may see is checked against ClassroomTeacher by the classrooms service.
         rules.push({ action: permission, subject: 'Classroom' });
         break;
@@ -95,6 +96,7 @@ export function permissionSubject(
       return 'ClassroomAdministration';
     case 'READ_OWN_CLASSROOMS':
     case 'RESET_CHILD_LOGIN_CODES':
+    case 'ASSIGN_ACTIVITIES':
       return 'Classroom';
     default:
       return undefined;

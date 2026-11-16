@@ -8,6 +8,7 @@ import {
 import type { GameInteraction } from '@lumikids/shared';
 import { ApiProblem } from '../../../common/http/api-problem.js';
 import type { ChildPrincipal } from '../../../common/security/principal.js';
+import type { AssignmentsService } from '../../learning-content/assignments.service.js';
 import type { PlayableGameService } from '../../learning-content/playable-game.service.js';
 import { GameplayService } from './gameplay.service.js';
 import { PlaySessionRepository } from './play-session.repository.js';
@@ -132,7 +133,11 @@ function setup() {
   } as unknown as PlayableGameService;
   const register = () => child(randomUUID());
   return {
-    service: new GameplayService(repository, games),
+    service: new GameplayService(
+      repository,
+      games,
+      {} as unknown as AssignmentsService,
+    ),
     repository,
     versionId,
     register,

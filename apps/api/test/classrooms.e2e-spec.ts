@@ -8,6 +8,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/modules/users/users.service.js';
 import { ChildAuthService } from '../src/modules/auth/child-auth.service.js';
 import { ClassroomsService } from '../src/modules/classrooms/classrooms.service.js';
+import { AssignmentsService } from '../src/modules/learning-content/assignments.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
   stubStorageEnvironment,
@@ -54,6 +55,13 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     ),
   };
 
+  const assignments = {
+    list: vi.fn(() => Promise.resolve([])),
+    create: vi.fn(() => Promise.resolve({})),
+    forChild: vi.fn(() => Promise.resolve([])),
+    playableVersionIds: vi.fn(() => Promise.resolve(new Set())),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     stubStorageEnvironment();
@@ -73,6 +81,8 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
       .useValue({ requireActiveChild: () => Promise.resolve(child) })
       .overrideProvider(ClassroomsService)
       .useValue(classrooms)
+      .overrideProvider(AssignmentsService)
+      .useValue(assignments)
       .compile();
     app = module.createNestApplication();
     configureHttp(app);
@@ -164,5 +174,61 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
       .auth(await token(), { type: 'bearer' })
       .expect(403);
     expect(classrooms.issueLoginCode).not.toHaveBeenCalled();
+  });
+
+  it('needs ASSIGN_ACTIVITIES to assign, READ_OWN_CLASSROOMS to look', async () => {
+    const classId = randomUUID();
+    const path = `/api/v1/teacher/classrooms/${classId}/assignments`;
+    actor = { ...teacher, permissions: ['READ_OWN_CLASSROOMS'] };
+    await request(app.getHttpServer())
+      .get(path)
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(path)
+      .auth(await token(), { type: 'bearer' })
+      .send({
+        title: 'A',
+        versionIds: [randomUUID()],
+        target: { type: 'CLASS' },
+      })
+      .expect(403);
+    expect(assignments.create).not.toHaveBeenCalled();
+    actor = {
+      ...teacher,
+      permissions: ['READ_OWN_CLASSROOMS', 'ASSIGN_ACTIVITIES'],
+    };
+    await request(app.getHttpServer())
+      .post(path)
+      .auth(await token(), { type: 'bearer' })
+      .send({ title: 'A', versionIds: [], target: { type: 'CLASS' } })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(path)
+      .auth(await token(), { type: 'bearer' })
+      .send({
+        title: 'A',
+        versionIds: [randomUUID()],
+        target: { type: 'CLASS' },
+      })
+      .expect(201);
+  });
+
+  it('serves the child their assignments, and only to a child token', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/gameplay/assignments')
+      .auth(await token(), { type: 'bearer' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/gameplay/assignments')
+      .auth(await token('child'), { type: 'bearer' })
+      .expect(200);
+    expect(assignments.forChild).toHaveBeenCalledWith(
+      expect.objectContaining({ childId: child.childId }),
+    );
+    await request(app.getHttpServer())
+      .get(`/api/v1/teacher/classrooms/${randomUUID()}/assignments`)
+      .auth(await token('child'), { type: 'bearer' })
+      .expect(403);
   });
 });

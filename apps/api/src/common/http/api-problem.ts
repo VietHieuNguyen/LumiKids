@@ -122,6 +122,29 @@ const problems = {
   CHILD_ALREADY_IN_CLASS: [409, 'Trẻ đang học lớp này.'],
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
+  ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
+  PASSWORD_CURRENT_INVALID: [422, 'Mật khẩu hiện tại không đúng.'],
+  GROUP_NAME_TAKEN: [409, 'Lớp đã có nhóm trùng tên.'],
+  GROUP_MEMBERS_INVALID: [
+    422,
+    'Có trẻ không còn học lớp này. Hãy tải lại danh sách.',
+  ],
+  ASSIGNMENT_GAMES_INVALID: [
+    422,
+    'Có trò chơi không còn trong kho hoặc đã lưu trữ. Hãy chọn lại trò.',
+  ],
+  ASSIGNMENT_NO_RECIPIENTS: [422, 'Chưa có trẻ nào nhận bài này.'],
+  ASSIGNMENT_RECIPIENTS_INVALID: [
+    422,
+    'Có trẻ không còn học lớp này. Hãy tải lại danh sách.',
+  ],
+  ASSIGNMENT_PERIOD_INVALID: [
+    422,
+    'Hạn phải sau ngày mở bài và sau thời điểm hiện tại.',
+  ],
+  ASSIGNMENT_CANCELLED: [409, 'Bài giao đã bị hủy.'],
+  REPLAY_NOT_NEEDED: [409, 'Bài vẫn đang mở, con vào chơi luôn nhé.'],
+  REPLAY_ALREADY_DECIDED: [409, 'Yêu cầu chơi lại đã được xử lý.'],
   ENROLLMENT_CHANGED: [
     409,
     'Lớp của trẻ vừa được thay đổi. Hãy tải lại rồi thử lại.',

@@ -248,6 +248,98 @@ export class ClassroomsRepository {
     });
   }
 
+  // ---------- For other modules (assignments) ----------
+
+  /** Children currently enrolled in the class. */
+  async currentChildren(classId: string) {
+    const rows = await this.prisma.classroomEnrollment.findMany({
+      where: { classId, endedAt: null },
+      orderBy: { child: { fullName: 'asc' } },
+      select: {
+        child: { select: { childId: true, fullName: true, status: true } },
+      },
+    });
+    return rows.map((row) => row.child);
+  }
+  childNames(childIds: readonly string[]) {
+    return this.prisma.child.findMany({
+      where: { childId: { in: [...childIds] } },
+      select: { childId: true, fullName: true },
+    });
+  }
+
+  // ---------- Groups ----------
+
+  listGroups(classId: string) {
+    return this.prisma.classGroup.findMany({
+      where: { classId },
+      orderBy: { name: 'asc' },
+      select: {
+        groupId: true,
+        name: true,
+        members: {
+          where: {
+            child: { enrollments: { some: { classId, endedAt: null } } },
+          },
+          select: { childId: true },
+        },
+      },
+    });
+  }
+  findGroup(classId: string, groupId: string) {
+    return this.prisma.classGroup.findFirst({
+      where: { classId, groupId },
+      select: {
+        groupId: true,
+        name: true,
+        members: {
+          where: {
+            child: { enrollments: { some: { classId, endedAt: null } } },
+          },
+          select: { childId: true },
+        },
+      },
+    });
+  }
+  createGroup(
+    classId: string,
+    name: string,
+    childIds: readonly string[],
+    createdBy: string,
+  ) {
+    return this.prisma.classGroup.create({
+      data: {
+        classId,
+        name,
+        createdBy,
+        members: { create: childIds.map((childId) => ({ childId })) },
+      },
+      select: { groupId: true },
+    });
+  }
+  /** Renames and/or replaces the member list in one transaction. */
+  async updateGroup(
+    groupId: string,
+    data: { name?: string; childIds?: readonly string[] },
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      if (data.name !== undefined)
+        await tx.classGroup.update({
+          where: { groupId },
+          data: { name: data.name },
+        });
+      if (data.childIds) {
+        await tx.classGroupMember.deleteMany({ where: { groupId } });
+        await tx.classGroupMember.createMany({
+          data: data.childIds.map((childId) => ({ groupId, childId })),
+        });
+      }
+    });
+  }
+  async deleteGroup(groupId: string): Promise<void> {
+    await this.prisma.classGroup.delete({ where: { groupId } });
+  }
+
   // ---------- Play history ----------
 
   async listPlaySessions(
