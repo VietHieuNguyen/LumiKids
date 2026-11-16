@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -19,6 +20,8 @@ import type { Principal } from '../../common/security/principal.js';
 import { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { changeOwnPasswordSchema } from '@lumikids/shared';
+import { TeacherAccountsService } from './teacher-accounts.service.js';
 import {
   CurrentUser,
   Permissions,
@@ -33,6 +36,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly users: UsersService,
+    private readonly accounts: TeacherAccountsService,
     @Inject(authConfig.KEY)
     private readonly config: ConfigType<typeof authConfig>,
   ) {}
@@ -108,6 +112,27 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.auth.logout(this.refreshCookie(request));
+    response.clearCookie(this.config.cookieName, this.cookieOptions());
+    response.setHeader('Cache-Control', 'no-store');
+    return null;
+  }
+
+  /** Change one's own password; every session of the account ends, so the client signs in again. */
+  @Post('password')
+  @HttpCode(200)
+  @UseGuards(BrowserRequestGuard)
+  @Permissions('READ_OWN_ACCOUNT')
+  async changePassword(
+    @CurrentUser() user: Principal,
+    @Body() value: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const parsed = changeOwnPasswordSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException(
+        'Mật khẩu mới cần 10–128 kí tự và khác mật khẩu cũ.',
+      );
+    await this.accounts.changeOwnPassword(user, parsed.data);
     response.clearCookie(this.config.cookieName, this.cookieOptions());
     response.setHeader('Cache-Control', 'no-store');
     return null;

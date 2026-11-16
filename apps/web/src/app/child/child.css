@@ -1,0 +1,198 @@
+/*
+ * Children's screens: the LumiKids valley at child scale. Big, round, high-contrast targets (>= 64px),
+ * one idea per card, colour + icon + word for every state (never colour alone), gentle motion only.
+ */
+.ck {
+  --ink: #183829;
+  --ink-soft: #4e675b;
+  --paper: #fffdf7;
+  --cream: #faf8ef;
+  --line: rgba(24, 56, 41, 0.12);
+  --sun: #ffcd4f;
+  --sun-hover: #ffc02e;
+  --sun-edge: #e8a91d;
+  --leaf: #2f8a4d;
+  --display: var(--font-lumi-display), "Baloo 2", var(--font-lumi), system-ui, sans-serif;
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  overflow-x: clip;
+  color: var(--ink);
+  font-family: var(--font-lumi), "Be Vietnam Pro", system-ui, sans-serif;
+  background: linear-gradient(180deg, #d6eef6 0%, #e9f6f1 38%, #faf8ef 72%);
+}
+
+/* ---------- Valley backdrop (decorative, behind everything) ---------- */
+.ck-sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.ck-sun {
+  position: absolute; top: -70px; right: -50px; width: 240px; height: 240px; border-radius: 50%;
+  background: radial-gradient(circle, #ffe7a3 0%, #ffd66b 55%, rgba(255, 214, 107, 0) 72%);
+  opacity: 0.85;
+}
+.ck-cloud {
+  position: absolute; height: 34px; border-radius: 999px; background: #fff; opacity: 0.85;
+  box-shadow: 26px -14px 0 4px #fff, 58px 0 0 -2px #fff;
+  animation: ck-drift 46s linear infinite;
+}
+.ck-cloud:nth-child(2) { top: 92px; left: -160px; width: 90px; }
+.ck-cloud:nth-child(3) { top: 190px; left: -320px; width: 70px; opacity: 0.6; animation-duration: 62s; animation-delay: -20s; }
+@keyframes ck-drift { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 420px)); } }
+.ck-hills { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: min(34vh, 260px); }
+
+/* ---------- Top bar ---------- */
+.ck-top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px max(16px, env(safe-area-inset-left)) 12px max(16px, env(safe-area-inset-right));
+  background: rgba(255, 253, 247, 0.72); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.ck-brand { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 21px; font-weight: 800; }
+.ck-me { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ck-avatar {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+  background: var(--sun); box-shadow: inset 0 -3px 0 var(--sun-edge);
+  font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--ink);
+}
+.ck-meName { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
+.ck-exit {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border: 1.5px solid var(--line); border-radius: 14px; background: #fff;
+  font: inherit; font-size: 15px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.ck-exit:hover:not(:disabled) { border-color: rgba(24, 56, 41, 0.3); color: var(--ink); }
+
+/* ---------- Layout ---------- */
+.ck-main { width: 100%; max-width: 1080px; margin: 0 auto; padding: 28px 16px 140px; }
+.ck-hello { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ck-helloTitle { font-family: var(--display); font-size: clamp(34px, 7vw, 52px); font-weight: 800; line-height: 1.02; }
+.ck-helloLead { margin-top: 6px; font-size: 18px; color: var(--ink-soft); }
+.ck-section { margin-top: 34px; }
+.ck-sectionTitle { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 26px; font-weight: 800; }
+.ck-stack { margin-top: 14px; display: grid; gap: 22px; }
+
+/* Read-aloud button: a speaker anyone can tap. */
+.ck-say {
+  flex: none; display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  border: 0; background: #fff; color: var(--leaf); cursor: pointer;
+  box-shadow: 0 0 0 1.5px var(--line), 0 4px 10px -4px rgba(24, 56, 41, 0.25);
+}
+.ck-say:hover { background: #f0faf3; }
+.ck-say:active { transform: scale(0.94); }
+
+/* ---------- Assignment card ---------- */
+.ck-card {
+  position: relative; border-radius: 30px; background: var(--paper); padding: 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 0 rgba(24, 56, 41, 0.05), 0 22px 40px -26px rgba(24, 56, 41, 0.45);
+  animation: ck-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ck-card:nth-child(2) { animation-delay: 60ms; }
+.ck-card:nth-child(3) { animation-delay: 120ms; }
+@keyframes ck-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.ck-cardHead { display: flex; align-items: flex-start; gap: 12px; }
+.ck-cardTitle { font-family: var(--display); font-size: clamp(24px, 4.5vw, 30px); font-weight: 800; line-height: 1.12; overflow-wrap: anywhere; }
+.ck-cardNote { margin-top: 4px; font-size: 16px; line-height: 1.5; color: var(--ink-soft); overflow-wrap: anywhere; }
+.ck-meta { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ck-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 999px;
+  background: #eef6f0; color: var(--leaf); font-size: 15px; font-weight: 700;
+}
+.ck-chip[data-urgent="true"] { background: #fff1dc; color: #a35a00; }
+.ck-stars { display: inline-flex; gap: 3px; }
+.ck-star { width: 26px; height: 26px; }
+
+/* ---------- Game tiles ---------- */
+.ck-games { margin-top: 18px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr)); }
+@media (min-width: 720px) { .ck-games { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); } }
+.ck-tile {
+  --tile: #fff6d8; --tile-edge: #e8a91d; --tile-emblem: #ffcd4f;
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  min-height: 176px; padding: 16px 10px 14px; border-radius: 26px; text-align: center;
+  background: var(--tile); color: var(--ink); text-decoration: none;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7), 0 5px 0 var(--tile-edge), 0 14px 22px -14px rgba(24, 56, 41, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ck-tile[data-type="MATCHING"] { --tile: #e3f2f9; --tile-edge: #5fa8c9; --tile-emblem: #a9dcef; }
+.ck-tile[data-type="CLASSIFICATION"] { --tile: #e5f4e9; --tile-edge: #5fae7a; --tile-emblem: #b6e2c3; }
+a.ck-tile:hover { transform: translateY(-3px); }
+a.ck-tile:active { transform: translateY(3px); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7), 0 2px 0 var(--tile-edge); }
+.ck-tile:focus-visible { outline: 4px solid var(--leaf); outline-offset: 4px; }
+.ck-emblem {
+  display: grid; place-items: center; width: 76px; height: 76px; border-radius: 28px;
+  background: var(--tile-emblem); color: var(--ink);
+  box-shadow: inset 0 -5px 0 rgba(24, 56, 41, 0.12);
+}
+.ck-emblem svg { width: 50px; height: 50px; }
+a.ck-tile:hover .ck-emblem { animation: ck-wiggle 0.6s ease; }
+@keyframes ck-wiggle { 25% { transform: rotate(-6deg); } 60% { transform: rotate(5deg); } }
+.ck-tileName { font-family: var(--display); font-size: clamp(17px, 4.6vw, 21px); font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.ck-play {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 18px; border-radius: 999px;
+  background: var(--ink); color: #fff; font-size: 16px; font-weight: 800;
+}
+.ck-tile[data-done="true"] .ck-play { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 2px rgba(24, 56, 41, 0.15); }
+.ck-badge {
+  position: absolute; top: -10px; right: -8px; display: grid; place-items: center; width: 52px; height: 52px;
+  filter: drop-shadow(0 4px 6px rgba(160, 110, 0, 0.35));
+  animation: ck-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes ck-pop { from { transform: scale(0.3) rotate(-30deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.ck-tile[data-off="true"] { filter: grayscale(0.9); opacity: 0.6; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7); }
+
+/* All done: a little celebration strip. */
+.ck-done {
+  margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 20px;
+  background: linear-gradient(90deg, #fff3c4, #ffe9a6); font-family: var(--display); font-size: 20px; font-weight: 800;
+}
+
+/* ---------- Closed (deadline passed) ---------- */
+.ck-closed { background: #f5f3ea; box-shadow: none; }
+.ck-closed .ck-cardTitle { font-size: 22px; color: var(--ink-soft); }
+.ck-closedRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.ck-moon { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 20px; background: #e5e4f4; color: #4b4f86; }
+.ck-ask {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 60px; padding: 0 24px;
+  border: 0; border-radius: 20px; background: var(--sun); color: var(--ink); cursor: pointer;
+  font: inherit; font-family: var(--display); font-size: 20px; font-weight: 800;
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.7) inset, 0 5px 0 var(--sun-edge), 0 12px 20px -10px rgba(214, 150, 20, 0.5);
+}
+.ck-ask:hover:not(:disabled) { background: var(--sun-hover); }
+.ck-ask:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 0 var(--sun-edge); }
+.ck-ask:disabled { cursor: wait; opacity: 0.7; }
+.ck-sent {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 60px; padding: 0 18px; border-radius: 20px;
+  background: #e8f5ec; color: var(--leaf); font-weight: 800; font-size: 17px;
+}
+.ck-sent[data-tone="no"] { background: #fff1ee; color: #a3321d; }
+
+/* ---------- Empty, loading, error ---------- */
+.ck-empty { margin-top: 30px; display: grid; justify-items: center; gap: 14px; padding: 36px 20px; text-align: center; border-radius: 32px; background: rgba(255, 253, 247, 0.8); }
+.ck-emptyArt { width: 150px; height: 150px; animation: ck-bob 4s ease-in-out infinite; }
+@keyframes ck-bob { 50% { transform: translateY(-8px); } }
+.ck-emptyTitle { font-family: var(--display); font-size: 28px; font-weight: 800; }
+.ck-emptyText { font-size: 18px; color: var(--ink-soft); max-width: 420px; }
+.ck-skeleton { height: 260px; border-radius: 30px; background: linear-gradient(100deg, #f1eee2 30%, #fbf9f1 50%, #f1eee2 70%) 0 0 / 300% 100%; animation: ck-shimmer 1.4s linear infinite; }
+@keyframes ck-shimmer { to { background-position: -150% 0; } }
+.ck-error { margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 24px; background: #fff1ee; color: #8a2a17; font-size: 17px; font-weight: 600; }
+.ck-retry { min-height: 52px; padding: 0 20px; border: 0; border-radius: 16px; background: var(--ink); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+
+/* ---------- Play page ---------- */
+.ck-play-page { padding: 18px 12px 40px; }
+.ck-playStatus { margin-top: 14px; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+.ck-playStatus[data-failed="true"] { color: #a3321d; }
+
+@media (min-width: 720px) {
+  .ck-card { padding: 26px 28px; }
+  .ck-main { padding-top: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ck-cloud, .ck-card, .ck-badge, .ck-emptyArt, .ck-skeleton, a.ck-tile:hover .ck-emblem { animation: none; }
+  .ck-tile { transition: none; }
+}
+
+/* Tiles in one row share a height; icons never shrink inside flex rows. */
+.ck-games > li { display: flex; }
+.ck-games > li > .ck-tile { flex: 1; }
+.ck-star, .ck-chip svg { flex: none; }

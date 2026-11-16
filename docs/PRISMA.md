@@ -8,6 +8,12 @@ Dependencies runtime mới: `@prisma/client`, `@prisma/adapter-pg`. Adapter ph�
 
 Phần cấu hình Prisma cơ bản đã hoàn tất. Schema hiện có các model Auth và migration Auth đã áp dụng vào database development sau xác nhận theo [AUTH.md](./AUTH.md). Seed development có chủ đích được mô tả trong [SEED.md](./SEED.md). Không có API kiểm tra database công khai.
 
+## Migration lớp học (16/11/2026)
+
+- `20261116000100_classroom_enums`: enum `ChildStatus`, `ClassroomStatus` và ba permission lớp học (tách riêng vì PostgreSQL không cho dùng giá trị enum mới trong cùng transaction).
+- `20261116000200_classroom`: `SchoolYear`, `AgeGroup` (seed sẵn AGE_3_4/AGE_4_5/AGE_5_6), `Classroom`, `ClassroomTeacher`, `ClassroomEnrollment`, `ChildAuthSession`, `ChildRefreshToken`; bỏ `Child.userId`, thêm `loginCodeDigest`/`loginCodeIssuedAt`/`status`. SQL viết tay: partial unique index một lớp đang học/trẻ, CHECK khoảng ngày, grants.
+- VERIFIED/RUN 16/11 trên DB dev sau khi sao lưu (`pg_dump`); dữ liệu Child/PlaySession/InteractionEvent giữ nguyên.
+
 ## Cấu trúc
 
 ```text

@@ -12,6 +12,8 @@ Tài khoản được cấp nội bộ; seed development đã được yêu cầ
 - Chưa tạo Teacher, Guardian, Child, Classroom hay bảng nghiệp vụ khác. `User.userId`, `fullName`, `email`, `phone`, `address` giữ đúng tên trong Domain Model.
 - Tài khoản mặc định `DISABLED`; người cấp tài khoản phải chủ động đặt `ACTIVE`. Đây là trạng thái kỹ thuật cho Auth, chưa phải quy trình kích hoạt email.
 
+> Cập nhật 16/11/2026: trẻ không dùng User/mật khẩu nữa mà đăng nhập bằng mã, với phiên và cookie riêng — xem [CHILD_AUTH.md](./CHILD_AUTH.md). Permission lớp học mới: `MANAGE_CLASSROOMS` (Admin), `READ_OWN_CLASSROOMS`, `RESET_CHILD_LOGIN_CODES` (Teacher).
+
 ## Giai đoạn 1–2: dữ liệu và migration
 
 Schema gồm 7 bảng:
@@ -157,6 +159,15 @@ pnpm --filter api test:integration
 ```
 
 Khi thiếu TEST_DATABASE_URL, các test PostgreSQL được skip; không coi đó là pass kiểm chứng database. Khi được bật, test chỉ tạo user/phiên fixture có ID ngẫu nhiên và xóa đúng fixture đó, không seed tài khoản sử dụng thật, không reset/xóa toàn database.
+
+## Tài khoản giáo viên và đổi mật khẩu (17/11/2026)
+
+- Admin (`MANAGE_USERS`) quản lý giáo viên ở `/admin/teachers`, API `/api/v1/admin/teacher-accounts`: `GET` danh sách (kèm lớp phụ trách, lần đăng nhập gần nhất = `AuthSession` mới nhất), `POST` tạo, `PATCH /:userId` (họ tên, SĐT, `status`), `POST /:userId/password-reset`. Chỉ thao tác trên user có `ROLE_TEACHER`; email không sửa được.
+- Tạo tài khoản và đặt lại mật khẩu sinh **mật khẩu tạm** 12 kí tự (bảng chữ không có 0/O/1/l/I, dạng `xxxx-xxxx-xxxx`), trả về **một lần** với `Cache-Control: no-store`; DB chỉ lưu hash argon2.
+- Khóa tài khoản (`status: DISABLED`) và đặt lại mật khẩu thu hồi mọi `AuthSession` của giáo viên trong cùng transaction; JWT access còn hạn cũng bị chặn vì guard đọc lại trạng thái mỗi request.
+- Người lớn tự đổi mật khẩu: `POST /api/v1/auth/password` (`READ_OWN_ACCOUNT`, cần header CSRF + Origin như login), body `{ currentPassword, newPassword }` (10–128 kí tự, khác mật khẩu cũ). Thành công thì thu hồi mọi phiên, xóa refresh cookie; web chuyển về `/login?changed=1`. Sai mật khẩu hiện tại → 422 `PASSWORD_CURRENT_INVALID`.
+- Không có schema mới. Chưa có: bắt buộc đổi mật khẩu tạm ở lần đăng nhập đầu (cần thêm cột), tạo tài khoản Admin/Guardian qua giao diện.
+- Sau đăng nhập không có `?next=`, web đưa người lớn về trang chính theo quyền (`lib/home-for.ts`): `MANAGE_CLASSROOMS` → `/admin`, `READ_OWN_CLASSROOMS` → `/teacher/classrooms`, còn lại `/account`. Vào `/admin` khi chưa đăng nhập → `/login?next=/admin`.
 
 ## Tự insert tài khoản
 

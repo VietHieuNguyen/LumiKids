@@ -3,7 +3,7 @@ import type { GameInteraction, PlaySessionStatus } from '@lumikids/shared';
 export interface PlaySessionRecord {
   sessionId: string;
   versionId: string;
-  ownerUserId: string;
+  childId: string;
   status: PlaySessionStatus;
   eventCount: number;
   startedAt: Date;

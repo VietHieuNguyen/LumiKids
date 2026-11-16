@@ -17,32 +17,54 @@ import {
   submitInteractionsSchema,
 } from '@lumikids/shared';
 import {
-  CurrentUser,
+  ChildRoute,
+  CurrentChild,
   Permissions,
 } from '../../auth/decorators/auth.decorators.js';
-import type { Principal } from '../../../common/security/principal.js';
+import type { ChildPrincipal } from '../../../common/security/principal.js';
 import { GameplayService } from '../application/gameplay.service.js';
 
+/** Child-only: requires a child access token (sign-in with a login code). */
 @Controller('gameplay')
+@ChildRoute()
 export class GameplayController {
   constructor(private readonly gameplay: GameplayService) {}
 
+  @Get('assignments')
+  @Permissions('PLAY_GAMES')
+  assignments(@CurrentChild() child: ChildPrincipal) {
+    return this.gameplay.listAssignments(child);
+  }
+
+  /** After the deadline the child asks the teacher to play again; idempotent while pending. */
+  @Post('assignments/:assignmentId/replay-requests')
+  @Permissions('PLAY_GAMES')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  requestReplay(
+    @CurrentChild() child: ChildPrincipal,
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+  ) {
+    return this.gameplay.requestReplay(child, assignmentId);
+  }
+
   @Get('games')
   @Permissions('PLAY_GAMES')
-  list(@CurrentUser() user: Principal, @Query() value: unknown) {
+  list(@CurrentChild() child: ChildPrincipal, @Query() value: unknown) {
     const parsed = playableGameQuerySchema.safeParse(value);
     if (!parsed.success)
       throw new BadRequestException('Bộ lọc trò chơi không hợp lệ.');
-    return this.gameplay.listGames(user, parsed.data);
+    return this.gameplay.listGames(child, parsed.data);
   }
 
   @Get('games/:versionId')
   @Permissions('PLAY_GAMES')
   detail(
-    @CurrentUser() user: Principal,
+    @CurrentChild() child: ChildPrincipal,
     @Param('versionId', ParseUUIDPipe) versionId: string,
   ) {
-    return this.gameplay.gameDetail(user, versionId);
+    return this.gameplay.gameDetail(child, versionId);
   }
 
   @Get('games/:versionId/assets/:assetId/read-url')
@@ -50,29 +72,29 @@ export class GameplayController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 180, ttl: 60000 } })
   readUrl(
-    @CurrentUser() user: Principal,
+    @CurrentChild() child: ChildPrincipal,
     @Param('versionId', ParseUUIDPipe) versionId: string,
     @Param('assetId', ParseUUIDPipe) assetId: string,
   ) {
-    return this.gameplay.assetReadUrl(user, versionId, assetId);
+    return this.gameplay.assetReadUrl(child, versionId, assetId);
   }
 
   @Post('sessions')
   @Permissions('PLAY_GAMES')
-  start(@CurrentUser() user: Principal, @Body() value: unknown) {
+  start(@CurrentChild() child: ChildPrincipal, @Body() value: unknown) {
     const parsed = startPlaySessionSchema.safeParse(value);
     if (!parsed.success)
       throw new BadRequestException('Yêu cầu bắt đầu lượt chơi không hợp lệ.');
-    return this.gameplay.start(user, parsed.data);
+    return this.gameplay.start(child, parsed.data);
   }
 
   @Get('sessions/:sessionId')
   @Permissions('READ_OWN_PLAY_SESSIONS')
   get(
-    @CurrentUser() user: Principal,
+    @CurrentChild() child: ChildPrincipal,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
-    return this.gameplay.get(user, sessionId);
+    return this.gameplay.get(child, sessionId);
   }
 
   @Post('sessions/:sessionId/events')
@@ -81,23 +103,23 @@ export class GameplayController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 240, ttl: 60000 } })
   submit(
-    @CurrentUser() user: Principal,
+    @CurrentChild() child: ChildPrincipal,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
     @Body() value: unknown,
   ) {
     const parsed = submitInteractionsSchema.safeParse(value);
     if (!parsed.success)
       throw new BadRequestException('Dữ liệu thao tác không hợp lệ.');
-    return this.gameplay.submit(user, sessionId, parsed.data.events);
+    return this.gameplay.submit(child, sessionId, parsed.data.events);
   }
 
   @Post('sessions/:sessionId/abandon')
   @HttpCode(200)
   @Permissions('SUBMIT_OWN_INTERACTIONS')
   abandon(
-    @CurrentUser() user: Principal,
+    @CurrentChild() child: ChildPrincipal,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
-    return this.gameplay.abandon(user, sessionId);
+    return this.gameplay.abandon(child, sessionId);
   }
 }

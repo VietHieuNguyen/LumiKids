@@ -17,15 +17,15 @@ const sessionSelect = {
   eventCount: true,
   startedAt: true,
   endedAt: true,
-  child: { select: { userId: true } },
+  childId: true,
 } as const satisfies Prisma.PlaySessionSelect;
 type SessionRow = Prisma.PlaySessionGetPayload<{
   select: typeof sessionSelect;
 }>;
 type EventRow = Prisma.InteractionEventGetPayload<object>;
 
-function toRecord({ child, ...row }: SessionRow): PlaySessionRecord {
-  return { ...row, ownerUserId: child.userId };
+function toRecord(row: SessionRow): PlaySessionRecord {
+  return row;
 }
 
 function toInteraction(row: EventRow): GameInteraction {

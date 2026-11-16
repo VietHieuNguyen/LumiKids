@@ -1,17 +1,18 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth-provider";
+import { useChildAuth } from "@/components/child-auth-provider";
 import { loginHref } from "@/lib/safe-return-path";
 import { GameplayApi } from "./api";
 
-/** Login, then come back to the page the child was trying to open. */
+/** Sign in with a code, then come back to the page the child was trying to open. */
 function loginReturningHere(): string {
   return loginHref(`${window.location.pathname}${window.location.search}`);
 }
 
+/** Gameplay runs on the child's own session (login code), never on an adult account. */
 export function useGameplaySession() {
-  const { session, loading, invalidateSession } = useAuth();
+  const { session, loading, invalidateSession, logout } = useChildAuth();
   const router = useRouter();
   const token = session?.accessToken;
   const current = useRef(token);
@@ -34,6 +35,7 @@ export function useGameplaySession() {
     session,
     loading,
     api,
-    canPlay: session?.user.permissions.includes("PLAY_GAMES") ?? false,
+    logout,
+    canPlay: session?.child.permissions.includes("PLAY_GAMES") ?? false,
   };
 }

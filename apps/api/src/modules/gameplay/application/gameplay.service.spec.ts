@@ -7,9 +7,9 @@ import {
 } from '@lumikids/shared';
 import type { GameInteraction } from '@lumikids/shared';
 import { ApiProblem } from '../../../common/http/api-problem.js';
-import type { Principal } from '../../../common/security/principal.js';
+import type { ChildPrincipal } from '../../../common/security/principal.js';
+import type { AssignmentsService } from '../../learning-content/assignments.service.js';
 import type { PlayableGameService } from '../../learning-content/playable-game.service.js';
-import type { UsersService } from '../../users/users.service.js';
 import { GameplayService } from './gameplay.service.js';
 import { PlaySessionRepository } from './play-session.repository.js';
 import type {
@@ -30,16 +30,10 @@ const content = gameContentSchema.parse({
   correctChoiceId: 'one',
   completionRule: 'CORRECT_CHOICE',
 });
-const child = (userId: string): Principal => ({
-  userId,
+const child = (childId: string): ChildPrincipal => ({
+  childId,
   fullName: 'Trẻ test',
-  email: `${userId}@lumikids.local`,
-  phone: '',
-  address: '',
-  status: 'ACTIVE',
-  roles: ['ROLE_CHILD'],
   permissions: [
-    'READ_OWN_ACCOUNT',
     'PLAY_GAMES',
     'SUBMIT_OWN_INTERACTIONS',
     'READ_OWN_PLAY_SESSIONS',
@@ -66,7 +60,6 @@ class MemoryRepository extends PlaySessionRepository {
     PlaySessionRecord & { childId: string; startRequestId: string }
   >();
   events = new Map<string, GameInteraction[]>();
-  owners = new Map<string, string>();
   loseNextRaces = 0;
   findById(sessionId: string) {
     const session = this.sessions.get(sessionId);
@@ -85,7 +78,6 @@ class MemoryRepository extends PlaySessionRepository {
     const record = {
       ...data,
       sessionId: randomUUID(),
-      ownerUserId: this.owners.get(data.childId) ?? '',
       status: 'IN_PROGRESS' as const,
       eventCount: 0,
       startedAt: new Date(),
@@ -131,29 +123,21 @@ class MemoryRepository extends PlaySessionRepository {
 function setup() {
   const repository = new MemoryRepository();
   const versionId = randomUUID();
-  const children = new Map<string, string>();
   const games = {
-    detail: vi.fn((_user: Principal, id: string) =>
+    detail: vi.fn((_player: ChildPrincipal, id: string) =>
       id === versionId
         ? Promise.resolve({ versionId, content })
         : Promise.reject(new NotFoundException()),
     ),
     versionContent: vi.fn(() => Promise.resolve(content)),
   } as unknown as PlayableGameService;
-  const users = {
-    findChildByUserId: vi.fn((userId: string) => {
-      const childId = children.get(userId);
-      return Promise.resolve(childId ? { childId, userId } : null);
-    }),
-  } as unknown as UsersService;
-  const register = (userId: string) => {
-    const childId = randomUUID();
-    children.set(userId, childId);
-    repository.owners.set(childId, userId);
-    return child(userId);
-  };
+  const register = () => child(randomUUID());
   return {
-    service: new GameplayService(repository, games, users),
+    service: new GameplayService(
+      repository,
+      games,
+      {} as unknown as AssignmentsService,
+    ),
     repository,
     versionId,
     register,
@@ -163,19 +147,19 @@ const problem = (code: string) =>
   expect.objectContaining({ publicCode: code }) as ApiProblem;
 
 describe('GameplayService (offline)', () => {
-  it('requires a Child profile linked to the account', async () => {
-    const { service, versionId } = setup();
-    await expect(
-      service.start(child(randomUUID()), {
-        versionId,
-        startRequestId: randomUUID(),
-      }),
-    ).rejects.toEqual(problem('CHILD_PROFILE_MISSING'));
+  it('records the session for the signed-in child', async () => {
+    const { service, versionId, register, repository } = setup();
+    const player = register();
+    const { sessionId } = await service.start(player, {
+      versionId,
+      startRequestId: randomUUID(),
+    });
+    expect(repository.sessions.get(sessionId)?.childId).toBe(player.childId);
   });
 
   it('starts idempotently and abandons the previous running session', async () => {
     const { service, versionId, register, repository } = setup();
-    const user = register(randomUUID());
+    const user = register();
     const startRequestId = randomUUID();
     const first = await service.start(user, { versionId, startRequestId });
     expect(await service.start(user, { versionId, startRequestId })).toEqual(
@@ -194,7 +178,7 @@ describe('GameplayService (offline)', () => {
 
   it('records events, completes on the server and hides other children sessions', async () => {
     const { service, versionId, register } = setup();
-    const user = register(randomUUID());
+    const user = register();
     const { sessionId } = await service.start(user, {
       versionId,
       startRequestId: randomUUID(),
@@ -211,7 +195,7 @@ describe('GameplayService (offline)', () => {
       accepted: 0,
       duplicates: 2,
     });
-    const other = register(randomUUID());
+    const other = register();
     await expect(service.get(other, sessionId)).rejects.toBeInstanceOf(
       NotFoundException,
     );
@@ -222,7 +206,7 @@ describe('GameplayService (offline)', () => {
 
   it('rejects event IDs that belong to another session', async () => {
     const { service, versionId, register } = setup();
-    const user = register(randomUUID());
+    const user = register();
     const a = await service.start(user, {
       versionId,
       startRequestId: randomUUID(),
@@ -240,7 +224,7 @@ describe('GameplayService (offline)', () => {
 
   it('retries one lost optimistic race, then reports busy', async () => {
     const { service, versionId, register, repository } = setup();
-    const user = register(randomUUID());
+    const user = register();
     const { sessionId } = await service.start(user, {
       versionId,
       startRequestId: randomUUID(),
@@ -259,7 +243,7 @@ describe('GameplayService (offline)', () => {
 
   it('abandons only running sessions', async () => {
     const { service, versionId, register } = setup();
-    const user = register(randomUUID());
+    const user = register();
     const { sessionId } = await service.start(user, {
       versionId,
       startRequestId: randomUUID(),

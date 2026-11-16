@@ -1,0 +1,58 @@
+"use client";
+import Link from "next/link";
+import type { AssignmentApi } from "./api";
+import { ErrorBanner, Panel, StatusPill } from "./classroom-shell";
+import { assignmentStateLabels, assignmentStateTones, formatDateTime } from "./format";
+import { useResource } from "./use-resource";
+
+export function AssignmentsPanel({ api, classId, canAssign }: { api: AssignmentApi; classId: string; canAssign: boolean }) {
+  const list = useResource((signal) => api.list(signal), classId);
+  return (
+    <Panel title="Bài đã giao" description="Hoàn thành = trẻ chơi xong mỗi trò trong bài ít nhất một lần (kể cả sau hạn).">
+      {list.error && <ErrorBanner message={list.error} onRetry={list.reload} />}
+      {list.loading && !list.data && <p role="status" className="text-sm text-ink-soft">Đang tải bài giao…</p>}
+      {list.data?.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
+          <p className="font-display text-xl font-bold">Chưa có bài nào</p>
+          <p className="mt-1 text-sm text-ink-soft">Trẻ chỉ thấy trò được giao. Giao bài đầu tiên để các bé bắt đầu chơi.</p>
+          {canAssign && <Link className="lumi-button-sun mt-4" href={`/teacher/classrooms/${classId}/assignments/new`}>Giao bài mới</Link>}
+        </div>
+      )}
+      <ul className="grid gap-3">
+        {(list.data ?? []).map((item) => {
+          const percent = item.recipientCount ? Math.round((item.completedCount / item.recipientCount) * 100) : 0;
+          return (
+            <li key={item.assignmentId}>
+              <Link
+                href={`/teacher/classrooms/${classId}/assignments/${item.assignmentId}`}
+                className={`block rounded-2xl border border-line bg-white p-4 transition hover:border-leaf/50 hover:shadow-sm ${item.state === "CANCELLED" ? "opacity-60" : ""}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words font-display text-lg font-bold">{item.title}</p>
+                    <p className="text-xs text-ink-soft">
+                      {item.targetLabel} · {item.gameCount} trò · Mở {formatDateTime(item.opensAt)}
+                      {item.dueAt ? ` · Hạn ${formatDateTime(item.dueAt)}` : " · Không hạn"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.pendingReplayCount > 0 && <StatusPill tone="amber">{item.pendingReplayCount} xin chơi lại</StatusPill>}
+                    <StatusPill tone={assignmentStateTones[item.state]}>{assignmentStateLabels[item.state]}</StatusPill>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-ink/8" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Tỉ lệ hoàn thành">
+                    <div className="h-full rounded-full bg-leaf transition-[width]" style={{ width: `${percent}%` }} />
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {item.completedCount}/{item.recipientCount} xong
+                  </span>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
+  );
+}

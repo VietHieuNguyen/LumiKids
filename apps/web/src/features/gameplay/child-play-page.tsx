@@ -7,26 +7,36 @@ import type { GameplayApi } from "./api";
 import { gameplayError } from "./api";
 import { createEventOutbox } from "./event-outbox";
 import type { EventOutbox, OutboxSnapshot } from "./event-outbox";
+import { ChildFrame } from "./child-frame";
+import { givenName } from "./child-format";
 import { useGameplaySession } from "./use-gameplay-session";
 
 const RESTART_FLUSH_MS = 3000;
 
 export function ChildPlayPage({ versionId }: { versionId: string }) {
-  const { session, loading, api, canPlay } = useGameplaySession();
+  const { session, loading, api, canPlay, logout } = useGameplaySession();
   if (loading || !session || !api)
     return (
-      <main className="p-8" role="status">
-        Đang kiểm tra phiên đăng nhập…
-      </main>
+      <ChildFrame>
+        <main className="ck-main" role="status" aria-label="Đang mở trò chơi">
+          <div className="ck-skeleton" />
+        </main>
+      </ChildFrame>
     );
   if (!canPlay)
-    return <main className="p-8">Tài khoản này chưa được phép chơi.</main>;
+    return (
+      <ChildFrame childName={givenName(session.child.fullName)} logout={logout}>
+        <main className="ck-main"><p className="ck-error">Tài khoản này chưa được phép chơi.</p></main>
+      </ChildFrame>
+    );
   return (
-    <PlayContent
-      key={`${session.user.userId}:${versionId}`}
-      api={api}
-      versionId={versionId}
-    />
+    <ChildFrame childName={givenName(session.child.fullName)} logout={logout}>
+      <PlayContent
+        key={`${session.child.childId}:${versionId}`}
+        api={api}
+        versionId={versionId}
+      />
+    </ChildFrame>
   );
 }
 
@@ -150,13 +160,13 @@ function PlayContent({
   const reader = useMemo(() => api.reader(versionId), [api, versionId]);
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-3 py-5 text-slate-900 sm:px-6">
+    <main className="ck-play-page">
       <div className="mx-auto max-w-[1600px]">
         {error ? (
-          <div role="alert" className="asset-error">
-            {error}
+          <div role="alert" className="ck-error">
+            <span>{error}</span>
             <button
-              className="asset-button-secondary ml-3"
+              className="ck-retry"
               onClick={() => {
                 setError("");
                 setRetry((n) => n + 1);
@@ -165,17 +175,17 @@ function PlayContent({
             >
               Thử lại
             </button>
-            <Link className="asset-button-secondary ml-3" href="/child/games">
-              ← Trò chơi
+            <Link className="ck-exit" href="/child/games">
+              ← Bài của con
             </Link>
           </div>
         ) : !game ? (
-          <p className="p-10 text-center" role="status">
-            Đang mở trò chơi…
-          </p>
+          <div className="ck-main" role="status" aria-label="Đang mở trò chơi">
+            <div className="ck-skeleton" />
+          </div>
         ) : (
           <>
-            <h1 className="mb-5 break-words text-2xl font-bold">{game.name}</h1>
+            <h1 className="ck-cardTitle mb-4 px-2">{game.name}</h1>
             <GamePreview
               content={game.content}
               assetReader={reader}
@@ -183,14 +193,15 @@ function PlayContent({
               defaultExpanded
               paused={!sessionId}
               backHref="/child/games"
-              backLabel="Trò chơi"
+              backLabel="Bài của con"
               onInteraction={onInteraction}
               onReset={onReset}
             />
             <p
               role="status"
               aria-live="polite"
-              className={`mt-4 text-center text-sm ${saveState?.state === "failed" ? "text-rose-700" : "text-slate-500"}`}
+              className="ck-playStatus"
+              data-failed={saveState?.state === "failed"}
             >
               {saveLabel(saveState, !sessionId)}
             </p>

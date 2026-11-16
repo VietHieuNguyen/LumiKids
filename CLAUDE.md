@@ -5,6 +5,7 @@
 - Repository/Git là nguồn sự thật; README và roadmap có nhiều chức năng chưa triển khai.
 - Kiểm tra `git status`, `git diff` và file untracked trước khi sửa. Không xóa/ghi đè công việc có sẵn.
 - Cập nhật 13/11/2026: kho trò chơi, curriculum, CHILD Auth và gameplay (trẻ chơi + ghi log) đã commit trên nhánh `dev` (`136acc2`, `d7999de`).
+- Cập nhật 16/11/2026: lớp học, Child tách khỏi User và đăng nhập bằng mã đã commit trên `feat/classroom` (`aa720d9`, `b57e80b`, `eec6565`); GĐ 2 (giao bài, nhóm, xin chơi lại) và giao diện mới theo phong cách landing đang làm, chưa commit. Theo dõi ở [docs/CLASSROOM_PLAN.md](docs/CLASSROOM_PLAN.md), chi tiết đăng nhập trẻ ở [docs/CHILD_AUTH.md](docs/CHILD_AUTH.md).
 - Môi trường local có thể được khôi phục từ gói bàn giao (DB dump + volume MinIO); không reset/seed lại để "làm sạch".
 
 ## Mục tiêu và stack thực tế
@@ -60,8 +61,11 @@ services/ai/.venv/Scripts/python.exe -B -m pytest services/ai -p no:cacheprovide
 - Luôn cần người lớn duyệt. Skill = Chuẩn, AssessmentCriterion = Chỉ số, ActivityVersion = phiên bản trò chơi.
 - Chỉ dùng Chuẩn 15–17/Chỉ số 42–52; Chỉ số 51 không có yêu cầu gọi tên nhóm. Độ khó do người lớn chọn.
 - Kho chung Admin/Teacher; owner quản lý trò của mình, Admin quản lý toàn kho; phiên bản nội dung không sửa tại chỗ.
-- Child là thực thể riêng (không kế thừa User), liên kết 1–1 với User ROLE_CHILD qua `Child.userId`; PlaySession gắn Child, không gắn User. Tài khoản CHILD thiếu hồ sơ Child nhận 409 `CHILD_PROFILE_MISSING`.
-- CHILD chơi qua `/api/v1/gameplay/*` (PLAY_GAMES, SUBMIT_OWN_INTERACTIONS, READ_OWN_PLAY_SESSIONS); tạm thời chơi mọi trò có Activity ACTIVE vì chưa có ActivityAssignment. Không cấp kho authoring/Library/generation cho CHILD.
+- Child là thực thể riêng, **không gắn User** (không email/mật khẩu, không `Child.userId`); PlaySession gắn Child. Trẻ đăng nhập bằng mã cá nhân do giáo viên lớp hiện tại cấp (chỉ lưu HMAC, hiện một lần, cấp mới thu hồi mã và phiên cũ); phiên riêng `ChildAuthSession`, cookie `lumikids_child_refresh`, JWT `tokenUse: child_access`. Route trẻ dùng `@ChildRoute()`; token sai loại nhận 403.
+- Lớp: Admin tạo năm học/lớp (AgeGroup), nhiều giáo viên/lớp; mỗi trẻ đúng một lớp đang học, chuyển lớp giữ lịch sử `ClassroomEnrollment`. Giáo viên chỉ xem lớp mình và lượt chơi trong khoảng trẻ học lớp đó.
+- Trẻ chơi qua `/api/v1/gameplay/*` (PLAY_GAMES, SUBMIT_OWN_INTERACTIONS, READ_OWN_PLAY_SESSIONS) và **chỉ** mở được trò thuộc bài giao (`ActivityAssignment`) đang mở của lớp hiện tại hoặc được gia hạn; cổng duy nhất `AssignmentsService.playableVersionIds`. Không cấp kho authoring/Library/generation cho trẻ.
+- Giao bài (quyền `ASSIGN_ACTIVITIES`, Teacher): cả lớp / nhóm cố định / trẻ chọn, người nhận chụp lúc giao; `opensAt`, `dueAt` tùy chọn. Hoàn thành không lưu — tính từ PlaySession COMPLETED từ `opensAt`, mỗi trò ≥ 1 lần (tính cả sau hạn). Sau hạn: trẻ xin chơi lại → giáo viên duyệt kèm hạn mới (`extendedUntil`), hoặc giao lại cho trẻ chọn.
+- Admin: dashboard `/admin` (`GET /admin/overview`, `MANAGE_CLASSROOMS`) chỉ đọc, tính lúc gọi theo ngày giờ Việt Nam, không lưu; quản lý giáo viên `/admin/teachers` (`MANAGE_USERS`): mật khẩu tạm hiện một lần, khóa/đặt lại mật khẩu thu hồi phiên. Người lớn tự đổi mật khẩu `POST /auth/password` (thu hồi mọi phiên). Đăng nhập chung `/login`, tự về trang theo quyền.
 - Teacher không có READ_GAME_ASSETS/MANAGE_GAME_ASSETS; ảnh preview/kho/trò chơi của trẻ dùng scope riêng, bucket private.
 - Runtime PREVIEW không lưu kết quả. Mode PLAY ghi event theo batch có thứ tự; server phát lại event bằng engine shared để tự tính result/attemptIndex/hoàn thành, từ chối kết quả lệch; eventId chống trùng. Client không tự ghi kết quả.
 - SessionPerformance, đánh giá chỉ số/chuẩn và worker/queue chưa triển khai.

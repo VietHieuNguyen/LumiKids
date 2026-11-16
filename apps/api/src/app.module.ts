@@ -11,6 +11,8 @@ import { GameGenerationModule } from './modules/game-generation/game-generation.
 import { CurriculumModule } from './modules/curriculum/curriculum.module.js';
 import { LearningContentModule } from './modules/learning-content/learning-content.module.js';
 import { GameplayModule } from './modules/gameplay/gameplay.module.js';
+import { ClassroomsModule } from './modules/classrooms/classrooms.module.js';
+import { AdminOverviewModule } from './modules/admin-overview/admin-overview.module.js';
 import { apiEnvFiles } from './common/config/env-files.js';
 import {
   ApiExceptionFilter,
@@ -31,6 +33,8 @@ import {
     CurriculumModule,
     LearningContentModule,
     GameplayModule,
+    ClassroomsModule,
+    AdminOverviewModule,
   ],
   controllers: [AppController],
   providers: [

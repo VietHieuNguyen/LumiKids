@@ -10,7 +10,8 @@ Trạng thái Git hiện tại: mọi công việc đã commit (`136acc2` kho tr
 - Mục tiêu dài hạn: thiết kế hoạt động cho trẻ mầm non 3–6 tuổi, thu thập tương tác, đánh giá và cá nhân hóa năng lực nhận thức.
 - Phạm vi thực tế đã có: Auth → quản lý ảnh/metadata → AI sinh GameContent → validate → Preview → người lớn duyệt/chọn chỉ số → lưu kho chung → **trẻ chơi trò đã lưu, hệ thống ghi PlaySession/InteractionEvent**.
 - Admin quản lý học liệu và toàn kho; Teacher tạo/lưu/dùng kho chung; Guardian hiện chỉ có quyền đọc tài khoản mình.
-- CHILD có role, hồ sơ Child (bảng riêng, 1–1 với User) và màn hình `/child/games`; chơi mọi trò ACTIVE vì **chưa có giao bài (ActivityAssignment)**. Chưa có đánh giá năng lực.
+- **16/11/2026 (`feat/classroom`, chưa commit):** Child tách khỏi User, đăng nhập bằng mã do giáo viên cấp, lớp học/năm học/nhóm tuổi, màn Admin `/admin/classrooms` và giáo viên `/teacher/classrooms` (lịch sử chơi theo khoảng học). Xem `docs/CLASSROOM_PLAN.md`, `docs/CHILD_AUTH.md`. Các mục 13/11 bên dưới về `Child.userId`/ROLE_CHILD đã lỗi thời.
+- Cập nhật 16/11/2026 (GĐ 2, chưa commit): trẻ **chỉ** chơi trò thuộc bài giao đang mở (`ActivityAssignment`, cổng `AssignmentsService.playableVersionIds`); xem [CLASSROOM_PLAN.md](./CLASSROOM_PLAN.md). Chưa có đánh giá năng lực.
 - Ba loại trò: COUNTING, MATCHING, CLASSIFICATION. Skill = **Chuẩn**; AssessmentCriterion = **Chỉ số**; ActivityVersion = **phiên bản trò chơi**.
 
 ## B. ARCHITECTURE
@@ -134,7 +135,7 @@ Web (CHILD) → /gameplay/games (ACTIVE) → scoped image URLs → /gameplay/ses
 - Chín migration: init Auth; generation permission; asset permissions; GameAsset; library permissions; library tables/catalog; CHILD enums; CHILD grants; gameplay (Child/PlaySession/InteractionEvent). **VERIFIED/RUN 13/11**: cả chín đã áp dụng trên DB dev; `prisma migrate diff` DB ↔ schema rỗng.
 - Dữ liệu dev 13/11: 143 GameAsset (121 ACTIVE), 2 trò đã lưu, 4 tài khoản test (admin/teacher/guardian/child1), 1 hồ sơ Child. Môi trường có thể được khôi phục từ gói bàn giao (pg_dump + volume MinIO).
 - Đã chốt khi làm gameplay: Child là bảng riêng 1–1 với User; tạm cho trẻ chơi mọi trò ACTIVE; server replay quyết định kết quả; SessionPerformance để sau.
-- Chưa có Teacher/Guardian profile tables, lớp học/giao bài (ActivityAssignment/ActivityRecipient), SessionPerformance, Evaluation/CDP, worker, RAG, Publish hay chỉnh version nội dung tiếp theo.
+- Chưa có Teacher/Guardian profile tables, SessionPerformance, Evaluation/CDP, worker, RAG, Publish hay chỉnh version nội dung tiếp theo.
 - Chưa chốt: cơ chế giao bài/cho phép chơi theo lớp, scoring/criterion mapping, workflow publication.
 
 ## F. NEXT TASKS
@@ -142,7 +143,7 @@ Web (CHILD) → /gameplay/games (ACTIVE) → scoped image URLs → /gameplay/ses
 1. **P0 tiếp nhận:** đọc CLAUDE/AGENTS, kiểm tra `git status`; khôi phục môi trường từ gói bàn giao nếu có, không reset hoặc seed full.
 2. ~~User↔Child, endpoint trẻ, gameplay Clean Architecture, UI trẻ~~ — **đã xong 13/11** (xem mục C, D.5).
 3. **P1:** integration test với DB `_test` cho gameplay (retry cùng batch, hai request song song cùng attemptIndex, rollback giữa batch).
-4. **P1:** giao bài (ActivityAssignment/ActivityRecipient), lớp học, Guardian–Child; khi có giao bài, siết `PlayableGameService` để trẻ chỉ chơi trò được giao (một chỗ duy nhất).
+4. **P1:** ~~giao bài, lớp học~~ (GĐ 1–2 đã làm 16/11/2026); còn Guardian–Child.
 5. **P2 đề xuất, chưa là yêu cầu được duyệt:** SessionPerformance (tính lại được từ InteractionEvent) → đánh giá chỉ số/chuẩn → profile; cần đặc tả scoring/criterion mapping và worker/queue trước khi triển khai.
 7. **P2 đề xuất:** harden proof compatibility, save-time metadata drift, retrieval/prompt regression corpus, observability và kiểm tra storage/restore; không hứa mọi prompt sinh được game.
 8. RAG/vector, chatbot nhiều lượt, AI image generation, auto xóa nền, offline queue và mobile app chưa triển khai; cần xác nhận phạm vi/dependencies trước khi làm.

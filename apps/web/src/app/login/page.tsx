@@ -7,7 +7,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { LANDING_ASSETS } from "@/features/landing/landing-assets";
+import { childLogin } from "@/lib/child-auth-api";
+import { formatLoginCodeInput, isCompleteLoginCode } from "@/lib/child-login-code";
+import { homeFor } from "@/lib/home-for";
 import { safeReturnPath } from "@/lib/safe-return-path";
+
+type Mode = "adult" | "child";
 
 export default function LoginPage() {
   // useSearchParams needs a Suspense boundary on a statically prerendered page.
@@ -20,16 +25,47 @@ export default function LoginPage() {
 
 function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   // `?next=` brings the user back to what they picked (e.g. a game from the landing page).
-  const destination = safeReturnPath(useSearchParams().get("next")) ?? "/account";
+  const next = safeReturnPath(params.get("next"));
+  // Children play under /child; a link into it (or ?mode=child) opens the code form directly.
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "child" || next?.startsWith("/child") ? "child" : "adult");
+  const childDestination = next?.startsWith("/child") ? next : "/child/games";
   const { session, loading, login } = useAuth();
+  const destination = next && !next.startsWith("/child") ? next : homeFor(session?.user.permissions ?? []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => { if (!loading && session) router.replace(destination); }, [loading, session, router, destination]);
+  const [code, setCode] = useState("");
+
+  // A teacher already signed in on a classroom tablet must still be able to hand it to a child.
+  useEffect(() => { if (mode === "adult" && !loading && session) router.replace(destination); }, [mode, loading, session, router, destination]);
+
+  function switchMode(value: Mode) {
+    setMode(value);
+    setError("");
+  }
+
+  async function handleChildSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+    if (!isCompleteLoginCode(code)) {
+      setError("Mã có 8 kí tự. Con kiểm tra lại nhé.");
+      return;
+    }
+    setError("");
+    setSubmitting(true);
+    try {
+      await childLogin(code);
+      setCode("");
+      router.replace(childDestination);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Đăng nhập chưa được. Con thử lại nhé.");
+    } finally { setSubmitting(false); }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +75,7 @@ function LoginForm() {
     try {
       await login(email, password);
       setPassword("");
-      router.replace(destination);
+      // The effect above redirects once the session (and so the role's home) is known.
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Đăng nhập không thành công. Vui lòng thử lại.");
     } finally { setSubmitting(false); }
@@ -69,10 +105,27 @@ function LoginForm() {
             <span>LumiKids</span>
           </Link>
 
-          <h1 id="login-heading" className="lg-title">Đăng nhập</h1>
-          <p className="lg-lead">Sử dụng tài khoản đã được cấp để truy cập hệ thống.</p>
+          <h1 id="login-heading" className="lg-title">{mode === "child" ? "Chào bé!" : "Đăng nhập"}</h1>
+          <p className="lg-lead">{mode === "child" ? "Nhập mã cô giáo đưa cho con để vào chơi." : "Sử dụng tài khoản đã được cấp để truy cập hệ thống."}</p>
 
+          <div className="lg-modes" role="group" aria-label="Chọn cách đăng nhập">
+            <button type="button" className="lg-mode" aria-pressed={mode === "adult"} onClick={() => switchMode("adult")} disabled={submitting}>Thầy cô</button>
+            <button type="button" className="lg-mode" aria-pressed={mode === "child"} onClick={() => switchMode("child")} disabled={submitting}>Bé vào chơi</button>
+          </div>
+
+          {mode === "child" ? (
+            <form className="lg-form" onSubmit={handleChildSubmit} aria-busy={submitting}>
+              <div className="lg-field">
+                <label htmlFor="child-code" className="lg-label">Mã của con</label>
+                <input id="child-code" name="code" className="lg-input lg-codeInput" value={code} onChange={(event) => setCode(formatLoginCodeInput(event.target.value))} placeholder="ABCD-2345" autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" maxLength={9} disabled={submitting} aria-describedby="child-code-hint" />
+                <p id="child-code-hint" className="lg-hint">Mã có 8 kí tự, chữ in hoa và số.</p>
+              </div>
+              {error && <p role="alert" className="lg-error">{error}</p>}
+              <button type="submit" disabled={submitting} className="lg-submit">{submitting ? "Đang vào…" : "Vào chơi"}</button>
+            </form>
+          ) : (
           <form className="lg-form" onSubmit={handleSubmit} aria-busy={submitting}>
+            {params.get("changed") === "1" && !error && <p role="status" className="lg-notice">Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.</p>}
             <div className="lg-field">
               <label htmlFor="email" className="lg-label">Email</label>
               <input id="email" name="email" type="email" autoComplete="username" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="teacher1@lumikids.local" className="lg-input" disabled={submitting} />
@@ -87,8 +140,9 @@ function LoginForm() {
             {error && <p role="alert" className="lg-error">{error}</p>}
             <button type="submit" disabled={loading || submitting || Boolean(session)} className="lg-submit">{loading ? "Đang kiểm tra phiên…" : submitting ? "Đang đăng nhập…" : "Đăng nhập"}</button>
           </form>
+          )}
 
-          <p className="lg-help">Chưa có tài khoản? Vui lòng liên hệ quản trị viên.</p>
+          <p className="lg-help">{mode === "child" ? "Chưa có mã? Con hỏi cô giáo nhé." : "Chưa có tài khoản? Vui lòng liên hệ quản trị viên."}</p>
           <Link className="lg-back" href="/">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4m3.5-3.5L4 8l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Về trang chủ

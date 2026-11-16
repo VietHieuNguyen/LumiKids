@@ -81,3 +81,12 @@ test-results/
 .DS_Store
 Thumbs.db
 *.log
+
+# ==========================================
+# 8. Local Agents & Scratch Prompts
+# ==========================================
+.agents/
+.claude/
+Prompt_LumiKids_3D_Scroll_Landing.md
+mosline.md
+

@@ -9,28 +9,30 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/modules/users/users.service.js';
 import { PlayableGameService } from '../src/modules/learning-content/playable-game.service.js';
 import { PlaySessionRepository } from '../src/modules/gameplay/application/play-session.repository.js';
+import { ChildAuthService } from '../src/modules/auth/child-auth.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
   stubStorageEnvironment,
   teacherFixture,
 } from './game-asset.fixtures.js';
-import type { Principal } from '../src/common/security/principal.js';
+import type {
+  ChildPrincipal,
+  Principal,
+} from '../src/common/security/principal.js';
 
 describe('Gameplay HTTP contract (offline; database mocked)', () => {
   let app: INestApplication;
-  let actor: Principal;
   const secret = randomBytes(48).toString('base64url');
-  const child: Principal = {
-    ...teacherFixture,
-    userId: randomUUID(),
-    roles: ['ROLE_CHILD'],
+  const child: ChildPrincipal = {
+    childId: randomUUID(),
+    fullName: 'Trẻ test',
     permissions: [
-      'READ_OWN_ACCOUNT',
       'PLAY_GAMES',
       'SUBMIT_OWN_INTERACTIONS',
       'READ_OWN_PLAY_SESSIONS',
     ],
   };
+  const adult: Principal = teacherFixture;
   const content = gameContentSchema.parse({
     schemaVersion: 1,
     gameType: 'COUNTING',
@@ -44,10 +46,10 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     completionRule: 'CORRECT_CHOICE',
   });
   const sessionId = randomUUID();
-  const session = (ownerUserId: string) => ({
+  const session = (childId: string) => ({
     sessionId,
     versionId: randomUUID(),
-    ownerUserId,
+    childId,
     status: 'IN_PROGRESS' as const,
     eventCount: 0,
     startedAt: new Date(),
@@ -91,9 +93,8 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
       'DATABASE_URL',
       'postgresql://fixture:fixture@localhost:5433/fixture',
     );
-    actor = child;
     sessions.findById.mockImplementation(() =>
-      Promise.resolve(session(child.userId)),
+      Promise.resolve(session(child.childId)),
     );
     sessions.listInteractions.mockResolvedValue([]);
     sessions.findForeignEventIds.mockResolvedValue([]);
@@ -107,10 +108,9 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
       .overrideProvider(PrismaService)
       .useValue({})
       .overrideProvider(UsersService)
-      .useValue({
-        requireActivePrincipal: () => Promise.resolve(actor),
-        findChildByUserId: () => Promise.resolve(null),
-      })
+      .useValue({ requireActivePrincipal: () => Promise.resolve(adult) })
+      .overrideProvider(ChildAuthService)
+      .useValue({ requireActiveChild: () => Promise.resolve(child) })
       .overrideProvider(PlaySessionRepository)
       .useValue(sessions)
       .overrideProvider(PlayableGameService)
@@ -124,13 +124,14 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     await app?.close();
     vi.unstubAllEnvs();
   });
-  const token = () =>
+  // A child token by default; an adult (teacher) token on request.
+  const token = (kind: 'child' | 'adult' = 'child') =>
     app.get(JwtService).signAsync(
-      { tokenUse: 'access' },
+      { tokenUse: kind === 'child' ? 'child_access' : 'access' },
       {
         secret,
         algorithm: 'HS256',
-        subject: actor.userId,
+        subject: kind === 'child' ? child.childId : adult.userId,
         issuer: 'lumikids-api',
         audience: 'lumikids-web',
         expiresIn: 900,
@@ -139,15 +140,21 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     );
   const events = () => `/api/v1/gameplay/sessions/${sessionId}/events`;
 
-  it('keeps the learner API closed to accounts without PLAY_GAMES', async () => {
-    actor = teacherFixture;
+  it('keeps the learner API closed to adult accounts', async () => {
     await request(app.getHttpServer())
       .get('/api/v1/gameplay/games')
+      .auth(await token('adult'), { type: 'bearer' })
+      .expect(403);
+  });
+
+  it('refuses a child token on adult routes', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
       .auth(await token(), { type: 'bearer' })
       .expect(403);
   });
 
-  it('lists games for a child account', async () => {
+  it('lists games for a signed-in child', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/gameplay/games?page=1')
       .auth(await token(), { type: 'bearer' })
@@ -155,14 +162,25 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     expect(response.body).toMatchObject({ success: true, code: 'OK' });
   });
 
-  it('reports a missing child profile with a stable code', async () => {
+  it('starts a session for the child in the token', async () => {
     games.detail.mockResolvedValue({ content });
+    sessions.findByStartRequest.mockResolvedValue(null);
+    sessions.start.mockImplementation(() =>
+      Promise.resolve(session(child.childId)),
+    );
+    const startRequestId = randomUUID();
     const response = await request(app.getHttpServer())
       .post('/api/v1/gameplay/sessions')
       .auth(await token(), { type: 'bearer' })
-      .send({ versionId: randomUUID(), startRequestId: randomUUID() })
-      .expect(409);
-    expect(response.body.code).toBe('CHILD_PROFILE_MISSING');
+      .send({ versionId: randomUUID(), startRequestId })
+      .expect(201);
+    expect(response.body.data).toMatchObject({
+      sessionId,
+      status: 'IN_PROGRESS',
+    });
+    expect(sessions.start).toHaveBeenCalledWith(
+      expect.objectContaining({ childId: child.childId, startRequestId }),
+    );
   });
 
   it('records a server-verified event and returns the session state', async () => {
