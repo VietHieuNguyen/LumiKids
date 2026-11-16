@@ -22,7 +22,7 @@ type StageMode = "loading" | "live" | "static";
 const LandingDemo = dynamic(() => import("./landing-demo"), { ssr: false });
 
 /** The five kinds of animal to find in the valley, in the order their dots are shown. */
-const QUEST: readonly FriendId[] = ["duck", "elephant", "rabbit", "bear", "dog"];
+const QUEST: readonly FriendId[] = ["duck", "frog", "deer", "elephant", "rabbit", "bear", "dog"];
 type NavTarget = (typeof LANDING_COPY.nav.links)[number]["target"];
 
 /** Scroll progress that each nav target lands on inside the pinned story. */
@@ -194,7 +194,10 @@ export function LandingPage() {
 
     const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const nav = navigator as Navigator & { deviceMemory?: number };
-    const lowPower = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
+    // WebKit on iPhone/iPad always reports 2 cores (and no deviceMemory), so the core count says nothing
+    // there; trusting it rendered iPads at 1.25x on a 2x screen, which looked smeared toward the corners.
+    const appleTouch = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    const lowPower = (!appleTouch && (nav.hardwareConcurrency ?? 8) <= 4) || (nav.deviceMemory ?? 8) <= 4;
 
     let valley: ValleyStage | null = null;
     let raf = 0;
@@ -216,6 +219,8 @@ export function LandingPage() {
     let windowFrames = 0;
     let windowTime = 0;
     let degraded = false;
+    let settled = false;
+    let stepFrom: { dpr: number; average: number } | null = null;
     let width = 0;
     let height = 0;
 
@@ -227,7 +232,8 @@ export function LandingPage() {
       height = stage.clientHeight;
       const desktop = width > 1100;
       // Render at (close to) the screen's real density so edges and foliage stay crisp; the FPS guard lowers it if needed.
-      const cap = lowPower ? 1.25 : desktop ? 1.75 : 1.5;
+      // Tablets and phones are held close, so they get the full 2x of their panel.
+      const cap = lowPower ? 1.25 : desktop && finePointer ? 1.75 : 2;
       valley?.resize(width, height, Math.max(1, Math.min(window.devicePixelRatio || 1, cap, dprLimit)), width > 820);
     };
 
@@ -262,9 +268,20 @@ export function LandingPage() {
           windowFrames += 1;
           windowTime += dt;
           if (windowFrames >= 45) {
-            if (windowTime / windowFrames > 22) {
+            const average = windowTime / windowFrames;
+            if (stepFrom !== null) {
+              // The last notch did not speed frames up (iOS Low Power Mode caps rAF at 30 fps, a scroll burst
+              // stalls a few frames): resolution is not the bottleneck, so restore it and stop lowering.
+              if (average > stepFrom.average * 0.9) {
+                dprLimit = stepFrom.dpr;
+                settled = true;
+                measure();
+              }
+              stepFrom = null;
+            } else if (!settled && average > 22) {
               const current = valley.pixelRatio();
               if (current > 1.01) {
+                stepFrom = { dpr: current, average };
                 dprLimit = Math.max(1, current - 0.25);
                 measure();
               } else if (!degraded) {

@@ -19,6 +19,10 @@ export const LANDING_ASSETS = {
   cattail: "/models/landing/cattail.glb",
   /** LumiKids low-poly birches ("Tree 1", "Tree 2"): generated flat-shaded trunks and leaf blobs, vertex colours only. */
   birch: "/models/landing/birch.glb",
+  /** "Deer" by Quaternius (Poly Pizza, CC0): reshaped into a fawn (bigger head and eyes, white spots), Idle/Eating/Jump_toIdle. */
+  deer: "/models/landing/deer.glb",
+  /** "Frog" by Quaternius (Poly Pizza, CC0): decimated to ~2k flat-shaded tris, new round eyes and cheeks, Idle/Jump. */
+  frog: "/models/landing/frog.glb",
   poster: "/models/landing/poster.webp",
   gameImages: {
     shadowMatch: { subject: "/game-demo/cat.svg", shadow: "/game-demo/cat-shadow.svg", other: "/game-demo/dog-shadow.svg" },
@@ -62,18 +66,36 @@ export const FERN_PLACEMENT: readonly { x: number; z: number; height: number; ya
   { x: 0.55, z: 4.45, height: 0.36, yawDeg: 100 },
 ];
 
-export type AnimalId = "elephant" | "dog";
+export type AnimalId = "elephant" | "dog" | "deer";
 
 /**
  * Animals outside the interactive encounter. `forward` is the model's facing axis; `faceShot` names
  * the camera shot the animal turns towards (plus `faceOffsetDeg`), so it reads well when the camera settles.
  */
-export const ANIMAL_PLACEMENT: Record<AnimalId, { x: number; z: number; height: number; forward: "x" | "z"; faceShot: string; faceOffsetDeg: number }> = {
+export const ANIMAL_PLACEMENT: Record<AnimalId, { x: number; z: number; height: number; forward: "x" | "z"; faceShot: string; faceOffsetDeg: number; clip?: string }> = {
   // On the low sandy bank at the foot of the right-hand waterfall (built in Blender as "Elephant Bank").
   elephant: { x: 7.15, z: 6.1, height: 0.8, forward: "x", faceShot: "elephant", faceOffsetDeg: -40 },
   // Beside the trail cabin, on the open side the cabin shot looks at.
   dog: { x: 0.55, z: 0.45, height: 0.34, forward: "z", faceShot: "cabin", faceOffsetDeg: 20 },
+  // On the grass at the far bank of the stream on the terrace above the cabin. Seen from the climb shot its body
+  // lies along the 11:45 line, head towards the water (and the camera), and it dips its head to drink.
+  deer: { x: 3.96, z: -3.62, height: 0.62, forward: "z", faceShot: "climb", faceOffsetDeg: 7.5, clip: "Eating" },
 };
+
+/**
+ * Lily pads in the calm water at the foot of the cliff behind the duck pond (lake surface y = 0): outside
+ * the ducks' loops and the plunge foam, and inside both the landscape and the portrait pond framing.
+ * The frog starts on the first and hops pad to pad when tapped; the last, smallest one carries a lotus.
+ */
+export const LILY_PADS: readonly { x: number; z: number; radius: number; yawDeg: number }[] = [
+  { x: 3.65, z: 6.2, radius: 0.28, yawDeg: 30 },
+  { x: 4.25, z: 6.05, radius: 0.24, yawDeg: 140 },
+  { x: 3.15, z: 6.38, radius: 0.24, yawDeg: 250 },
+  { x: 4.6, z: 6.45, radius: 0.19, yawDeg: 320 },
+];
+
+/** The frog's size (bind-pose height) and which pads it hops between, in order. */
+export const FROG = { height: 0.15, route: [0, 1, 0, 2] } as const;
 
 /**
  * Small cattail clumps in the shallows around the duck pond (terrain within a few cm of the water line,

@@ -5,7 +5,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { CAMERA_SHOTS, STORY, progressToShot } from "./camera-path";
 import type { CameraShot } from "./camera-path";
-import { ANIMAL_PLACEMENT, BIRCH_PLACEMENT, CATTAIL_CLUSTERS, CHARACTER_PLACEMENT, FERN_PLACEMENT, LANDING_ASSETS, SUMMIT_FRIENDS } from "./landing-assets";
+import { ANIMAL_PLACEMENT, BIRCH_PLACEMENT, CATTAIL_CLUSTERS, CHARACTER_PLACEMENT, FERN_PLACEMENT, FROG, LANDING_ASSETS, LILY_PADS, SUMMIT_FRIENDS } from "./landing-assets";
 import type { AnimalId, CharacterId } from "./landing-assets";
 import { createSharedUniforms, patchSurface, setTerrainLite, surfaceForMaterial, tuneMaterial } from "./valley-materials";
 import type { FernUniforms, SharedUniforms, SurfaceKind } from "./valley-materials";
@@ -16,7 +16,7 @@ export type StageQuality = "high" | "low";
 export type ScreenAnchor = { x: number; y: number; visible: boolean };
 
 /** Every animal a visitor can tap. */
-export type FriendId = CharacterId | AnimalId | "duck";
+export type FriendId = CharacterId | AnimalId | "duck" | "frog";
 
 /** A tappable animal: where it is, how big, and what to nudge when it reacts. */
 type Friend = {
@@ -32,12 +32,32 @@ type Friend = {
   mixer: THREE.AnimationMixer | null;
   /** Its own extra move when tapped (the ducks quack or flap); without one the idle clip just speeds up. */
   onPoke: (() => void) | null;
+  /** The tap reaction moves it on its own (the frog hops to another pad), so skip the generic bounce. */
+  ownMotion: boolean;
   /** Seconds (render clock) when the current reaction began, or -1. */
   started: number;
   shown: () => boolean;
 };
 
 const REACTION_SECONDS = 0.95;
+/** One frog hop: crouch, arc to the next pad, land (the Jump clip is stretched to fit). */
+const FROG_HOP_SECONDS = 0.8;
+/** Top of a lily pad above the lake surface (y = 0). */
+const PAD_Y = 0.012;
+
+type LilyPad = { root: THREE.Group; base: THREE.Vector3; radius: number; phase: number; kicked: number };
+
+type FrogRig = {
+  root: THREE.Group;
+  mixer: THREE.AnimationMixer;
+  idle: THREE.AnimationAction | null;
+  jump: THREE.AnimationAction | null;
+  /** Index into FROG.route of the pad it sits on (or is leaving). */
+  step: number;
+  hopStart: number;
+  fromHeading: number;
+  toHeading: number;
+};
 
 type CharacterRig = {
   root: THREE.Group;
@@ -159,6 +179,8 @@ export class ValleyStage {
   private readonly hemiLight: THREE.HemisphereLight;
   private readonly characters = new Map<CharacterId, CharacterRig>();
   private readonly ducks: Duck[] = [];
+  private readonly lilyPads: LilyPad[] = [];
+  private frog: FrogRig | null = null;
   private readonly mist: { sprite: THREE.Sprite; base: THREE.Vector3; radius: number; phase: number; drift: number }[] = [];
   private mistTexture: THREE.Texture | null = null;
   /** Ending: Rabbit and Bear waving at the summit, birds over the evening sky, fireflies, glowing windows. */
@@ -241,6 +263,7 @@ export class ValleyStage {
     if (this.disposed) return { missing };
     this.prepareValley(valley.scene);
     this.scene.add(valley.scene);
+    this.addLilyPads();
     onValleyReady();
 
     const duckLoad = loader.loadAsync(LANDING_ASSETS.duck).then((gltf) => {
@@ -260,6 +283,8 @@ export class ValleyStage {
     const extras = ([
       [LANDING_ASSETS.elephant, (gltf) => this.addAnimal("elephant", gltf.scene, gltf.animations), "voi"],
       [LANDING_ASSETS.dog, (gltf) => this.addAnimal("dog", gltf.scene, gltf.animations), "chó"],
+      [LANDING_ASSETS.deer, (gltf) => this.addAnimal("deer", gltf.scene, gltf.animations), "hươu"],
+      [LANDING_ASSETS.frog, (gltf) => this.addFrog(gltf.scene, gltf.animations), "ếch"],
       [LANDING_ASSETS.cattail, (gltf) => this.addCattails(gltf.scene), "cỏ đuôi nến"],
       [LANDING_ASSETS.birch, (gltf) => this.addBirches(gltf.scene), "cây bạch dương"],
     ] as const satisfies readonly (readonly [string, (gltf: { scene: THREE.Group; animations: THREE.AnimationClip[] }) => void, string])[]).map(([url, add, label]) =>
@@ -626,8 +651,8 @@ export class ValleyStage {
     return samples.reduce((sum, h) => sum + h, 0) / samples.length;
   }
 
-  private addAnimal(id: AnimalId, model: THREE.Object3D, clips: THREE.AnimationClip[]): void {
-    const place = ANIMAL_PLACEMENT[id];
+  /** Shadows, no culling pops and the soft pastel treatment for a skinned animal model. */
+  private prepareCreature(model: THREE.Object3D): void {
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
@@ -640,6 +665,11 @@ export class ValleyStage {
       // Eyes are small blended layers; leave them untouched. Skin and fur get the soft pastel treatment.
       if (!material.transparent) patchSurface(material, "character", this.uniforms);
     });
+  }
+
+  private addAnimal(id: AnimalId, model: THREE.Object3D, clips: THREE.AnimationClip[]): void {
+    const place = ANIMAL_PLACEMENT[id];
+    this.prepareCreature(model);
 
     // Normalise in the bind pose: base on the ground, centred on X/Z, scaled to the target height.
     model.updateMatrixWorld(true);
@@ -676,7 +706,7 @@ export class ValleyStage {
     this.scene.add(root);
 
     let mixer: THREE.AnimationMixer | null = null;
-    const idle = clips.find((clip) => /idle/i.test(clip.name)) ?? clips[0];
+    const idle = clips.find((clip) => clip.name === place.clip) ?? clips.find((clip) => /idle/i.test(clip.name)) ?? clips[0];
     if (idle) {
       mixer = new THREE.AnimationMixer(model);
       mixer.clipAction(idle).play();
@@ -872,8 +902,126 @@ export class ValleyStage {
     };
   }
 
-  private addFriend(id: FriendId, anchor: THREE.Object3D, object: THREE.Object3D, height: number, mixer: THREE.AnimationMixer | null, shown: () => boolean = () => true, onPoke: (() => void) | null = null): void {
-    this.friends.push({ id, anchor, object, height, baseY: object.position.y, baseRotY: object.rotation.y, baseScale: object.scale.clone(), mixer, onPoke, started: -1, shown });
+  private addFriend(id: FriendId, anchor: THREE.Object3D, object: THREE.Object3D, height: number, mixer: THREE.AnimationMixer | null, shown: () => boolean = () => true, onPoke: (() => void) | null = null, ownMotion = false): void {
+    this.friends.push({ id, anchor, object, height, baseY: object.position.y, baseRotY: object.rotation.y, baseScale: object.scale.clone(), mixer, onPoke, ownMotion, started: -1, shown });
+  }
+
+  /** Low-poly lily pads (a cupped disc with the notch) drifting on the pond; the smallest carries a lotus. */
+  private addLilyPads(): void {
+    const padMaterial = new THREE.MeshStandardMaterial({ color: "#8cc274", roughness: 0.78, metalness: 0, flatShading: true, envMapIntensity: 0.35 });
+    const rimMaterial = new THREE.MeshStandardMaterial({ color: "#64a057", roughness: 0.85, metalness: 0, flatShading: true, envMapIntensity: 0.3 });
+    LILY_PADS.forEach((spec, index) => {
+      const root = new THREE.Group();
+      root.name = `lily-pad-${index}`;
+      const pad = new THREE.Mesh(makeLilyPadGeometry(spec.radius), padMaterial);
+      pad.receiveShadow = true;
+      // A thin darker underside peeks out at the rim, so the pad reads as a leaf, not a sticker.
+      const rim = new THREE.Mesh(makeLilyPadGeometry(spec.radius * 1.04), rimMaterial);
+      rim.position.y = -0.006;
+      root.add(rim, pad);
+      if (index === LILY_PADS.length - 1) root.add(makeLotus(spec.radius));
+      root.position.set(spec.x, PAD_Y, spec.z);
+      root.rotation.y = THREE.MathUtils.degToRad(spec.yawDeg);
+      this.scene.add(root);
+      this.lilyPads.push({ root, base: root.position.clone(), radius: spec.radius, phase: index * 1.9, kicked: -1 });
+    });
+  }
+
+  /** The frog sits on the first pad, facing the pond camera; a tap sends it hopping along FROG.route. */
+  private addFrog(model: THREE.Object3D, clips: THREE.AnimationClip[]): void {
+    const start = this.lilyPads[FROG.route[0]];
+    if (!start) return;
+    this.prepareCreature(model);
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    model.scale.multiplyScalar(FROG.height / Math.max(size.y, 1e-6));
+    model.updateMatrixWorld(true);
+    box.setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    model.position.y -= box.min.y;
+
+    const root = new THREE.Group();
+    root.name = "frog";
+    root.add(model);
+    root.position.copy(start.root.position);
+    const shot = (CAMERA_SHOTS.find((s) => s.name === "pond") ?? CAMERA_SHOTS[0]).position;
+    // The model faces +Z; turn it towards the pond camera.
+    root.rotation.y = Math.atan2(shot[0] - root.position.x, shot[2] - root.position.z);
+    this.scene.add(root);
+
+    const mixer = new THREE.AnimationMixer(model);
+    const idleClip = clips.find((clip) => /idle/i.test(clip.name));
+    const jumpClip = clips.find((clip) => /jump/i.test(clip.name));
+    const idle = idleClip ? mixer.clipAction(idleClip) : null;
+    idle?.play();
+    let jump: THREE.AnimationAction | null = null;
+    if (jumpClip) {
+      jump = mixer.clipAction(jumpClip);
+      jump.setLoop(THREE.LoopOnce, 1);
+      jump.clampWhenFinished = true;
+      jump.timeScale = jumpClip.duration / FROG_HOP_SECONDS;
+    }
+    this.frog = { root, mixer, idle, jump, step: 0, hopStart: -1, fromHeading: root.rotation.y, toHeading: root.rotation.y };
+    this.addFriend("frog", root, root, size.y * (FROG.height / Math.max(size.y, 1e-6)) * 1.6, mixer, () => true, () => this.hopFrog(), true);
+  }
+
+  /** Start a hop to the next pad on the route (ignored while one is already under way). */
+  private hopFrog(): void {
+    const frog = this.frog;
+    if (!frog || frog.hopStart >= 0) return;
+    const from = this.lilyPads[FROG.route[frog.step]];
+    const to = this.lilyPads[FROG.route[(frog.step + 1) % FROG.route.length]];
+    if (!from || !to) return;
+    frog.hopStart = Math.max(0, this.lastTime);
+    frog.fromHeading = frog.root.rotation.y;
+    const target = Math.atan2(to.base.x - from.base.x, to.base.z - from.base.z);
+    // Turn the short way round.
+    frog.toHeading = frog.fromHeading + Math.atan2(Math.sin(target - frog.fromHeading), Math.cos(target - frog.fromHeading));
+    if (frog.jump) {
+      frog.idle?.fadeOut(0.1);
+      frog.jump.reset().fadeIn(0.1).play();
+    }
+  }
+
+  /** Pads bob on the water and dip when the frog pushes off or lands; the frog rides its pad or flies its arc. */
+  private updatePond(timeSeconds: number, dt: number): void {
+    for (const pad of this.lilyPads) {
+      const age = pad.kicked < 0 ? Infinity : timeSeconds - pad.kicked;
+      const dip = Number.isFinite(age) ? -0.018 * Math.exp(-age * 4) * Math.cos(age * 13) : 0;
+      pad.root.position.y = pad.base.y + Math.sin(timeSeconds * 1.2 + pad.phase) * 0.003 + dip;
+      pad.root.rotation.x = Math.sin(timeSeconds * 0.9 + pad.phase) * 0.025;
+      pad.root.rotation.z = Math.cos(timeSeconds * 0.8 + pad.phase) * 0.025;
+    }
+    const frog = this.frog;
+    if (!frog) return;
+    frog.mixer.update(dt);
+    const from = this.lilyPads[FROG.route[frog.step]];
+    if (!from) return;
+    if (frog.hopStart < 0) {
+      frog.root.position.set(from.root.position.x, from.root.position.y, from.root.position.z);
+      return;
+    }
+    const to = this.lilyPads[FROG.route[(frog.step + 1) % FROG.route.length]];
+    const t = (timeSeconds - frog.hopStart) / FROG_HOP_SECONDS;
+    // The clip crouches first and settles last; the body only travels in the middle of it.
+    const travel = smoothRange(t, 0.18, 0.82);
+    if (t >= 0.18 && from.kicked < frog.hopStart) from.kicked = timeSeconds;
+    frog.root.rotation.y = lerp(frog.fromHeading, frog.toHeading, smoothRange(t, 0, 0.3));
+    frog.root.position.set(
+      lerp(from.root.position.x, to.root.position.x, travel),
+      lerp(from.root.position.y, to.root.position.y, travel) + Math.sin(travel * Math.PI) * 0.2,
+      lerp(from.root.position.z, to.root.position.z, travel),
+    );
+    if (t >= 0.82 && to.kicked < frog.hopStart) to.kicked = timeSeconds;
+    if (t >= 1) {
+      frog.step = (frog.step + 1) % FROG.route.length;
+      frog.hopStart = -1;
+      frog.jump?.fadeOut(0.2);
+      frog.idle?.reset().fadeIn(0.2).play();
+    }
   }
 
   /** The animal under a point of the canvas (CSS pixels), nearest first. Small or distant ones get a generous target. */
@@ -917,6 +1065,10 @@ export class ValleyStage {
   private updateFriends(timeSeconds: number): void {
     for (const friend of this.friends) {
       if (friend.started < 0) continue;
+      if (friend.ownMotion) {
+        friend.started = -1;
+        continue;
+      }
       const t = (timeSeconds - friend.started) / REACTION_SECONDS;
       const fade = t >= 1 ? 0 : 1 - t;
       const squash = Math.sin(t * Math.PI * 4) * 0.1 * fade;
@@ -1047,6 +1199,7 @@ export class ValleyStage {
       this.updateEnding(timeSeconds);
       for (const animal of this.animals.values()) animal.mixer?.update(dt);
       this.updateFriends(timeSeconds);
+      this.updatePond(timeSeconds, dt);
       for (const [id, rig] of this.characters) {
         const t = timeSeconds + rig.phase;
         const breathe = Math.sin(t * 2.1) * 0.018;
@@ -1110,6 +1263,56 @@ export class ValleyStage {
     this.pmrem?.dispose();
     this.renderer.dispose();
   }
+}
+
+/**
+ * A lily pad: a flat-shaded fan with the leaf's notch, cupped up a little towards the rim
+ * (y up, centred on the origin).
+ */
+function makeLilyPadGeometry(radius: number): THREE.BufferGeometry {
+  const notch = 0.55;
+  const segments = 11;
+  const positions: number[] = [];
+  const rim = (i: number): [number, number, number] => {
+    const a = notch / 2 + (i / segments) * (Math.PI * 2 - notch);
+    // Slightly uneven edge so the facets catch the light differently.
+    const r = radius * (0.94 + 0.06 * Math.sin(i * 2.7));
+    return [Math.cos(a) * r, radius * 0.1, Math.sin(a) * r];
+  };
+  for (let i = 0; i < segments; i += 1) {
+    positions.push(0, 0, 0, ...rim(i + 1), ...rim(i));
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** A small low-poly lotus: two rings of pink petals around a yellow heart. */
+function makeLotus(padRadius: number): THREE.Group {
+  const flower = new THREE.Group();
+  flower.name = "lotus";
+  const outer = new THREE.MeshStandardMaterial({ color: "#ffb8cb", roughness: 0.6, metalness: 0, flatShading: true, envMapIntensity: 0.4 });
+  const inner = new THREE.MeshStandardMaterial({ color: "#ff96b4", roughness: 0.6, metalness: 0, flatShading: true, envMapIntensity: 0.4 });
+  const size = padRadius * 0.5;
+  const petal = new THREE.ConeGeometry(size * 0.32, size, 4);
+  petal.translate(0, size / 2, 0);
+  const rings: readonly [THREE.Material, number, number, number][] = [[outer, 7, 1.0, 0.0], [inner, 5, 0.55, 0.5]];
+  for (const [material, count, tilt, offset] of rings) {
+    for (let i = 0; i < count; i += 1) {
+      const mesh = new THREE.Mesh(petal, material);
+      const a = ((i + offset) / count) * Math.PI * 2;
+      mesh.rotation.set(0, -a, 0);
+      mesh.rotateZ(-tilt * 0.75);
+      mesh.castShadow = true;
+      flower.add(mesh);
+    }
+  }
+  const heart = new THREE.Mesh(new THREE.IcosahedronGeometry(size * 0.22, 0), new THREE.MeshStandardMaterial({ color: "#ffd45c", roughness: 0.6, metalness: 0, flatShading: true }));
+  heart.position.y = size * 0.25;
+  flower.add(heart);
+  flower.position.set(padRadius * 0.15, padRadius * 0.08, -padRadius * 0.1);
+  return flower;
 }
 
 /** Smoothstep of x between a and b. */

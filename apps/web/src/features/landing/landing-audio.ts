@@ -217,6 +217,22 @@ export class ValleyAudio {
         }
         break;
       }
+      case "frog": {
+        // Two throaty croaks: a buzzy low tone through a hollow band-pass.
+        const throat = this.filter("bandpass", 620, 2.4, out);
+        for (const start of [t, t + 0.26]) {
+          this.tone("square", [[start, 150], [start + 0.05, 205], [start + 0.16, 120]], [[start, 0], [start + 0.015, 0.75], [start + 0.17, 0]], throat, { rate: 38, depth: 22 });
+        }
+        break;
+      }
+      case "deer": {
+        // A soft, high bleat that lifts then falls, with a little wobble.
+        const nose = this.filter("bandpass", 1400, 1.6, out);
+        const pitch = [[t, 760], [t + 0.12, 980], [t + 0.36, 690]] as const;
+        this.tone("triangle", pitch, [[t, 0], [t + 0.03, 0.55], [t + 0.3, 0.35], [t + 0.4, 0]], nose, { rate: 9, depth: 30 });
+        this.tone("sine", pitch.map(([time, f]) => [time, f * 2] as const), [[t, 0], [t + 0.03, 0.15], [t + 0.38, 0]], nose);
+        break;
+      }
       case "bear": {
         const chest = this.filter("lowpass", 520, 0.7, out);
         const pitch = [[t, 150], [t + 0.16, 192], [t + 0.3, 158], [t + 0.42, 186], [t + 0.56, 138]] as const;

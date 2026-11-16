@@ -21,9 +21,9 @@ export const LANDING_COPY = {
   /** Sound toggle (off by default). */
   sound: { on: "Bật âm thanh", off: "Tắt âm thanh", label: "Âm thanh" },
   /** What each animal "says" in a little bubble when it is tapped. */
-  friends: { rabbit: "Xin chào!", bear: "Chào bé!", elephant: "Tu tu!", dog: "Gâu gâu!", duck: "Quạc quạc!" },
+  friends: { rabbit: "Xin chào!", bear: "Chào bé!", elephant: "Tu tu!", dog: "Gâu gâu!", duck: "Quạc quạc!", deer: "Chào bạn nhỏ!", frog: "Ộp ộp!" },
   /** Little quest in the valley: tap each kind of animal once. */
-  quest: { label: "Tìm các bạn nhỏ", done: "Giỏi quá! Bé đã tìm đủ 5 bạn" },
+  quest: { label: "Tìm các bạn nhỏ", done: "Giỏi quá! Bé đã tìm đủ 7 bạn" },
   /** Sample game opened from a game card, playable without an account. */
   demo: { title: "Chơi thử", close: "Đóng trò chơi", note: "Đây là trò chơi mẫu, kết quả không được lưu.", login: "Đăng nhập để chơi những trò cô giáo đã soạn." },
   guide: "Cùng khám phá thung lũng LumiKids",
@@ -76,7 +76,7 @@ export const LANDING_COPY = {
       { label: "Kho trò chơi", href: "/teacher/games" },
       { label: "Tạo trò chơi", href: "/teacher/games/create" },
     ],
-    credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Voi của Ozor, Chó con của kenchoo và Cỏ đuôi nến của SXuno — Sketchfab, CC BY 4.0, đã giảm lưới, làm mịn, đổi màu và thêm hoạt ảnh chờ.",
+    credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Hươu và Ếch của Quaternius (Poly Pizza, CC0), đã chỉnh dáng và màu; Voi của Ozor, Chó con của kenchoo và Cỏ đuôi nến của SXuno — Sketchfab, CC BY 4.0, đã giảm lưới, làm mịn, đổi màu và thêm hoạt ảnh chờ.",
   },
 } as const;
 
