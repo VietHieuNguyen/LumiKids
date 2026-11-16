@@ -22,7 +22,7 @@ function TeacherClassrooms({ api }: { api: ClassroomApi }) {
       {classrooms.error && <ErrorBanner message={classrooms.error} onRetry={classrooms.reload} />}
       {classrooms.loading && !classrooms.data && <p role="status">Đang tải lớp…</p>}
       {classrooms.data?.length === 0 && (
-        <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+        <p className="rounded-2xl border border-line bg-paper p-8 text-center text-ink-soft">
           Bạn chưa được phân công lớp nào. Nhờ quản trị viên thêm bạn vào lớp.
         </p>
       )}
@@ -31,16 +31,16 @@ function TeacherClassrooms({ api }: { api: ClassroomApi }) {
           <li key={item.classId}>
             <Link
               href={`/teacher/classrooms/${item.classId}`}
-              className="flex h-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-300"
+              className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-sm hover:border-leaf/50"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="break-words text-lg font-bold">{item.className}</span>
                 {item.status === "ARCHIVED" && <StatusPill tone="slate">{classroomStatusLabels.ARCHIVED}</StatusPill>}
               </div>
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-ink-soft">
                 {item.ageGroup.name} · Năm học {item.schoolYear.name}
               </span>
-              <span className="mt-auto text-sm font-medium text-slate-800">{item.childCount} trẻ đang học</span>
+              <span className="mt-auto text-sm font-medium text-ink">{item.childCount} trẻ đang học</span>
             </Link>
           </li>
         ))}

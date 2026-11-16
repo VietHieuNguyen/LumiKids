@@ -1,4 +1,9 @@
 import {
+  assignmentDetailSchema,
+  assignmentSummaryListSchema,
+  classGroupListSchema,
+  classGroupSchema,
+  createAssignmentSchema,
   ageGroupListSchema,
   childProfileListSchema,
   childProfileSchema,
@@ -12,6 +17,12 @@ import {
   schoolYearSchema,
 } from "@lumikids/shared";
 import type {
+  CreateAssignmentInput,
+  CreateClassGroupInput,
+  DecideReplayInput,
+  ExtendAssignmentInput,
+  UpdateAssignmentInput,
+  UpdateClassGroupInput,
   CreateChildInput,
   CreateClassroomInput,
   CreateSchoolYearInput,
@@ -94,6 +105,10 @@ export class ClassroomApi {
       throw new ClassroomApiError("Phản hồi chưa hợp lệ.", 0);
     return envelope.data;
   }
+  /** For feature clients built on the same session (AssignmentApi). */
+  raw(path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}) {
+    return this.request(path, options);
+  }
   private send(path: string, method: string, body?: unknown) {
     return this.request(path, { method, body: body ?? {} });
   }
@@ -170,6 +185,62 @@ export class ClassroomApi {
   async issueLoginCode(classId: string, childId: string) {
     return issuedLoginCodeSchema.parse(
       await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/login-code`, "POST"),
+    );
+  }
+}
+
+/** Groups and assignments of one class (teacher). */
+export class AssignmentApi {
+  constructor(
+    private readonly classrooms: ClassroomApi,
+    private readonly classId: string,
+  ) {}
+  private path(suffix = "") {
+    return `/teacher/classrooms/${encodeURIComponent(this.classId)}${suffix}`;
+  }
+  async groups(signal?: AbortSignal) {
+    return classGroupListSchema.parse(await this.classrooms.raw(this.path("/groups"), { signal }));
+  }
+  async createGroup(input: CreateClassGroupInput) {
+    return classGroupSchema.parse(await this.classrooms.raw(this.path("/groups"), { method: "POST", body: input }));
+  }
+  async updateGroup(groupId: string, input: UpdateClassGroupInput) {
+    return classGroupSchema.parse(
+      await this.classrooms.raw(this.path(`/groups/${encodeURIComponent(groupId)}`), { method: "PATCH", body: input }),
+    );
+  }
+  async deleteGroup(groupId: string) {
+    await this.classrooms.raw(this.path(`/groups/${encodeURIComponent(groupId)}`), { method: "DELETE" });
+  }
+  async list(signal?: AbortSignal) {
+    return assignmentSummaryListSchema.parse(await this.classrooms.raw(this.path("/assignments"), { signal }));
+  }
+  async detail(assignmentId: string, signal?: AbortSignal) {
+    return assignmentDetailSchema.parse(
+      await this.classrooms.raw(this.path(`/assignments/${encodeURIComponent(assignmentId)}`), { signal }),
+    );
+  }
+  async create(input: CreateAssignmentInput) {
+    return assignmentDetailSchema.parse(
+      await this.classrooms.raw(this.path("/assignments"), { method: "POST", body: createAssignmentSchema.parse(input) }),
+    );
+  }
+  async update(assignmentId: string, input: UpdateAssignmentInput) {
+    return assignmentDetailSchema.parse(
+      await this.classrooms.raw(this.path(`/assignments/${encodeURIComponent(assignmentId)}`), { method: "PATCH", body: input }),
+    );
+  }
+  async extend(assignmentId: string, input: ExtendAssignmentInput) {
+    return assignmentDetailSchema.parse(
+      await this.classrooms.raw(this.path(`/assignments/${encodeURIComponent(assignmentId)}/extend`), { method: "POST", body: input }),
+    );
+  }
+  async decide(assignmentId: string, requestId: string, input: DecideReplayInput) {
+    return assignmentDetailSchema.parse(
+      await this.classrooms.raw(
+        this.path(`/assignments/${encodeURIComponent(assignmentId)}/replay-requests/${encodeURIComponent(requestId)}/decision`),
+        { method: "POST", body: input },
+      ),
     );
   }
 }

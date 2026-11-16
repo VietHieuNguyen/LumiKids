@@ -1,4 +1,5 @@
 import {
+  childAssignmentListSchema,
   playableGameDetailSchema,
   playableGamePageSchema,
   playSessionSchema,
@@ -25,11 +26,12 @@ function record(value: unknown): value is Record<string, unknown> {
 const messages: Record<number, string> = {
   401: "Phiên đăng nhập đã hết hạn.",
   403: "Con chưa được phép chơi trò này.",
-  404: "Trò chơi không còn khả dụng.",
+  404: "Trò này chưa mở cho con. Con quay lại chọn trò khác nhé.",
   409: "Lượt chơi đã thay đổi. Con thử lại nhé.",
   429: "Có quá nhiều yêu cầu. Đợi một chút nhé.",
 };
 const codeMessages: Record<string, string> = {
+  REPLAY_NOT_NEEDED: "Bài vẫn đang mở, con vào chơi luôn nhé.",
   PLAY_SESSION_CLOSED: "Lượt chơi đã kết thúc. Con bấm Thử lại để chơi lượt mới nhé.",
 };
 
@@ -99,6 +101,12 @@ export class GameplayApi {
     if (!record(envelope) || envelope.success !== true)
       throw new GameplayApiError("Phản hồi chưa hợp lệ.", 0);
     return envelope.data;
+  }
+  async assignments(signal?: AbortSignal) {
+    return childAssignmentListSchema.parse(await this.request("/assignments", { signal }));
+  }
+  async requestReplay(assignmentId: string) {
+    return this.request(`/assignments/${encodeURIComponent(assignmentId)}/replay-requests`, { post: true });
   }
   async list(params: URLSearchParams, signal?: AbortSignal) {
     return playableGamePageSchema.parse(

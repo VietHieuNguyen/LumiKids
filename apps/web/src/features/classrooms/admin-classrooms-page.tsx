@@ -49,7 +49,7 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
                       <option key={item.schoolYearId} value={item.schoolYearId}>{item.name}</option>
                     ))}
                   </select>
-                  <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700">
+                  <label className="flex min-h-11 items-center gap-2 text-sm text-ink">
                     <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
                     Hiện lớp đã lưu trữ
                   </label>
@@ -57,14 +57,14 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
               ) : undefined
             }
           >
-            {years.data?.length === 0 && <p className="text-sm text-slate-600">Chưa có năm học. Hãy tạo năm học trước khi thêm lớp.</p>}
+            {years.data?.length === 0 && <p className="text-sm text-ink-soft">Chưa có năm học. Hãy tạo năm học trước khi thêm lớp.</p>}
             {classrooms.error && <ErrorBanner message={classrooms.error} onRetry={classrooms.reload} />}
-            {schoolYearId && classrooms.loading && !classrooms.data && <p role="status" className="text-sm text-slate-600">Đang tải lớp…</p>}
-            {classrooms.data && classrooms.data.length === 0 && <p className="text-sm text-slate-600">Năm học này chưa có lớp nào.</p>}
+            {schoolYearId && classrooms.loading && !classrooms.data && <p role="status" className="text-sm text-ink-soft">Đang tải lớp…</p>}
+            {classrooms.data && classrooms.data.length === 0 && <p className="text-sm text-ink-soft">Năm học này chưa có lớp nào.</p>}
             {classrooms.data && classrooms.data.length > 0 && (
               <div className="-mx-4 overflow-x-auto sm:mx-0">
                 <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="border-b border-slate-200 text-slate-500">
+                  <thead className="border-b border-line text-ink-soft">
                     <tr>
                       <th className="px-4 py-2 font-medium sm:px-2">Lớp</th>
                       <th className="px-2 py-2 font-medium">Nhóm tuổi</th>
@@ -73,11 +73,11 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
                       <th className="px-2 py-2 font-medium">Trạng thái</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-line">
                     {classrooms.data.map((item) => (
-                      <tr key={item.classId} className="hover:bg-slate-50">
+                      <tr key={item.classId} className="hover:bg-cream">
                         <td className="px-4 py-3 sm:px-2">
-                          <Link className="font-semibold text-blue-700 hover:underline" href={`/admin/classrooms/${item.classId}`}>{item.className}</Link>
+                          <Link className="font-semibold text-leaf hover:underline" href={`/admin/classrooms/${item.classId}`}>{item.className}</Link>
                         </td>
                         <td className="px-2 py-3">{item.ageGroup.name}</td>
                         <td className="px-2 py-3 text-right tabular-nums">{item.teacherCount}</td>
@@ -164,7 +164,7 @@ function CreateClassroomForm({
           </select>
         </div>
         {error && <p role="alert" className="asset-error">{error}</p>}
-        {done && <p role="status" className="text-sm text-emerald-700">{done}</p>}
+        {done && <p role="status" className="text-sm text-leaf">{done}</p>}
         <button className="asset-button-primary w-full" disabled={busy || !className.trim()}>{busy ? "Đang tạo…" : "Tạo lớp"}</button>
       </form>
     </Panel>

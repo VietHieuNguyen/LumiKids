@@ -1,177 +1,287 @@
 "use client";
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { gameTypeSchema } from "@lumikids/shared";
-import type { GameType, PlayableGame } from "@lumikids/shared";
+import { useEffect, useState } from "react";
+import type { ChildAssignment, ChildAssignmentGame } from "@lumikids/shared";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
-import { difficultyLabels, gameTypeLabels } from "../game-library/library-page";
+import { gameTypeLabels } from "../game-library/library-page";
 import type { GameplayApi } from "./api";
 import { gameplayError } from "./api";
+import { ChildFrame, SayButton, Star } from "./child-frame";
+import { deadlineLabel, givenName, progressSentence } from "./child-format";
 import { useGameplaySession } from "./use-gameplay-session";
+import { useSpeech } from "./use-speech";
 
 export function ChildGamesPage() {
-  return (
-    <Suspense fallback={<main className="p-8" role="status">Đang tải…</main>}>
-      <ChildGames />
-    </Suspense>
-  );
-}
-
-function ChildGames() {
-  // `?type=` comes from the landing page game cards; invalid values fall back to every game.
-  const parsedType = gameTypeSchema.safeParse(useSearchParams().get("type"));
-  const gameType = parsedType.success ? parsedType.data : null;
   const { session, loading, api, canPlay, logout } = useGameplaySession();
   if (loading || !session || !api)
     return (
-      <main className="p-8" role="status">
-        Đang kiểm tra phiên đăng nhập…
-      </main>
+      <ChildFrame>
+        <main className="ck-main" role="status" aria-label="Đang mở">
+          <div className="ck-skeleton" />
+        </main>
+      </ChildFrame>
     );
   if (!canPlay)
     return (
-      <main className="p-8">
-        <p>Tài khoản này chưa được phép chơi.</p>
-      </main>
+      <ChildFrame childName={session.child.fullName} logout={logout}>
+        <main className="ck-main"><p className="ck-error">Tài khoản này chưa được phép chơi.</p></main>
+      </ChildFrame>
     );
-  return <GameList key={`${session.child.childId}:${gameType ?? "ALL"}`} api={api} gameType={gameType} childName={session.child.fullName} logout={logout} />;
-}
-
-function SignOutButton({ logout }: { logout: () => Promise<void> }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
   return (
-    <button
-      type="button"
-      className="asset-button-secondary"
-      disabled={busy}
-      onClick={() => {
-        setBusy(true);
-        // Leave even if the server is unreachable: the next child must not inherit this session.
-        logout().catch(() => {}).finally(() => router.replace("/login?mode=child"));
-      }}
-    >
-      {busy ? "Đang thoát…" : "Thoát"}
-    </button>
+    <ChildFrame childName={givenName(session.child.fullName)} logout={logout}>
+      <ChildHome key={session.child.childId} api={api} name={givenName(session.child.fullName)} />
+    </ChildFrame>
   );
 }
 
-function GameList({ api, gameType, childName, logout }: { api: GameplayApi; gameType: GameType | null; childName: string; logout: () => Promise<void> }) {
-  const [items, setItems] = useState<PlayableGame[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+function ChildHome({ api, name }: { api: GameplayApi; name: string }) {
+  const { canSpeak, speak } = useSpeech();
+  const [items, setItems] = useState<ChildAssignment[] | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const [loaded, setLoaded] = useState<{
-    api: GameplayApi;
-    page: number;
-    retry: number;
-  } | null>(null);
-  const busy =
-    !loaded ||
-    loaded.api !== api ||
-    loaded.page !== page ||
-    loaded.retry !== retry;
   useEffect(() => {
     const abort = new AbortController();
     api
-      .list(
-        new URLSearchParams({ page: String(page), pageSize: "12", ...(gameType ? { gameType } : {}) }),
-        abort.signal,
-      )
+      .assignments(abort.signal)
       .then((result) => {
-        if (abort.signal.aborted) return;
-        setItems((current) =>
-          page === 1
-            ? result.items
-            : [
-                ...current,
-                ...result.items.filter(
-                  (item) =>
-                    !current.some((seen) => seen.versionId === item.versionId),
-                ),
-              ],
-        );
-        setTotalPages(result.pagination.totalPages);
-        setError("");
+        if (!abort.signal.aborted) {
+          setItems(result);
+          setError("");
+        }
       })
       .catch((failure) => {
         if (!abort.signal.aborted) setError(gameplayError(failure));
-      })
-      .finally(() => {
-        if (!abort.signal.aborted) setLoaded({ api, page, retry });
       });
     return () => abort.abort();
-  }, [api, page, retry, gameType]);
+  }, [api, retry]);
+
+  const open = items?.filter((item) => item.state === "OPEN") ?? [];
+  const closed = items?.filter((item) => item.state === "CLOSED") ?? [];
+  const greeting = `Chào ${name}!`;
+  const lead = open.length ? "Hôm nay mình chơi gì nào?" : "Cùng xem cô giao gì nhé.";
+
   return (
-    <main className="min-h-dvh bg-slate-50 px-3 py-5 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Cùng chơi nào, {childName}!</h1>
-            {gameType && (
-              <p className="mt-1 text-sm text-slate-600">
-                Trò {gameTypeLabels[gameType]} ·{" "}
-                <Link className="font-semibold text-blue-700 underline" href="/child/games">Xem tất cả trò chơi</Link>
-              </p>
+    <main className="ck-main">
+      <div className="ck-hello">
+        <div>
+          <h1 className="ck-helloTitle">{greeting}</h1>
+          <p className="ck-helloLead">{lead}</p>
+        </div>
+        {canSpeak && <SayButton text={`${greeting} ${lead}`} speak={speak} />}
+      </div>
+
+      {error && (
+        <div className="ck-error" role="alert">
+          <span>{error}</span>
+          <button type="button" className="ck-retry" onClick={() => setRetry((n) => n + 1)}>Thử lại</button>
+        </div>
+      )}
+
+      {!items && !error && (
+        <div className="ck-stack" role="status" aria-label="Đang tải bài của con">
+          <div className="ck-skeleton" />
+          <div className="ck-skeleton" />
+        </div>
+      )}
+
+      {items && items.length === 0 && <Empty canSpeak={canSpeak} speak={speak} />}
+
+      {open.length > 0 && (
+        <section className="ck-section" aria-labelledby="open-heading">
+          <h2 id="open-heading" className="ck-sectionTitle">
+            <Star filled /> Bài cô giao
+          </h2>
+          <div className="ck-stack">
+            {open.map((item) => (
+              <OpenCard key={item.assignmentId} item={item} canSpeak={canSpeak} speak={speak} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {closed.length > 0 && (
+        <section className="ck-section" aria-labelledby="closed-heading">
+          <h2 id="closed-heading" className="ck-sectionTitle">Bài đã hết giờ</h2>
+          <div className="ck-stack">
+            {closed.map((item) => (
+              <ClosedCard key={item.assignmentId} item={item} api={api} canSpeak={canSpeak} speak={speak} />
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+function Empty({ canSpeak, speak }: { canSpeak: boolean; speak: (text: string) => void }) {
+  const text = "Cô chưa giao bài nào. Con quay lại sau nhé!";
+  return (
+    <div className="ck-empty">
+      <svg className="ck-emptyArt" viewBox="0 0 160 160" aria-hidden="true">
+        <circle cx="80" cy="84" r="52" fill="#ffd66b" />
+        <circle cx="80" cy="84" r="52" fill="none" stroke="#e8a91d" strokeWidth="4" />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+          <rect key={angle} x="77" y="8" width="6" height="16" rx="3" fill="#ffc02e" transform={`rotate(${angle} 80 84)`} />
+        ))}
+        <path d="M60 80q6-6 12 0M88 80q6-6 12 0" fill="none" stroke="#183829" strokeWidth="4" strokeLinecap="round" />
+        <path d="M66 100q14 10 28 0" fill="none" stroke="#183829" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="58" cy="94" r="5" fill="#ff9e7a" opacity="0.6" />
+        <circle cx="102" cy="94" r="5" fill="#ff9e7a" opacity="0.6" />
+      </svg>
+      <p className="ck-emptyTitle">Chưa có bài mới</p>
+      <p className="ck-emptyText">{text}</p>
+      {canSpeak && <SayButton text={text} speak={speak} />}
+    </div>
+  );
+}
+
+function Stars({ games }: { games: ChildAssignmentGame[] }) {
+  const done = games.filter((game) => game.completed).length;
+  return (
+    <span className="ck-stars" role="img" aria-label={progressSentence(done, games.length)}>
+      {games.map((game) => (
+        <Star key={game.versionId} filled={game.completed} />
+      ))}
+    </span>
+  );
+}
+
+function OpenCard({ item, canSpeak, speak }: { item: ChildAssignment; canSpeak: boolean; speak: (text: string) => void }) {
+  const [now] = useState(() => new Date());
+  const deadline = deadlineLabel(item.playableUntil, now);
+  const done = item.games.filter((game) => game.completed).length;
+  const allDone = done === item.games.length;
+  const sentence = [item.title, progressSentence(done, item.games.length), deadline?.text].filter(Boolean).join(". ");
+  return (
+    <article className="ck-card" aria-labelledby={`a-${item.assignmentId}`}>
+      <div className="ck-cardHead">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h3 id={`a-${item.assignmentId}`} className="ck-cardTitle">{item.title}</h3>
+          {item.note && <p className="ck-cardNote">{item.note}</p>}
+          <div className="ck-meta">
+            <Stars games={item.games} />
+            {deadline && (
+              <span className="ck-chip" data-urgent={deadline.urgent}>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M9 5v4l2.5 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+                {deadline.text}
+              </span>
             )}
           </div>
-          <SignOutButton logout={logout} />
-        </header>
-        {error && (
-          <div role="alert" className="asset-error mb-4">
-            {error}
-            <button
-              className="asset-button-secondary ml-3"
-              onClick={() => setRetry((n) => n + 1)}
-            >
-              Thử lại
+        </div>
+        {canSpeak && <SayButton text={sentence} speak={speak} />}
+      </div>
+      <ul className="ck-games">
+        {item.games.map((game) => (
+          <li key={game.versionId}>
+            <GameTile game={game} />
+          </li>
+        ))}
+      </ul>
+      {allDone && (
+        <p className="ck-done">
+          <Star filled /> Giỏi quá! Con làm xong hết rồi. Con vẫn chơi lại được nhé.
+        </p>
+      )}
+    </article>
+  );
+}
+
+function GameTile({ game }: { game: ChildAssignmentGame }) {
+  const inner = (
+    <>
+      {game.completed && (
+        <span className="ck-badge" aria-hidden="true">
+          <svg viewBox="0 0 52 52" width="52" height="52">
+            <circle cx="26" cy="26" r="23" fill="#ffc02e" stroke="#fff" strokeWidth="4" />
+            <path d="M26 13l3.6 7.4 8.1 1.1-5.9 5.6 1.4 8-7.2-3.9-7.2 3.9 1.4-8-5.9-5.6 8.1-1.1Z" fill="#fff" />
+          </svg>
+        </span>
+      )}
+      <span className="ck-emblem" aria-hidden="true"><GameSymbol type={game.gameType} /></span>
+      <span className="ck-tileName">{game.name}</span>
+      <span className="ck-play">
+        {game.available ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.8v10.4L12 7Z" fill="currentColor" /></svg>
+            {game.completed ? "Chơi lại" : "Chơi"}
+          </>
+        ) : (
+          "Trò đang nghỉ"
+        )}
+      </span>
+    </>
+  );
+  const label = `${game.name}, trò ${gameTypeLabels[game.gameType].toLowerCase()}${game.completed ? ", con đã xong" : ""}`;
+  if (!game.available)
+    return (
+      <div className="ck-tile" data-type={game.gameType} data-off="true" aria-label={`${label}, trò đang nghỉ`}>
+        {inner}
+      </div>
+    );
+  return (
+    <Link className="ck-tile" data-type={game.gameType} data-done={game.completed} href={`/child/games/${game.versionId}`} aria-label={label}>
+      {inner}
+    </Link>
+  );
+}
+
+function ClosedCard({ item, api, canSpeak, speak }: { item: ChildAssignment; api: GameplayApi; canSpeak: boolean; speak: (text: string) => void }) {
+  const [request, setRequest] = useState(item.replayRequest);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const done = item.games.filter((game) => game.completed).length;
+  async function ask() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.requestReplay(item.assignmentId);
+      setRequest({ status: "PENDING", requestedAt: new Date().toISOString(), grantedUntil: null });
+      if (canSpeak) speak("Con đã nhờ cô rồi. Đợi cô đồng ý nhé.");
+    } catch (failure) {
+      setError(gameplayError(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const pending = request?.status === "PENDING";
+  const rejected = request?.status === "REJECTED";
+  return (
+    <article className="ck-card ck-closed" aria-labelledby={`c-${item.assignmentId}`}>
+      <div className="ck-closedRow">
+        <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0, flex: "1 1 260px" }}>
+          <span className="ck-moon" aria-hidden="true">
+            <svg width="30" height="30" viewBox="0 0 30 30"><path d="M19 4a11 11 0 1 0 7 17A9 9 0 0 1 19 4Z" fill="currentColor" /></svg>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <h3 id={`c-${item.assignmentId}`} className="ck-cardTitle">{item.title}</h3>
+            <div className="ck-meta">
+              <Stars games={item.games} />
+              <span className="ck-chip" data-urgent="true">Hết giờ chơi</span>
+            </div>
+          </div>
+        </div>
+        {pending ? (
+          <span className="ck-sent" role="status">
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
+            Đã nhờ cô, đợi cô nhé
+          </span>
+        ) : (
+          <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+            {rejected && <span className="ck-sent" data-tone="no">Lần trước cô chưa đồng ý</span>}
+            <button type="button" className="ck-ask" onClick={() => void ask()} disabled={busy}>
+              <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 22s-8-4.7-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 21 11c0 6.3-8 11-8 11Z" fill="#fff" stroke="#183829" strokeWidth="2" strokeLinejoin="round" /></svg>
+              {busy ? "Đang gửi…" : "Xin cô chơi lại"}
             </button>
           </div>
         )}
-        {!busy && !error && items.length === 0 && (
-          <p className="rounded-2xl bg-white p-8 text-center">
-            Chưa có trò chơi nào. Con quay lại sau nhé!
-          </p>
-        )}
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((game) => (
-            <li key={game.versionId}>
-              <Link
-                href={`/child/games/${game.versionId}`}
-                className="flex h-full flex-col items-center gap-3 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm hover:border-blue-300"
-              >
-                <span className="game-mode-emblem" aria-hidden="true">
-                  <GameSymbol type={game.gameType} />
-                </span>
-                <span className="break-words text-lg font-bold">
-                  {game.name}
-                </span>
-                <span className="text-sm text-slate-500">
-                  {gameTypeLabels[game.gameType]} ·{" "}
-                  {difficultyLabels[game.difficulty]}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {busy && (
-          <p className="p-8 text-center" role="status">
-            Đang tải trò chơi…
-          </p>
-        )}
-        {!busy && page < totalPages && (
-          <div className="mt-6 text-center">
-            <button
-              className="asset-button-secondary"
-              onClick={() => setPage((n) => n + 1)}
-            >
-              Xem thêm trò chơi
-            </button>
-          </div>
+        {canSpeak && (
+          <SayButton
+            text={`${item.title}. Bài này đã hết giờ. ${progressSentence(done, item.games.length)} ${pending ? "Con đã nhờ cô rồi." : "Con bấm nút vàng để xin cô chơi lại."}`}
+            speak={speak}
+          />
         )}
       </div>
-    </main>
+      {error && <p className="ck-error" role="alert">{error}</p>}
+    </article>
   );
 }

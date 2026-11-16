@@ -110,6 +110,11 @@
 .lg-codeInput::placeholder { color: #c6d1cb; letter-spacing: 0.14em; }
 .lg-hint { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
 
+.lg-notice {
+  padding: 10px 14px; border-radius: 12px;
+  background: #e8f5ec; border: 1px solid #b9dfc5; color: #1f6b39;
+  font-size: 14.5px; line-height: 1.55;
+}
 .lg-error {
   padding: 10px 14px; border-radius: 12px;
   background: #fff1ee; border: 1px solid #f6c3b8; color: #a3321d;

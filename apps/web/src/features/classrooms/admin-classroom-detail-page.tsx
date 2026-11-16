@@ -54,7 +54,7 @@ function AdminClassroom({ api, classId }: { api: ClassroomApi; classId: string }
       actions={<StatusPill tone={archived ? "slate" : "green"}>{classroomStatusLabels[data.status]}</StatusPill>}
     >
       {classroom.error && <ErrorBanner message={classroom.error} onRetry={classroom.reload} />}
-      {archived && <p className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">Lớp đã lưu trữ: chỉ xem được, không thêm trẻ hoặc giáo viên.</p>}
+      {archived && <p className="mb-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink-soft">Lớp đã lưu trữ: chỉ xem được, không thêm trẻ hoặc giáo viên.</p>}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <ChildrenPanel api={api} classroom={data} onChange={classroom.replace} reload={classroom.reload} />
@@ -85,14 +85,14 @@ function ChildrenPanel({
   return (
     <Panel title={`Trẻ trong lớp (${classroom.children.length})`} description="Trẻ đăng nhập bằng mã do giáo viên của lớp cấp.">
       {classroom.children.length === 0 ? (
-        <p className="text-sm text-slate-600">Lớp chưa có trẻ.</p>
+        <p className="text-sm text-ink-soft">Lớp chưa có trẻ.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-line">
           {classroom.children.map((child) => (
             <li key={child.childId} className="flex flex-wrap items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="break-words font-semibold">{child.fullName}</p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-ink-soft">
                   {formatDateOnly(child.dob)} · {genderLabels[child.gender]} · {child.loginCodeIssuedAt ? "Đã có mã" : "Chưa có mã"}
                 </p>
               </div>
@@ -132,11 +132,11 @@ function UnassignedChildren({ api, classroom, onPlaced }: { api: ClassroomApi; c
   const mutation = useMutation();
   if (!unassigned.data?.length && !unassigned.error) return null;
   return (
-    <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <h3 className="font-semibold text-amber-900">Trẻ chưa có lớp</h3>
-      <p className="mt-1 text-sm text-amber-900">Trẻ chưa có lớp thì chưa đăng nhập được. Xếp trẻ vào lớp này rồi giáo viên cấp mã.</p>
+    <div className="mt-6 rounded-xl border border-sun-edge/40 bg-sun-soft p-4">
+      <h3 className="font-semibold text-[#6b4600]">Trẻ chưa có lớp</h3>
+      <p className="mt-1 text-sm text-[#6b4600]">Trẻ chưa có lớp thì chưa đăng nhập được. Xếp trẻ vào lớp này rồi giáo viên cấp mã.</p>
       {unassigned.error && <ErrorBanner message={unassigned.error} onRetry={unassigned.reload} />}
-      <ul className="mt-3 divide-y divide-amber-100">
+      <ul className="mt-3 divide-y divide-sun-edge/20">
         {(unassigned.data ?? []).map((child) => (
           <li key={child.childId} className="flex flex-wrap items-center gap-3 py-2">
             <span className="min-w-0 flex-1 break-words text-sm">
@@ -176,7 +176,7 @@ function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: s
     });
   }
   return (
-    <form className="mt-6 rounded-xl border border-dashed border-slate-300 p-4" onSubmit={submit}>
+    <form className="mt-6 rounded-xl border border-dashed border-line p-4" onSubmit={submit}>
       <h3 className="mb-3 font-semibold">Thêm trẻ vào lớp</h3>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div>
@@ -196,7 +196,7 @@ function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: s
         </div>
       </div>
       {mutation.error && <p role="alert" className="asset-error mt-3">{mutation.error}</p>}
-      {done && <p role="status" className="mt-3 text-sm text-emerald-700">{done}</p>}
+      {done && <p role="status" className="mt-3 text-sm text-leaf">{done}</p>}
       <button className="asset-button-primary mt-4" disabled={mutation.busy || !fullName.trim() || !dob}>{mutation.busy ? "Đang thêm…" : "Thêm trẻ"}</button>
     </form>
   );
@@ -245,7 +245,7 @@ function EditChildDialog({ api, child, onClose, onSaved }: { api: ClassroomApi; 
               </label>
             ))}
           </div>
-          {status === "DISABLED" && <p className="mt-1 text-sm text-slate-600">Trẻ bị khóa không đăng nhập được, kể cả khi đã có mã.</p>}
+          {status === "DISABLED" && <p className="mt-1 text-sm text-ink-soft">Trẻ bị khóa không đăng nhập được, kể cả khi đã có mã.</p>}
         </fieldset>
         {mutation.error && <p role="alert" className="asset-error">{mutation.error}</p>}
         <div className="flex justify-end gap-2">
@@ -285,12 +285,12 @@ function TransferDialog({
   return (
     <Dialog title={`Chuyển lớp cho ${child.fullName}`} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-sm leading-6 text-ink-soft">
           Từ hôm nay trẻ học lớp mới. Giáo viên lớp {classroom.className} vẫn xem được các lượt chơi trong thời gian trẻ học lớp mình; giáo viên lớp mới chỉ thấy các lượt chơi từ khi trẻ chuyển đến.
         </p>
         {targets.error && <ErrorBanner message={targets.error} onRetry={targets.reload} />}
         {targets.loading && !targets.data && <p role="status" className="text-sm">Đang tải danh sách lớp…</p>}
-        {targets.data && options.length === 0 && <p className="text-sm text-slate-600">Chưa có lớp đang học nào khác.</p>}
+        {targets.data && options.length === 0 && <p className="text-sm text-ink-soft">Chưa có lớp đang học nào khác.</p>}
         {options.length > 0 && (
           <div>
             <label className="asset-label" htmlFor="transfer-target">Lớp mới</label>
@@ -322,13 +322,13 @@ function TeachersPanel({ api, classroom, onChange }: { api: ClassroomApi; classr
   const picked = userId || available[0]?.userId || "";
   return (
     <Panel title={`Giáo viên (${classroom.teachers.length})`}>
-      {classroom.teachers.length === 0 && <p className="text-sm text-slate-600">Lớp chưa có giáo viên phụ trách.</p>}
+      {classroom.teachers.length === 0 && <p className="text-sm text-ink-soft">Lớp chưa có giáo viên phụ trách.</p>}
       <ul className="space-y-2">
         {classroom.teachers.map((teacher) => (
           <li key={teacher.userId} className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <p className="break-words text-sm font-medium">{teacher.fullName}</p>
-              <p className="break-all text-xs text-slate-500">{teacher.email}</p>
+              <p className="break-all text-xs text-ink-soft">{teacher.email}</p>
             </div>
             <button
               type="button"
@@ -359,7 +359,7 @@ function TeachersPanel({ api, classroom, onChange }: { api: ClassroomApi; classr
           <label className="asset-label" htmlFor="add-teacher">Thêm giáo viên</label>
           {teachers.error && <ErrorBanner message={teachers.error} onRetry={teachers.reload} />}
           {teachers.data && available.length === 0 ? (
-            <p className="text-sm text-slate-600">Mọi giáo viên đang hoạt động đã ở trong lớp.</p>
+            <p className="text-sm text-ink-soft">Mọi giáo viên đang hoạt động đã ở trong lớp.</p>
           ) : (
             <div className="flex gap-2">
               <select id="add-teacher" className="asset-input min-w-0 flex-1" value={picked} onChange={(event) => setUserId(event.target.value)} disabled={!teachers.data || mutation.busy}>
@@ -407,7 +407,7 @@ function SettingsPanel({ api, classroom, onChange }: { api: ClassroomApi; classr
         </div>
         {!archived && <button className="asset-button-secondary w-full" disabled={!changed || !className.trim() || mutation.busy}>Lưu thay đổi</button>}
       </form>
-      <div className="mt-5 border-t border-slate-100 pt-4">
+      <div className="mt-5 border-t border-line pt-4">
         {archived ? (
           <button type="button" className="asset-button-secondary w-full" disabled={mutation.busy} onClick={() => void mutation.run(async () => onChange(await api.updateClassroom(classroom.classId, { status: "ACTIVE" })))}>
             Mở lại lớp
@@ -425,7 +425,7 @@ function SettingsPanel({ api, classroom, onChange }: { api: ClassroomApi; classr
             >
               Lưu trữ lớp
             </button>
-            {classroom.children.length > 0 && <p className="mt-2 text-xs text-slate-500">Chuyển hết trẻ sang lớp khác trước khi lưu trữ.</p>}
+            {classroom.children.length > 0 && <p className="mt-2 text-xs text-ink-soft">Chuyển hết trẻ sang lớp khác trước khi lưu trữ.</p>}
           </>
         )}
       </div>

@@ -66,22 +66,22 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
           <Panel title="Thông tin">
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-slate-500">Ngày sinh</dt>
+                <dt className="text-ink-soft">Ngày sinh</dt>
                 <dd className="font-medium">
                   {formatDateOnly(profile.dob)}
                   {age === null ? "" : ` (${age} tuổi)`}
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Giới tính</dt>
+                <dt className="text-ink-soft">Giới tính</dt>
                 <dd className="font-medium">{genderLabels[profile.gender]}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Mã đăng nhập</dt>
+                <dt className="text-ink-soft">Mã đăng nhập</dt>
                 <dd className="font-medium">{profile.loginCodeIssuedAt ? `Cấp lúc ${formatDateTime(profile.loginCodeIssuedAt)}` : "Chưa có mã"}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Thời gian học lớp này</dt>
+                <dt className="text-ink-soft">Thời gian học lớp này</dt>
                 <dd>
                   <ul className="font-medium">
                     {profile.periods.map((period) => (
@@ -98,11 +98,11 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
         <Panel title="Lịch sử chơi" description="Chỉ gồm các lượt chơi trong thời gian trẻ học lớp này. Đánh giá chỉ số sẽ có ở giai đoạn sau.">
           {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
           {history.loading && !history.data && <p role="status" className="text-sm">Đang tải lịch sử…</p>}
-          {history.data && history.data.pagination.total === 0 && <p className="text-sm text-slate-600">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
+          {history.data && history.data.pagination.total === 0 && <p className="text-sm text-ink-soft">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
           {history.data && history.data.items.length > 0 && (
             <div className="-mx-4 overflow-x-auto sm:mx-0" aria-busy={history.loading}>
               <table className="w-full min-w-[620px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-slate-500">
+                <thead className="border-b border-line text-ink-soft">
                   <tr>
                     <th className="px-4 py-2 font-medium sm:px-2">Trò chơi</th>
                     <th className="px-2 py-2 font-medium">Bắt đầu</th>
@@ -111,12 +111,12 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
                     <th className="px-2 py-2 font-medium">Kết quả</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {history.data.items.map((item) => (
                     <tr key={item.sessionId}>
                       <td className="px-4 py-3 sm:px-2">
                         <span className="block break-words font-medium">{item.gameName}</span>
-                        <span className="text-xs text-slate-500">{gameTypeLabels[item.gameType]}</span>
+                        <span className="text-xs text-ink-soft">{gameTypeLabels[item.gameType]}</span>
                       </td>
                       <td className="whitespace-nowrap px-2 py-3 tabular-nums">{formatDateTime(item.startedAt)}</td>
                       <td className="whitespace-nowrap px-2 py-3">{formatDuration(item.startedAt, item.endedAt) ?? "—"}</td>
@@ -133,7 +133,7 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
           {history.data && history.data.pagination.totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between gap-3 text-sm">
               <button type="button" className="asset-button-secondary" disabled={page <= 1 || history.loading} onClick={() => setPage((n) => n - 1)}>← Mới hơn</button>
-              <span className="tabular-nums text-slate-600">Trang {page}/{history.data.pagination.totalPages}</span>
+              <span className="tabular-nums text-ink-soft">Trang {page}/{history.data.pagination.totalPages}</span>
               <button type="button" className="asset-button-secondary" disabled={page >= history.data.pagination.totalPages || history.loading} onClick={() => setPage((n) => n + 1)}>Cũ hơn →</button>
             </div>
           )}

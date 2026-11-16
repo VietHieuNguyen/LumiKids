@@ -1,5 +1,17 @@
 import { TeacherClassroomPage } from "@/features/classrooms/teacher-classroom-page";
-export default async function Page({ params }: { params: Promise<{ classId: string }> }) {
+import type { ClassroomTab } from "@/features/classrooms/teacher-classroom-page";
+
+const tabs: readonly ClassroomTab[] = ["assignments", "children", "groups"];
+
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ classId: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
   const { classId } = await params;
-  return <TeacherClassroomPage classId={classId} />;
+  const { tab } = await searchParams;
+  const current = tabs.find((value) => value === tab) ?? "assignments";
+  return <TeacherClassroomPage classId={classId} tab={current} />;
 }

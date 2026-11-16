@@ -85,3 +85,31 @@ export async function logout(): Promise<void> {
   if (refreshInFlight) await refreshInFlight.catch(() => undefined);
   await withCookieLock(() => authRequest("logout"));
 }
+
+/** Change one's own password. The API ends every session of the account, so sign in again after. */
+export async function changePassword(accessToken: string, currentPassword: string, newPassword: string): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (!baseUrl) throw new AuthError("Chưa cấu hình địa chỉ API cho giao diện.", 0);
+  let response: Response;
+  try {
+    response = await withCookieLock(() =>
+      fetch(`${baseUrl}/api/v1/auth/password`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Protection": "1", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ currentPassword, newPassword }),
+        cache: "no-store",
+      }),
+    );
+  } catch {
+    throw new AuthError("Không kết nối được hệ thống. Vui lòng thử lại.", 0);
+  }
+  if (response.ok) return;
+  const byStatus: Record<number, string> = {
+    400: "Mật khẩu mới cần 10–128 kí tự và khác mật khẩu cũ.",
+    401: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
+    422: "Mật khẩu hiện tại không đúng.",
+    429: "Bạn đã thử quá nhiều lần. Vui lòng đợi một phút rồi thử lại.",
+  };
+  throw new AuthError(byStatus[response.status] ?? "Chưa đổi được mật khẩu. Vui lòng thử lại.", response.status);
+}

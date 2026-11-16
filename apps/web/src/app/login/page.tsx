@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth-provider";
 import { LANDING_ASSETS } from "@/features/landing/landing-assets";
 import { childLogin } from "@/lib/child-auth-api";
 import { formatLoginCodeInput, isCompleteLoginCode } from "@/lib/child-login-code";
+import { homeFor } from "@/lib/home-for";
 import { safeReturnPath } from "@/lib/safe-return-path";
 
 type Mode = "adult" | "child";
@@ -29,9 +30,9 @@ function LoginForm() {
   const next = safeReturnPath(params.get("next"));
   // Children play under /child; a link into it (or ?mode=child) opens the code form directly.
   const [mode, setMode] = useState<Mode>(params.get("mode") === "child" || next?.startsWith("/child") ? "child" : "adult");
-  const destination = next && !next.startsWith("/child") ? next : "/account";
   const childDestination = next?.startsWith("/child") ? next : "/child/games";
   const { session, loading, login } = useAuth();
+  const destination = next && !next.startsWith("/child") ? next : homeFor(session?.user.permissions ?? []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -74,7 +75,7 @@ function LoginForm() {
     try {
       await login(email, password);
       setPassword("");
-      router.replace(destination);
+      // The effect above redirects once the session (and so the role's home) is known.
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Đăng nhập không thành công. Vui lòng thử lại.");
     } finally { setSubmitting(false); }
@@ -124,6 +125,7 @@ function LoginForm() {
             </form>
           ) : (
           <form className="lg-form" onSubmit={handleSubmit} aria-busy={submitting}>
+            {params.get("changed") === "1" && !error && <p role="status" className="lg-notice">Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.</p>}
             <div className="lg-field">
               <label htmlFor="email" className="lg-label">Email</label>
               <input id="email" name="email" type="email" autoComplete="username" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="teacher1@lumikids.local" className="lg-input" disabled={submitting} />

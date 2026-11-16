@@ -40,3 +40,76 @@ test("duration of a play session", () => {
   assert.equal(formatDuration("2026-11-16T08:00:00.000Z", "2026-11-16T08:08:05.000Z"), "8 phút 5 giây");
   assert.equal(formatDuration("2026-11-16T08:00:00.000Z", "2026-11-16T09:30:00.000Z"), "1 giờ 30 phút");
 });
+
+import { deadlineLabel, givenName, progressSentence } from "../src/features/gameplay/child-format.ts";
+import { addDays, endOfLocalDay, startOfLocalDay, toLocalDateInput } from "../src/features/classrooms/format.ts";
+
+test("child wording: given name, deadline in days, progress sentence", () => {
+  assert.equal(givenName("Nguyễn Minh  An "), "An");
+  assert.equal(givenName(""), "con");
+  // Noon in Vietnam, mid-morning UTC: day boundaries agree in both zones.
+  const now = new Date("2026-11-16T05:00:00.000Z");
+  assert.equal(deadlineLabel(null, now), null);
+  assert.deepEqual(deadlineLabel("2026-11-16T04:00:00.000Z", now), { text: "Đã hết giờ", urgent: true });
+  assert.deepEqual(deadlineLabel("2026-11-16T07:00:00.000Z", now), { text: "Hạn chót hôm nay", urgent: true });
+  assert.deepEqual(deadlineLabel("2026-11-17T05:00:00.000Z", now), { text: "Còn đến ngày mai", urgent: true });
+  assert.deepEqual(deadlineLabel("2026-11-19T05:00:00.000Z", now), { text: "Còn 3 ngày", urgent: false });
+  assert.equal(progressSentence(0, 3), "Có 3 trò đang chờ con.");
+  assert.equal(progressSentence(1, 3), "Con xong 1 trên 3 trò rồi.");
+  assert.equal(progressSentence(3, 3), "Con làm xong hết rồi!");
+});
+
+test("assignment dates: whole local days and day arithmetic across months", () => {
+  assert.equal(addDays("2026-11-29", 3), "2026-12-02");
+  assert.equal(addDays("2026-12-31", 1), "2027-01-01");
+  const end = new Date(endOfLocalDay("2026-11-20"));
+  const start = new Date(startOfLocalDay("2026-11-21"));
+  assert.equal(start.getTime() - end.getTime(), 1);
+  assert.equal(toLocalDateInput(endOfLocalDay("2026-11-20")), "2026-11-20");
+});
+
+import { lastSeenLabel, percent, shortDay, trendLabel } from "../src/features/admin/format.ts";
+import { attentionItems } from "../src/features/admin/attention.ts";
+import { homeFor } from "../src/lib/home-for.ts";
+
+test("admin wording: last seen, percentages, week trend, short day", () => {
+  const now = new Date("2026-11-17T03:00:00.000Z");
+  assert.equal(lastSeenLabel(null, now), "Chưa đăng nhập");
+  assert.equal(lastSeenLabel("2026-11-17T01:00:00.000Z", now), "Hôm nay");
+  assert.equal(lastSeenLabel("2026-11-16T01:00:00.000Z", now), "Hôm qua");
+  assert.equal(lastSeenLabel("2026-11-01T03:00:00.000Z", now), "16 ngày trước");
+  assert.equal(percent(1, 3), 33);
+  assert.equal(percent(1, 0), null);
+  assert.deepEqual(trendLabel(5, 5), { text: "Như tuần trước", direction: "flat" });
+  assert.deepEqual(trendLabel(5, 0), { text: "Mới có hoạt động", direction: "up" });
+  assert.deepEqual(trendLabel(15, 10), { text: "+50% so với tuần trước", direction: "up" });
+  assert.deepEqual(trendLabel(6, 10), { text: "−40% so với tuần trước", direction: "down" });
+  assert.equal(shortDay("2026-11-17"), "T3 17/11");
+  assert.equal(shortDay("2026-11-22"), "CN 22/11");
+});
+
+test("admin attention: blocking problems first, nothing when the school is ready", () => {
+  const ref = (n) => ({ classId: `00000000-0000-4000-8000-00000000000${n}`, className: `Lớp ${n}` });
+  const base = {
+    schoolYear: { schoolYearId: ref(9).classId, name: "2026-2027", startDate: "2026-09-01", endDate: "2027-05-31", daysLeft: 195, hasNextYear: false },
+    attention: {
+      unassignedChildren: 0, childrenWithoutCode: 0, classesWithoutTeacher: [], classesWithoutChildren: [],
+      classesWithoutOpenAssignment: [], dormantTeachers: [], archivedGamesInOpenAssignments: 0, pendingReplayRequests: 0,
+    },
+  };
+  assert.deepEqual(attentionItems(base), []);
+  const items = attentionItems({
+    ...base,
+    schoolYear: { ...base.schoolYear, daysLeft: 20 },
+    attention: { ...base.attention, childrenWithoutCode: 4, classesWithoutTeacher: [ref(1)], pendingReplayRequests: 2 },
+  });
+  assert.deepEqual(items.map((item) => item.id), ["no-teacher", "year-ending", "no-code", "replays"]);
+  assert.equal(items[0].href, `/admin/classrooms/${ref(1).classId}`);
+  assert.equal(attentionItems({ ...base, schoolYear: null })[0].id, "no-year");
+});
+
+test("adults land on their working screen after login", () => {
+  assert.equal(homeFor(["MANAGE_CLASSROOMS", "MANAGE_USERS"]), "/admin");
+  assert.equal(homeFor(["READ_OWN_CLASSROOMS"]), "/teacher/classrooms");
+  assert.equal(homeFor(["READ_OWN_ACCOUNT"]), "/account");
+});

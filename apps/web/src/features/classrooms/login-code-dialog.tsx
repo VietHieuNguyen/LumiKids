@@ -46,15 +46,15 @@ export function LoginCodeDialog({
     <Dialog title={issued ? `Mã đăng nhập của ${child.fullName}` : `Cấp mã mới cho ${child.fullName}`} onClose={onClose}>
       {issued ? (
         <div>
-          <div className="print-card rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-5 text-center">
-            <p className="text-sm font-medium text-emerald-900">LumiKids · Lớp {className}</p>
-            <p className="mt-1 break-words text-lg font-bold text-slate-900">{child.fullName}</p>
-            <p className="mt-4 select-all font-mono text-4xl font-bold tracking-[0.18em] text-slate-900" aria-label={`Mã ${issued.code.split("").join(" ")}`}>
+          <div className="print-card rounded-2xl border-2 border-dashed border-leaf/40 bg-leaf-soft p-5 text-center">
+            <p className="text-sm font-medium text-leaf">LumiKids · Lớp {className}</p>
+            <p className="mt-1 break-words text-lg font-bold text-ink">{child.fullName}</p>
+            <p className="mt-4 select-all font-mono text-4xl font-bold tracking-[0.18em] text-ink" aria-label={`Mã ${issued.code.split("").join(" ")}`}>
               {issued.code}
             </p>
-            <p className="mt-4 text-xs text-slate-600">Vào trang Đăng nhập → “Bé vào chơi” → nhập mã.</p>
+            <p className="mt-4 text-xs text-ink-soft">Vào trang Đăng nhập → “Bé vào chơi” → nhập mã.</p>
           </div>
-          <p className="mt-4 text-sm leading-6 text-amber-800">
+          <p className="mt-4 text-sm leading-6 text-[#8a5a00]">
             Mã chỉ hiện một lần. Hãy đọc cho bé, ghi lại hoặc in thẻ trước khi đóng. Nếu quên, cấp mã mới.
           </p>
           <div className="mt-4 flex justify-end gap-2">
@@ -64,7 +64,7 @@ export function LoginCodeDialog({
         </div>
       ) : (
         <div>
-          <p className="text-sm leading-6 text-slate-700">
+          <p className="text-sm leading-6 text-ink">
             {child.loginCodeIssuedAt
               ? `Bé đang có mã cấp lúc ${formatDateTime(child.loginCodeIssuedAt)}. Mã cũ sẽ hết hiệu lực và bé bị đăng xuất khỏi mọi máy.`
               : "Bé chưa có mã. Sau khi cấp, bé dùng mã này để vào chơi."}

@@ -60,3 +60,34 @@ export function localToday(): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
+
+export const assignmentStateLabels = {
+  UPCOMING: "Chưa mở",
+  OPEN: "Đang mở",
+  CLOSED: "Đã hết hạn",
+  CANCELLED: "Đã hủy",
+} as const;
+export const assignmentStateTones = { UPCOMING: "blue", OPEN: "green", CLOSED: "amber", CANCELLED: "slate" } as const;
+export const completionLabels = { NOT_STARTED: "Chưa chơi", IN_PROGRESS: "Đang làm", COMPLETED: "Hoàn thành" } as const;
+
+/** "YYYY-MM-DD" (a date input) at 00:00 local time, as an ISO instant. */
+export function startOfLocalDay(date: string): string {
+  return new Date(`${date}T00:00:00`).toISOString();
+}
+/** "YYYY-MM-DD" at 23:59:59.999 local time: a deadline "on that day" covers the whole day. */
+export function endOfLocalDay(date: string): string {
+  return new Date(`${date}T23:59:59.999`).toISOString();
+}
+/** Local calendar date `days` after `from` ("YYYY-MM-DD"). */
+export function addDays(from: string, days: number): string {
+  const [year, month, day] = from.split("-").map(Number) as [number, number, number];
+  const date = new Date(year, month - 1, day + days);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+/** An ISO instant as the local "YYYY-MM-DD" (for pre-filling a date input). */
+export function toLocalDateInput(value: string): string {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
