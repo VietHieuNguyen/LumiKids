@@ -264,6 +264,7 @@ export class ValleyStage {
     this.prepareValley(valley.scene);
     this.scene.add(valley.scene);
     this.addLilyPads();
+    this.addFerns();
     onValleyReady();
 
     const duckLoad = loader.loadAsync(LANDING_ASSETS.duck).then((gltf) => {
@@ -273,12 +274,6 @@ export class ValleyStage {
       console.error(`[LumiKids landing] Không tải được mô hình vịt: ${LANDING_ASSETS.duck}`, error);
     });
 
-    const fernLoad = loader.loadAsync(LANDING_ASSETS.fern).then((gltf) => {
-      if (!this.disposed) this.addFerns(gltf.scene);
-    }).catch((error: unknown) => {
-      missing.push(LANDING_ASSETS.fern);
-      console.error(`[LumiKids landing] Không tải được mô hình dương xỉ: ${LANDING_ASSETS.fern}`, error);
-    });
 
     const extras = ([
       [LANDING_ASSETS.elephant, (gltf) => this.addAnimal("elephant", gltf.scene, gltf.animations), "voi"],
@@ -305,7 +300,7 @@ export class ValleyStage {
         console.error(`[LumiKids landing] Không tải được mô hình ${id}: ${LANDING_ASSETS[id]}`, error);
       }
     }));
-    await Promise.all([duckLoad, fernLoad, ...extras]);
+    await Promise.all([duckLoad, ...extras]);
     return { missing };
   }
 
@@ -411,41 +406,24 @@ export class ValleyStage {
     }
   }
 
-  private addFerns(model: THREE.Object3D): void {
-    model.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
+  /** Low-poly fern clumps generated in code (faceted, vertex-coloured fronds), each its own seeded shape. */
+  private addFerns(): void {
     FERN_PLACEMENT.forEach((place, index) => {
       const ground = this.groundHeight(place.x, place.z);
-      const scale = place.height / Math.max(size.y, 1e-6);
       const uniforms: FernUniforms = {
         uFernBase: { value: new THREE.Vector4(place.x, ground, place.z, place.height) },
         uPush: { value: new THREE.Vector3() },
       };
-      const fern = model.clone(true);
-      fern.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        object.castShadow = true;
-        object.receiveShadow = true;
-        const source = object.material as THREE.MeshStandardMaterial;
-        const material = source.clone();
-        material.side = THREE.DoubleSide;
-        material.metalness = 0;
-        material.envMapIntensity = 0.3;
-        patchSurface(material, "fern", this.uniforms, uniforms);
-        object.material = material;
-      });
-      fern.scale.setScalar(scale);
-      fern.position.set(place.x - (box.min.x + size.x / 2) * scale, ground - box.min.y * scale - 0.02, place.z - (box.min.z + size.z / 2) * scale);
-      const pivot = new THREE.Group();
-      pivot.name = `fern-${index}`;
-      pivot.add(fern);
-      pivot.position.set(0, 0, 0);
-      // Yaw about the fern's own base.
-      fern.position.sub(new THREE.Vector3(place.x, 0, place.z));
-      pivot.position.set(place.x, 0, place.z);
-      pivot.rotation.y = THREE.MathUtils.degToRad(place.yawDeg);
-      this.scene.add(pivot);
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, roughness: 0.86, metalness: 0, envMapIntensity: 0.3 });
+      patchSurface(material, "fern", this.uniforms, uniforms);
+      const fern = new THREE.Mesh(makeLowPolyFern(index + 1), material);
+      fern.name = `fern-${index}`;
+      fern.castShadow = true;
+      fern.receiveShadow = true;
+      fern.scale.setScalar(place.height);
+      fern.position.set(place.x, ground - 0.02, place.z);
+      fern.rotation.y = THREE.MathUtils.degToRad(place.yawDeg);
+      this.scene.add(fern);
       this.ferns.push({ uniforms, base: new THREE.Vector3(place.x, ground, place.z), height: place.height, push: new THREE.Vector3(), velocity: new THREE.Vector3() });
     });
   }
@@ -1263,6 +1241,68 @@ export class ValleyStage {
     this.pmrem?.dispose();
     this.renderer.dispose();
   }
+}
+
+/**
+ * A low-poly fern clump of unit height: arching fronds radiating from the base, each a folded spine with
+ * serrated leaflet pairs that shrink towards a drooping tip. Dark green at the heart, fresh green at the tips.
+ */
+function makeLowPolyFern(seed: number): THREE.BufferGeometry {
+  const random = mulberry32(seed * 17 + 3);
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const uvs: number[] = [];
+  const base = new THREE.Color("#3f7a3a");
+  const tip = new THREE.Color("#8fc85f");
+  const color = new THREE.Color();
+  const fronds = 7 + Math.floor(random() * 3);
+  const segments = 10;
+  const spine = (t: number, angle: number, reach: number, rise: number, out: THREE.Vector3) => {
+    // Rises steeply, then arches outwards and droops a little at the tip.
+    const r = reach * t;
+    const y = rise * (Math.sin(t * Math.PI * 0.62) * 1.05) - rise * 0.22 * t * t * t;
+    return out.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+  };
+  const push = (p: THREE.Vector3, t: number, shade: number) => {
+    positions.push(p.x, p.y, p.z);
+    color.copy(base).lerp(tip, t).multiplyScalar(shade);
+    colors.push(color.r, color.g, color.b);
+    uvs.push(0, t);
+  };
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const side = new THREE.Vector3();
+  const leaf = new THREE.Vector3();
+  for (let f = 0; f < fronds; f += 1) {
+    const angle = (f / fronds) * Math.PI * 2 + random() * 0.5;
+    // Long, low-arching fronds that spread wide, like a real fern clump.
+    const reach = 0.85 + random() * 0.3;
+    const rise = 0.62 + random() * 0.25;
+    const shade = 0.88 + random() * 0.2;
+    for (let i = 0; i < segments; i += 1) {
+      const t0 = i / segments;
+      const t1 = (i + 1) / segments;
+      spine(t0, angle, reach, rise, a);
+      spine(t1, angle, reach, rise, b);
+      side.set(-Math.sin(angle), 0, Math.cos(angle));
+      // Leaflets are widest a third of the way up and taper to the tip.
+      const width = 0.12 * Math.sin(Math.min(1, t0 * 1.5 + 0.3) * Math.PI) * (1 - t0 * 0.5) + 0.015;
+      for (const s of [1, -1]) {
+        // A leaflet: base on the spine, point swept forward and folded down (a shallow V along the frond).
+        leaf.copy(a).lerp(b, 1.15).addScaledVector(side, s * width);
+        leaf.y -= width * 0.45;
+        push(a, t0, shade);
+        push(leaf, (t0 + t1) / 2, shade * 1.06);
+        push(b, t1, shade);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 /**

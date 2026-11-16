@@ -1,6 +1,7 @@
 .lk-root {
   --ink: #183829;
   --ink-soft: #4e675b;
+  --ink-scene: #2f4a3c;
   --sky: #dceee2;
   --cream: #faf8ef;
   --paper: #fffdf7;
@@ -71,12 +72,12 @@
   backdrop-filter: blur(10px) saturate(1.1);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
 }
-.lk-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.01em; justify-self: start; }
+.lk-brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.01em; justify-self: start; }
 .lk-navLinks { display: flex; gap: 28px; font-size: 14px; font-weight: 500; }
 .lk-navLinks a { padding: 8px 2px; color: var(--ink); opacity: 0.86; transition: opacity 0.2s; }
 .lk-navLinks a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1.5px; }
 .lk-navRight { display: flex; align-items: center; gap: 18px; justify-self: end; }
-.lk-navLogin { font-size: 14px; font-weight: 500; padding: 8px 4px; }
+.lk-navLogin { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; font-weight: 500; padding: 0 4px; }
 .lk-navLogin:hover { text-decoration: underline; text-underline-offset: 6px; }
 
 .lk-cta {
@@ -94,11 +95,20 @@
 .lk-arrow { transition: transform 0.18s ease; flex: none; }
 .lk-cta:hover .lk-arrow, .lk-cardLink:hover .lk-arrow { transform: translateX(3px); }
 .lk-ctaShort { display: none; }
+/* Nav CTA: "skip to the games" while in the valley story, the usual CTA afterwards (same target). */
+.lk-nav[data-story="true"] .lk-whenAfter,
+.lk-nav[data-story="false"] .lk-whenStory { display: none !important; }
+.lk-nav[data-story="true"] .lk-navCta .lk-arrow { transform: rotate(90deg); }
+.lk-nav[data-story="true"] .lk-navCta:hover .lk-arrow { transform: rotate(90deg) translateY(-2px); }
+.lk-navLoginIcon {
+  display: none; width: 44px; height: 44px; border-radius: 999px; align-items: center; justify-content: center;
+  border: 1px solid var(--line); background: var(--glass);
+}
 .lk-ctaLarge { height: 50px; padding: 0 26px; font-size: 16px; margin-top: 26px; }
 .lk-ctaBlock { width: 100%; margin-top: 18px; }
 
 .lk-menuButton {
-  display: none; width: 42px; height: 42px; border-radius: 999px;
+  display: none; width: 44px; height: 44px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--glass);
   flex-direction: column; align-items: center; justify-content: center; gap: 5px;
 }
@@ -149,10 +159,6 @@
   animation: lk-drift 22s ease-in-out infinite alternate;
 }
 @keyframes lk-drift { to { transform: translate3d(14px, -10px, 0); } }
-.lk-scrim {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0;
-  background: radial-gradient(60% 50% at 50% 34%, rgba(250, 248, 239, 0.4), rgba(220, 238, 226, 0.12) 60%, transparent 80%);
-}
 
 .lk-teacherScrim {
   position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0;
@@ -213,9 +219,9 @@
   font-family: var(--display);
   font-size: clamp(30px, 4.2vw, 58px); font-weight: 800; line-height: 1.02; letter-spacing: -0.01em;
   text-wrap: balance;
-  text-shadow: 0 2px 30px rgba(250, 248, 239, 0.95), 0 0 2px rgba(250, 248, 239, 0.8);
 }
-.lk-guideNote { text-wrap: balance; margin-top: 14px; font-size: 17px; color: var(--ink-soft); text-shadow: 0 0 18px rgba(250, 248, 239, 1); }
+/* No glow behind the guide copy (it read as a bright patch over the scene); a darker ink keeps it legible instead. */
+.lk-guideNote { text-wrap: balance; margin-top: 14px; font-size: 17px; font-weight: 500; color: var(--ink-scene); }
 
 /* Encounter */
 .lk-encounter { left: var(--pad); top: 104px; visibility: hidden; opacity: 0; }
@@ -315,7 +321,7 @@
   text-wrap: balance; color: var(--ink);
   text-shadow: 0 2px 34px rgba(250, 248, 239, 0.95);
 }
-.lk-summitBody, .lk-farewellSubtitle { margin-top: 14px; max-width: 420px; color: var(--ink-soft); text-shadow: 0 0 20px rgba(250, 248, 239, 1); }
+.lk-summitBody, .lk-farewellSubtitle { margin-top: 14px; max-width: 420px; color: var(--ink-scene); text-shadow: 0 0 2px rgba(250, 248, 239, 0.95), 0 0 12px rgba(250, 248, 239, 1), 0 0 26px rgba(250, 248, 239, 0.9); }
 .lk-skills { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 .lk-skills li {
   padding: 7px 16px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--ink);
@@ -330,7 +336,7 @@
 }
 .lk-farewellActions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-top: 22px; }
 .lk-farewellActions .lk-ctaLarge { margin-top: 0; }
-.lk-ghostLink { font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.lk-ghostLink { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 
 /* Teacher */
 .lk-teacher {
@@ -345,7 +351,7 @@
   text-wrap: balance;
   text-shadow: 0 2px 34px rgba(250, 248, 239, 0.95);
 }
-.lk-teacherSubtitle { margin-top: 14px; max-width: 440px; color: var(--ink-soft); text-shadow: 0 0 20px rgba(250, 248, 239, 1); }
+.lk-teacherSubtitle { margin-top: 14px; max-width: 440px; color: var(--ink-scene); text-shadow: 0 0 2px rgba(250, 248, 239, 0.95), 0 0 12px rgba(250, 248, 239, 1), 0 0 26px rgba(250, 248, 239, 0.9); }
 .lk-flowCard {
   margin-top: 22px; width: min(380px, 100%); padding: 22px; border-radius: 26px;
   background: var(--glass); border: 1px solid rgba(255, 255, 255, 0.7);
@@ -513,13 +519,19 @@
 .lk-footerLinks { display: flex; flex-wrap: wrap; gap: 8px 26px; font-weight: 500; font-size: 15px; }
 .lk-footerLinks a { min-height: 44px; display: inline-flex; align-items: center; }
 .lk-footerLinks a:hover { text-decoration: underline; text-underline-offset: 5px; }
-.lk-credits { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-soft); opacity: 0.85; }
+.lk-copyright { grid-column: 1 / -1; font-size: 13px; color: var(--ink-soft); }
+.lk-credits { grid-column: 1 / -1; margin-top: -12px; font-size: 12.5px; color: var(--ink-soft); }
+.lk-credits summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.lk-credits p { max-width: 900px; padding-bottom: 8px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .lk-root { --story-height: 812svh; }
   .lk-navLinks { gap: 20px; }
-  .lk-navLogin { display: none; }
+  .lk-navRight { gap: 12px; }
+  /* Tablet: keep sign-in in view; the CTA takes its short label to make room. */
+  .lk-nav .lk-ctaLong { display: none; }
+  .lk-nav .lk-ctaShort { display: inline; }
   /* Tablet: the island reaches behind the summit and farewell copy, so give it a fuller wash. */
   .lk-endScrim { background: radial-gradient(80% 70% at 35% 28%, rgba(250, 248, 239, 0.86), rgba(250, 248, 239, 0.5) 50%, transparent 78%); }
   /* Tablet landscape: keep the headline left of the island. */
@@ -538,7 +550,9 @@
   .lk-ctaLong { display: none; }
   .lk-ctaShort { display: inline; }
   .lk-navRight { gap: 10px; }
-  .lk-nav .lk-cta { height: 40px; padding: 0 14px; }
+  .lk-nav .lk-cta { height: 44px; padding: 0 14px; }
+  .lk-navLogin { display: none; }
+  .lk-navLoginIcon { display: inline-flex; }
   .lk-menuButton { display: inline-flex; }
   .lk-drawer { top: 64px; }
 
@@ -549,7 +563,8 @@
   .lk-ctaLarge { height: 48px; margin-top: 18px; }
   .lk-hint { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom)); }
 
-  .lk-guide { top: 92px; }
+  /* Sit on the plain cliff face, below the busy treeline (there is no glow behind this copy). */
+  .lk-guide { top: 25svh; }
   .lk-encounter { top: 80px; }
 
   .lk-card {
@@ -563,7 +578,6 @@
   .lk-summitBody, .lk-farewellSubtitle { font-size: 15px; }
   .lk-endScrim { background: linear-gradient(180deg, rgba(250, 248, 239, 0.85) 0%, rgba(250, 248, 239, 0.55) 40%, transparent 65%); }
   .lk-teacherScrim { background: linear-gradient(180deg, rgba(250, 248, 239, 0.92) 0%, rgba(250, 248, 239, 0.78) 45%, rgba(250, 248, 239, 0) 78%); }
-  .lk-scrim { background: linear-gradient(180deg, rgba(250, 248, 239, 0.7) 0%, rgba(250, 248, 239, 0.4) 34%, transparent 52%); }
   .lk-teacherTitle { font-size: clamp(28px, 7.4vw, 40px); }
   .lk-teacherSubtitle { font-size: 15px; margin-top: 10px; }
   .lk-flowCard { margin-top: 14px; padding: 16px; }
@@ -583,7 +597,6 @@
 .lk-root[data-mode="static"] .lk-poster,
 .lk-root[data-mode="static"] .lk-canvas,
 .lk-root[data-mode="static"] .lk-mist,
-.lk-root[data-mode="static"] .lk-scrim,
 .lk-root[data-mode="static"] .lk-progress,
 .lk-root[data-mode="static"] .lk-hint { display: none; }
 .lk-root[data-mode="static"] .lk-layer,
@@ -596,6 +609,11 @@
 .lk-root[data-mode="static"] .lk-pin::after { display: none; }
 .lk-root[data-mode="static"] .lk-card { position: relative; top: auto; left: auto; bottom: auto; right: auto; margin: -40px 0 0; transform: none !important; }
 .lk-root[data-mode="static"] .lk-steps li { opacity: 1 !important; transform: none !important; }
+
+@media (max-width: 374px) {
+  /* Very narrow phones: the logo mark alone, so the nav buttons keep full-size touch targets. */
+  .lk-brand > span { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .lk-mist, .lk-hintDot, .lk-caret, .lk-pinDot { animation: none !important; }

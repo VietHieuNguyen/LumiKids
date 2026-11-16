@@ -9,9 +9,7 @@ export const LANDING_ASSETS = {
   bear: "/models/landing/bear.glb",
   /** Liray 3D "Mallard Duck" (Fab Standard licence), LOD1 decimated to ~9k tris with Idle/Swim/Quack/Flap/Blink. */
   duck: "/models/landing/duck.glb",
-  /** LumiKids Deep Forest Fern, decimated in Blender to ~20k tris (webp textures). */
-  fern: "/models/landing/fern.glb",
-  /** "Elephant" by Ozor (Sketchfab, CC BY 4.0): decimated 526k → 26k tris; Walking replaced by a baked Idle loop. */
+  /** "Elephant" by Ozor (Sketchfab, CC BY 4.0): decimated 526k → ~1k flat-shaded tris (source/elephant-lowpoly.glb); Walking replaced by a baked Idle loop. */
   elephant: "/models/landing/elephant.glb",
   /** "Dog Puppy" by kenchoo (Sketchfab, CC BY 4.0): its idle clip plus a baked tail wag. */
   dog: "/models/landing/dog.glb",

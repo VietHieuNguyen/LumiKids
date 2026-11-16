@@ -1,0 +1,147 @@
+/* Login: the valley poster on one side, the form on a warm paper panel on the other (landing palette). */
+.lg-shell {
+  --ink: #183829;
+  --ink-soft: #4e675b;
+  --cream: #faf8ef;
+  --paper: #fffdf7;
+  --line: rgba(24, 56, 41, 0.16);
+  --accent: #ffcd4f;
+  --accent-hover: #ffc02e;
+  --accent-edge: #e8a91d;
+  --leaf: #2f8a4d;
+  --display: var(--font-lumi-display), "Baloo 2", var(--font-lumi), system-ui, sans-serif;
+
+  flex: 1;
+  display: flex;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-lumi), "Be Vietnam Pro", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lg-page {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 1fr);
+  min-height: 100dvh;
+}
+
+/* ---------- Poster side ---------- */
+.lg-art {
+  position: relative;
+  overflow: hidden;
+  /* Same sky as the poster, so any letterboxing blends in. */
+  background: linear-gradient(180deg, #d3eaf3 0%, #e6f1ea 55%, #f3f3e2 100%);
+}
+/* The island sits in the right half of the 16:9 poster. On a tall panel the frame is a lower band whose height
+   fits the whole poster height, pinned right so the island stays whole; its top fades into the panel's sky. */
+.lg-posterFrame {
+  position: absolute; left: 0; right: 0; bottom: 3%; height: 74%;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+  animation: lg-settle 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.lg-poster { object-fit: cover; object-position: 100% 50%; }
+@keyframes lg-settle { from { transform: scale(1.04); opacity: 0; } to { transform: none; opacity: 1; } }
+.lg-artCopy {
+  position: absolute; left: clamp(28px, 4vw, 64px); top: clamp(32px, 6vh, 72px);
+  max-width: 360px;
+}
+.lg-artTitle {
+  font-family: var(--display);
+  font-size: clamp(30px, 3.2vw, 46px); font-weight: 800; line-height: 1.05; letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.lg-artNote { margin-top: 12px; font-size: 16.5px; line-height: 1.55; color: var(--ink-soft); max-width: 300px; }
+
+/* ---------- Form side ---------- */
+.lg-panel {
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px clamp(24px, 5vw, 72px);
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+}
+.lg-panelInner { width: 100%; max-width: 400px; }
+
+.lg-brand {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px;
+  font-family: var(--display); font-size: 26px; font-weight: 800; color: var(--ink); text-decoration: none;
+}
+.lg-title { margin-top: 36px; font-family: var(--display); font-size: 40px; font-weight: 800; line-height: 1.05; }
+.lg-lead { margin-top: 10px; font-size: 15.5px; line-height: 1.6; color: var(--ink-soft); }
+
+.lg-form { margin-top: 30px; display: flex; flex-direction: column; gap: 20px; }
+.lg-label { display: block; margin-bottom: 8px; font-size: 14.5px; font-weight: 600; }
+.lg-input {
+  display: block; width: 100%; min-height: 50px; padding: 12px 16px;
+  border: 1.5px solid var(--line); border-radius: 14px;
+  background: #fff; color: var(--ink); font: inherit; font-size: 16px;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lg-input::placeholder { color: #9aaba2; }
+.lg-input:hover:not(:disabled) { border-color: rgba(24, 56, 41, 0.32); }
+.lg-input:focus { border-color: var(--leaf); box-shadow: 0 0 0 4px rgba(47, 138, 77, 0.16); }
+.lg-input:disabled { background: var(--cream); color: var(--ink-soft); }
+.lg-passwordWrap { position: relative; }
+.lg-inputPassword { padding-right: 76px; }
+.lg-reveal {
+  position: absolute; top: 3px; right: 3px; bottom: 3px; min-width: 64px; padding: 0 14px;
+  border: 0; border-radius: 11px; background: transparent;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--leaf); cursor: pointer;
+}
+.lg-reveal:hover { background: rgba(47, 138, 77, 0.08); }
+
+.lg-error {
+  padding: 10px 14px; border-radius: 12px;
+  background: #fff1ee; border: 1px solid #f6c3b8; color: #a3321d;
+  font-size: 14.5px; line-height: 1.55;
+}
+
+/* Chunky toy button, same as the landing CTA. */
+.lg-submit {
+  margin-top: 6px; min-height: 52px; width: 100%; border: 0; border-radius: 999px;
+  background: var(--accent); color: var(--ink);
+  font: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.7) inset, 0 4px 0 var(--accent-edge), 0 10px 22px rgba(214, 150, 20, 0.22);
+  transition: background-color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+.lg-submit:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+.lg-submit:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 0 var(--accent-edge), 0 4px 10px rgba(214, 150, 20, 0.2); }
+.lg-submit:disabled { cursor: wait; opacity: 0.65; }
+
+.lg-help { margin-top: 22px; text-align: center; font-size: 14px; color: var(--ink-soft); }
+.lg-back {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; margin-top: 6px;
+  font-size: 14.5px; font-weight: 600; color: var(--ink); text-decoration: none;
+}
+.lg-back:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+.lg-shell a:focus-visible,
+.lg-shell button:focus-visible { outline: 3px solid var(--leaf); outline-offset: 3px; border-radius: 12px; }
+
+/* ---------- Tablet portrait and phones: poster becomes a banner above the form ---------- */
+@media (max-width: 900px) {
+  .lg-page { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .lg-art { height: clamp(220px, 34svh, 340px); }
+  .lg-posterFrame { inset: 0; height: auto; -webkit-mask-image: none; mask-image: none; }
+  .lg-poster { object-position: 100% 60%; }
+  .lg-artCopy { display: none; }
+  .lg-panel {
+    align-items: flex-start; border-left: 0;
+    margin-top: -28px; border-radius: 28px 28px 0 0; position: relative;
+    padding: 32px 20px 40px;
+    box-shadow: 0 -10px 30px rgba(24, 56, 41, 0.06);
+  }
+  .lg-title { margin-top: 20px; font-size: 34px; }
+}
+@media (max-width: 900px) and (min-width: 600px) {
+  .lg-art { height: 38svh; }
+  /* Tablet portrait: the form sits in the middle of the paper sheet, a little larger. */
+  .lg-panel { align-items: center; padding: 48px 40px 64px; }
+  .lg-panelInner { max-width: 440px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-posterFrame { animation: none; }
+  .lg-submit, .lg-input { transition: none; }
+}

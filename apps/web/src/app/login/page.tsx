@@ -2,8 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { LANDING_ASSETS } from "@/features/landing/landing-assets";
 import { safeReturnPath } from "@/lib/safe-return-path";
 
 export default function LoginPage() {
@@ -43,27 +46,54 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-12">
-      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="login-heading">
-        <p className="mb-8 text-xl font-bold tracking-tight text-blue-700">LumiKids</p>
-        <h1 id="login-heading" className="text-2xl font-semibold text-slate-900">Đăng nhập</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Sử dụng tài khoản đã được cấp để truy cập hệ thống.</p>
-        <form className="mt-7 space-y-5" onSubmit={handleSubmit} aria-busy={submitting}>
-          <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">Email</label>
-            <input id="email" name="email" type="email" autoComplete="username" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="teacher1@lumikids.local" className="auth-input" disabled={submitting} />
-          </div>
-          <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">Mật khẩu</label>
-            <div className="relative">
-              <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required maxLength={256} value={password} onChange={(event) => setPassword(event.target.value)} className="auth-input pr-16" disabled={submitting} />
-              <button type="button" aria-controls="password" aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-0 min-w-14 rounded-r-lg px-3 text-sm font-medium text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600">{showPassword ? "Ẩn" : "Hiện"}</button>
+    <main className="lg-page">
+      {/* The same valley poster as the landing page: a calm welcome-back picture beside the form. */}
+      <aside className="lg-art" aria-hidden="true">
+        <div className="lg-posterFrame">
+          <Image className="lg-poster" src={LANDING_ASSETS.poster} alt="" fill priority sizes="(max-width: 900px) 100vw, 70vw" />
+        </div>
+        <div className="lg-artCopy">
+          <p className="lg-artTitle">Chào mừng trở lại thung lũng</p>
+          <p className="lg-artNote">Các bạn nhỏ đang chờ những trò chơi mới của cô.</p>
+        </div>
+      </aside>
+
+      <section className="lg-panel" aria-labelledby="login-heading">
+        <div className="lg-panelInner">
+          <Link className="lg-brand" href="/" aria-label="LumiKids — về trang chủ">
+            <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="14" fill="#183829" />
+              <path d="M16 7.5c1.2 3.6 3.4 5.8 7 7-3.6 1.2-5.8 3.4-7 7-1.2-3.6-3.4-5.8-7-7 3.6-1.2 5.8-3.4 7-7z" fill="#F2C868" />
+              <circle cx="23.5" cy="8.5" r="1.6" fill="#BFE3D0" />
+            </svg>
+            <span>LumiKids</span>
+          </Link>
+
+          <h1 id="login-heading" className="lg-title">Đăng nhập</h1>
+          <p className="lg-lead">Sử dụng tài khoản đã được cấp để truy cập hệ thống.</p>
+
+          <form className="lg-form" onSubmit={handleSubmit} aria-busy={submitting}>
+            <div className="lg-field">
+              <label htmlFor="email" className="lg-label">Email</label>
+              <input id="email" name="email" type="email" autoComplete="username" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="teacher1@lumikids.local" className="lg-input" disabled={submitting} />
             </div>
-          </div>
-          {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">{error}</p>}
-          <button type="submit" disabled={loading || submitting || Boolean(session)} className="min-h-11 w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-wait disabled:opacity-60">{loading ? "Đang kiểm tra phiên…" : submitting ? "Đang đăng nhập…" : "Đăng nhập"}</button>
-        </form>
-        <p className="mt-6 text-center text-sm text-slate-500">Chưa có tài khoản? Vui lòng liên hệ quản trị viên.</p>
+            <div className="lg-field">
+              <label htmlFor="password" className="lg-label">Mật khẩu</label>
+              <div className="lg-passwordWrap">
+                <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required maxLength={256} value={password} onChange={(event) => setPassword(event.target.value)} className="lg-input lg-inputPassword" disabled={submitting} />
+                <button type="button" aria-controls="password" aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="lg-reveal">{showPassword ? "Ẩn" : "Hiện"}</button>
+              </div>
+            </div>
+            {error && <p role="alert" className="lg-error">{error}</p>}
+            <button type="submit" disabled={loading || submitting || Boolean(session)} className="lg-submit">{loading ? "Đang kiểm tra phiên…" : submitting ? "Đang đăng nhập…" : "Đăng nhập"}</button>
+          </form>
+
+          <p className="lg-help">Chưa có tài khoản? Vui lòng liên hệ quản trị viên.</p>
+          <Link className="lg-back" href="/">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4m3.5-3.5L4 8l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Về trang chủ
+          </Link>
+        </div>
       </section>
     </main>
   );

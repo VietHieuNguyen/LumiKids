@@ -10,6 +10,9 @@ export const LANDING_COPY = {
     login: "Đăng nhập",
     cta: "Khám phá trò chơi",
     ctaShort: "Trò chơi",
+    /** While the visitor is still in the valley story, the same button skips straight to the games. */
+    skip: "Bỏ qua, xem trò chơi",
+    skipShort: "Bỏ qua",
   },
   hero: {
     eyebrow: "Học qua chơi · Mầm non 3–6 tuổi",
@@ -76,6 +79,7 @@ export const LANDING_COPY = {
       { label: "Kho trò chơi", href: "/teacher/games" },
       { label: "Tạo trò chơi", href: "/teacher/games/create" },
     ],
+    creditsLabel: "Ghi công mô hình 3D",
     credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Hươu và Ếch của Quaternius (Poly Pizza, CC0), đã chỉnh dáng và màu; Voi của Ozor, Chó con của kenchoo và Cỏ đuôi nến của SXuno — Sketchfab, CC BY 4.0, đã giảm lưới, làm mịn, đổi màu và thêm hoạt ảnh chờ.",
   },
 } as const;

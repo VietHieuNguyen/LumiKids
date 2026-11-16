@@ -71,6 +71,15 @@ function ArrowIcon() {
   );
 }
 
+function UserIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+      <circle cx="10" cy="7" r="3.2" />
+      <path d="M3.8 16.6c1.2-2.9 3.5-4.3 6.2-4.3s5 1.4 6.2 4.3" />
+    </svg>
+  );
+}
+
 function SoundIcon({ on }: { on: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -80,6 +89,27 @@ function SoundIcon({ on }: { on: boolean }) {
         : <path d="m11.8 6.8 4 4.4m0-4.4-4 4.4" />}
     </svg>
   );
+}
+
+/** Average frame time (ms) that still counts as unusable once quality is at its floor (~20 fps). */
+const FALLBACK_FRAME_MS = 50;
+const FALLBACK_KEY = "lumikids.landing.static";
+
+/** A device that already fell back this browser session starts on the poster instead of struggling again. */
+function rememberedFallback(): boolean {
+  try {
+    return window.sessionStorage.getItem(FALLBACK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberFallback(): void {
+  try {
+    window.sessionStorage.setItem(FALLBACK_KEY, "1");
+  } catch {
+    // Storage blocked (private mode): the next visit simply tries 3D again.
+  }
 }
 
 function LogoMark() {
@@ -140,7 +170,6 @@ export function LandingPage() {
   const duskRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
-  const scrimRef = useRef<HTMLDivElement>(null);
   const encounterRef = useRef<HTMLDivElement>(null);
   const teacherRef = useRef<HTMLDivElement>(null);
   const teacherScrimRef = useRef<HTMLDivElement>(null);
@@ -182,7 +211,7 @@ export function LandingPage() {
     if (!story || !stage || !canvas) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const staticMode = reduceMotion.matches || !supportsWebGL();
+    const staticMode = reduceMotion.matches || !supportsWebGL() || rememberedFallback();
     let disposed = false;
     // Mode is only knowable in the browser; commit it after the effect instead of during it.
     queueMicrotask(() => {
@@ -221,6 +250,9 @@ export function LandingPage() {
     let degraded = false;
     let settled = false;
     let stepFrom: { dpr: number; average: number } | null = null;
+    // Still too slow after every quality step (or the GPU dropped the context): swap the 3D for the poster.
+    let slowWindows = 0;
+    let fellBack = false;
     let width = 0;
     let height = 0;
 
@@ -289,6 +321,14 @@ export function LandingPage() {
                 valley.degrade();
               }
             }
+            // Nothing left to lower (or lowering did not help) and frames still crawl below ~20 fps:
+            // two such windows in a row and the device gets the static poster story instead.
+            if ((degraded || settled) && average > FALLBACK_FRAME_MS) {
+              slowWindows += 1;
+              if (slowWindows >= 2) fallBack("slow");
+            } else {
+              slowWindows = 0;
+            }
             windowFrames = 0;
             windowTime = 0;
           }
@@ -309,7 +349,6 @@ export function LandingPage() {
       const gIn = smooth(seg(p, 0.115, STORY.pondHold[0]));
       const gOut = smooth(seg(p, STORY.pondHold[1] - 0.004, STORY.elephantHold[0] - 0.005));
       setLayer(guideRef.current, gIn * (1 - gOut), `translate3d(0, ${((1 - gIn) * 22 - gOut * 24).toFixed(2)}px, 0)`, (1 - gIn) * 6 + gOut * 4);
-      if (scrimRef.current) scrimRef.current.style.opacity = (gIn * (1 - gOut)).toFixed(3);
 
       const pinsOut = smooth(seg(p, STORY.charactersHold[1], 0.495));
       const encounterIn = smooth(seg(p, 0.325, STORY.charactersHold[0]));
@@ -393,7 +432,7 @@ export function LandingPage() {
     };
 
     const start = () => {
-      if (running || disposed || !inView || document.hidden) return;
+      if (running || disposed || fellBack || !inView || document.hidden) return;
       running = true;
       last = performance.now();
       // Re-entering: jump straight to the current scroll position instead of easing from stale state.
@@ -407,6 +446,31 @@ export function LandingPage() {
       audioRef.current?.stop();
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
+    };
+
+    const fallBack = (reason: "slow" | "context-lost" | "load-failed") => {
+      if (fellBack || disposed) return;
+      fellBack = true;
+      console.warn(`[LumiKids landing] Chuyển sang ảnh tĩnh (${reason}).`);
+      const progress = rawProgress();
+      stop();
+      valley?.dispose();
+      valley = null;
+      if (reason !== "load-failed") rememberFallback();
+      stage.style.cursor = "";
+      setReady(false);
+      setCanSound(false);
+      setMode("static");
+      // The static story is much shorter; keep the visitor at the same point of it instead of jumping.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (disposed || progress <= 0) return;
+        const top = story.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: top + progress * Math.max(0, story.offsetHeight - window.innerHeight), behavior: "auto" });
+      }));
+    };
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      fallBack("context-lost");
     };
 
     const onPointer = (event: PointerEvent) => {
@@ -466,11 +530,7 @@ export function LandingPage() {
         if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
       } catch (error) {
         console.error(`[LumiKids landing] Không tải được thung lũng 3D: ${LANDING_ASSETS.valley}`, error);
-        if (!disposed) {
-          valley?.dispose();
-          valley = null;
-          setReady(false);
-        }
+        if (!disposed) fallBack("load-failed");
       }
     })();
 
@@ -482,6 +542,7 @@ export function LandingPage() {
     window.addEventListener("orientationchange", measure);
     window.addEventListener("pointermove", onPointer, { passive: true });
     stage.addEventListener("click", onStageClick);
+    canvas.addEventListener("webglcontextlost", onContextLost);
     document.documentElement.addEventListener("pointerleave", onLeave);
     document.addEventListener("visibilitychange", onVisibility);
     void document.fonts?.ready.then(measure);
@@ -496,11 +557,34 @@ export function LandingPage() {
       window.removeEventListener("orientationchange", measure);
       window.removeEventListener("pointermove", onPointer);
       stage.removeEventListener("click", onStageClick);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       audioRef.current?.dispose();
       audioRef.current = null;
       document.documentElement.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
       valley?.dispose();
+    };
+  }, []);
+
+  // The nav CTA reads "skip" until the games section reaches the middle of the screen.
+  useEffect(() => {
+    const games = document.getElementById("tro-choi");
+    const nav = navRef.current;
+    if (!games || !nav) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const inStory = String(games.getBoundingClientRect().top > window.innerHeight * 0.5);
+      if (nav.dataset.story !== inStory) nav.dataset.story = inStory;
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
@@ -559,7 +643,7 @@ export function LandingPage() {
     <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} style={rootStyle}>
       <a className="lk-skip" href="#tro-choi">Bỏ qua phần giới thiệu</a>
 
-      <header ref={navRef} className="lk-nav" data-solid="false" data-menu={menuOpen}>
+      <header ref={navRef} className="lk-nav" data-solid="false" data-story="true" data-menu={menuOpen}>
         <a className="lk-brand" href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label="LumiKids — về đầu trang">
           <LogoMark />
           <span>LumiKids</span>
@@ -571,9 +655,13 @@ export function LandingPage() {
         </nav>
         <div className="lk-navRight">
           <Link className="lk-navLogin" href="/login">{LANDING_COPY.nav.login}</Link>
-          <a className="lk-cta" href="#tro-choi" onClick={goTo("games")}>
-            <span className="lk-ctaLong">{LANDING_COPY.nav.cta}</span>
-            <span className="lk-ctaShort">{LANDING_COPY.nav.ctaShort}</span>
+          <Link className="lk-navLoginIcon" href="/login" aria-label={LANDING_COPY.nav.login}><UserIcon /></Link>
+          {/* One button, two jobs: inside the valley story it skips to the games; afterwards it is the usual CTA. */}
+          <a className="lk-cta lk-navCta" href="#tro-choi" onClick={goTo("games")}>
+            <span className="lk-ctaLong lk-whenStory">{LANDING_COPY.nav.skip}</span>
+            <span className="lk-ctaShort lk-whenStory">{LANDING_COPY.nav.skipShort}</span>
+            <span className="lk-ctaLong lk-whenAfter">{LANDING_COPY.nav.cta}</span>
+            <span className="lk-ctaShort lk-whenAfter">{LANDING_COPY.nav.ctaShort}</span>
             <ArrowIcon />
           </a>
           <button
@@ -604,7 +692,6 @@ export function LandingPage() {
             {/* Sky haze sits behind the transparent canvas so it softens the sky only, never the scene's corners. */}
             <div className="lk-mist" aria-hidden="true" />
             <canvas ref={canvasRef} className="lk-canvas" aria-hidden="true" />
-            <div ref={scrimRef} className="lk-scrim" aria-hidden="true" />
             <div ref={teacherScrimRef} className="lk-teacherScrim" aria-hidden="true" />
             <div ref={endScrimRef} className="lk-endScrim" aria-hidden="true" />
 
@@ -781,7 +868,11 @@ export function LandingPage() {
             <nav aria-label="Liên kết cuối trang" className="lk-footerLinks">
               {LANDING_COPY.footer.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
             </nav>
-            <p className="lk-credits">{LANDING_COPY.footer.credits} © {new Date().getFullYear()} LumiKids.</p>
+            <p className="lk-copyright">© {new Date().getFullYear()} LumiKids.</p>
+            <details className="lk-credits">
+              <summary>{LANDING_COPY.footer.creditsLabel}</summary>
+              <p>{LANDING_COPY.footer.credits}</p>
+            </details>
           </footer>
         </section>
       </main>
