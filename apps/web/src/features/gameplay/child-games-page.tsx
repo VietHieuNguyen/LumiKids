@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { PlayableGame } from "@lumikids/shared";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { gameTypeSchema } from "@lumikids/shared";
+import type { GameType, PlayableGame } from "@lumikids/shared";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
 import { difficultyLabels, gameTypeLabels } from "../game-library/library-page";
 import type { GameplayApi } from "./api";
@@ -9,6 +11,17 @@ import { gameplayError } from "./api";
 import { useGameplaySession } from "./use-gameplay-session";
 
 export function ChildGamesPage() {
+  return (
+    <Suspense fallback={<main className="p-8" role="status">Đang tải…</main>}>
+      <ChildGames />
+    </Suspense>
+  );
+}
+
+function ChildGames() {
+  // `?type=` comes from the landing page game cards; invalid values fall back to every game.
+  const parsedType = gameTypeSchema.safeParse(useSearchParams().get("type"));
+  const gameType = parsedType.success ? parsedType.data : null;
   const { session, loading, api, canPlay } = useGameplaySession();
   if (loading || !session || !api)
     return (
@@ -17,11 +30,16 @@ export function ChildGamesPage() {
       </main>
     );
   if (!canPlay)
-    return <main className="p-8">Tài khoản này chưa được phép chơi.</main>;
-  return <GameList key={session.user.userId} api={api} />;
+    return (
+      <main className="p-8">
+        <p>Tài khoản này chưa được phép chơi.</p>
+        <Link className="asset-button-secondary mt-4" href="/account">← Về tài khoản</Link>
+      </main>
+    );
+  return <GameList key={`${session.user.userId}:${gameType ?? "ALL"}`} api={api} gameType={gameType} />;
 }
 
-function GameList({ api }: { api: GameplayApi }) {
+function GameList({ api, gameType }: { api: GameplayApi; gameType: GameType | null }) {
   const [items, setItems] = useState<PlayableGame[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,7 +59,7 @@ function GameList({ api }: { api: GameplayApi }) {
     const abort = new AbortController();
     api
       .list(
-        new URLSearchParams({ page: String(page), pageSize: "12" }),
+        new URLSearchParams({ page: String(page), pageSize: "12", ...(gameType ? { gameType } : {}) }),
         abort.signal,
       )
       .then((result) => {
@@ -67,12 +85,20 @@ function GameList({ api }: { api: GameplayApi }) {
         if (!abort.signal.aborted) setLoaded({ api, page, retry });
       });
     return () => abort.abort();
-  }, [api, page, retry]);
+  }, [api, page, retry, gameType]);
   return (
     <main className="min-h-dvh bg-slate-50 px-3 py-5 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold">Cùng chơi nào!</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Cùng chơi nào!</h1>
+            {gameType && (
+              <p className="mt-1 text-sm text-slate-600">
+                Trò {gameTypeLabels[gameType]} ·{" "}
+                <Link className="font-semibold text-blue-700 underline" href="/child/games">Xem tất cả trò chơi</Link>
+              </p>
+            )}
+          </div>
           <Link className="asset-button-secondary" href="/account">
             ← Tài khoản
           </Link>

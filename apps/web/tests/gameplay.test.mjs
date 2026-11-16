@@ -169,3 +169,14 @@ test("fails instead of looping when the server is missing earlier events", async
   await outbox.flush();
   assert.equal(outbox.getSnapshot().state, "failed");
 });
+
+test("login return path only accepts same-site paths", async () => {
+  const { safeReturnPath, loginHref } = await import("../src/lib/safe-return-path.ts");
+  assert.equal(safeReturnPath("/child/games?type=COUNTING"), "/child/games?type=COUNTING");
+  assert.equal(safeReturnPath("/child/games/abc#x"), "/child/games/abc#x");
+  for (const bad of [null, "", "https://evil.example", "//evil.example", "/\\evil.example", "\\\\evil", "javascript:alert(1)", "/login", "/login?next=/x", "/a\nb", "child/games"]) {
+    assert.equal(safeReturnPath(bad), null, String(bad));
+  }
+  assert.equal(loginHref("/child/games?type=MATCHING"), "/login?next=%2Fchild%2Fgames%3Ftype%3DMATCHING");
+  assert.equal(loginHref("https://evil.example"), "/login");
+});
