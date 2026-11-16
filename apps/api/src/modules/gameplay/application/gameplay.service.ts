@@ -9,10 +9,9 @@ import type {
 } from '@lumikids/shared';
 import { ApiProblem } from '../../../common/http/api-problem.js';
 import { buildAbility } from '../../../common/security/ability.js';
-import type { Principal } from '../../../common/security/principal.js';
+import type { ChildPrincipal } from '../../../common/security/principal.js';
 import type { PermissionCode } from '../../../generated/prisma/enums.js';
 import { PlayableGameService } from '../../learning-content/playable-game.service.js';
-import { UsersService } from '../../users/users.service.js';
 import {
   GameplayRuleError,
   appendInteractions,
@@ -39,27 +38,24 @@ export class GameplayService {
   constructor(
     private readonly sessions: PlaySessionRepository,
     private readonly games: PlayableGameService,
-    private readonly users: UsersService,
   ) {}
 
-  listGames(user: Principal, query: PlayableGameQuery) {
-    return this.games.list(user, query);
+  listGames(child: ChildPrincipal, query: PlayableGameQuery) {
+    return this.games.list(child, query);
   }
-  gameDetail(user: Principal, versionId: string) {
-    return this.games.detail(user, versionId);
+  gameDetail(child: ChildPrincipal, versionId: string) {
+    return this.games.detail(child, versionId);
   }
-  assetReadUrl(user: Principal, versionId: string, assetId: string) {
-    return this.games.readUrl(user, versionId, assetId);
+  assetReadUrl(child: ChildPrincipal, versionId: string, assetId: string) {
+    return this.games.readUrl(child, versionId, assetId);
   }
 
   async start(
-    user: Principal,
+    child: ChildPrincipal,
     input: StartPlaySessionInput,
   ): Promise<PlaySessionView> {
     // detail() checks PLAY_GAMES and that the version is still ACTIVE.
-    await this.games.detail(user, input.versionId);
-    const child = await this.users.findChildByUserId(user.userId);
-    if (!child) throw new ApiProblem('CHILD_PROFILE_MISSING');
+    await this.games.detail(child, input.versionId);
     const existing = await this.sessions.findByStartRequest(
       child.childId,
       input.startRequestId,
@@ -80,16 +76,19 @@ export class GameplayService {
     }
   }
 
-  async get(user: Principal, sessionId: string): Promise<PlaySessionView> {
-    return view(await this.owned(user, sessionId, 'READ_OWN_PLAY_SESSIONS'));
+  async get(
+    child: ChildPrincipal,
+    sessionId: string,
+  ): Promise<PlaySessionView> {
+    return view(await this.owned(child, sessionId, 'READ_OWN_PLAY_SESSIONS'));
   }
 
   async submit(
-    user: Principal,
+    child: ChildPrincipal,
     sessionId: string,
     incoming: readonly GameInteraction[],
   ): Promise<SubmitInteractionsResult> {
-    let session = await this.owned(user, sessionId, 'SUBMIT_OWN_INTERACTIONS');
+    let session = await this.owned(child, sessionId, 'SUBMIT_OWN_INTERACTIONS');
     const content = await this.games.versionContent(session.versionId);
     const foreign = await this.sessions.findForeignEventIds(
       sessionId,
@@ -135,9 +134,12 @@ export class GameplayService {
     }
   }
 
-  async abandon(user: Principal, sessionId: string): Promise<PlaySessionView> {
+  async abandon(
+    child: ChildPrincipal,
+    sessionId: string,
+  ): Promise<PlaySessionView> {
     const session = await this.owned(
-      user,
+      child,
       sessionId,
       'SUBMIT_OWN_INTERACTIONS',
     );
@@ -156,7 +158,7 @@ export class GameplayService {
 
   /** Ownership comes from the DB row; another child's session is reported as missing. */
   private async owned(
-    user: Principal,
+    child: ChildPrincipal,
     sessionId: string,
     permission: Extract<
       PermissionCode,
@@ -166,9 +168,9 @@ export class GameplayService {
     const session = await this.sessions.findById(sessionId);
     if (
       !session ||
-      !buildAbility(user).can(
+      !buildAbility(child).can(
         permission,
-        subject('PlaySession', { userId: session.ownerUserId }),
+        subject('PlaySession', { childId: session.childId }),
       )
     )
       throw new NotFoundException('Không tìm thấy lượt chơi.');

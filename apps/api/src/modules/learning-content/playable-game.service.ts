@@ -11,7 +11,7 @@ import type {
   PlayableGameQuery,
 } from '@lumikids/shared';
 import { buildAbility } from '../../common/security/ability.js';
-import type { Principal } from '../../common/security/principal.js';
+import type { AbilityActor } from '../../common/security/principal.js';
 import { GameAssetService } from '../game-assets/game-asset.service.js';
 import { GameLibraryRepository } from './game-library.repository.js';
 import type { PlayableVersion } from './game-library.repository.js';
@@ -23,8 +23,8 @@ export class PlayableGameService {
     private readonly repository: GameLibraryRepository,
     private readonly assets: GameAssetService,
   ) {}
-  private authorize(user: Principal) {
-    if (!buildAbility(user).can('PLAY_GAMES', 'Gameplay'))
+  private authorize(player: AbilityActor) {
+    if (!buildAbility(player).can('PLAY_GAMES', 'Gameplay'))
       throw new ForbiddenException();
   }
   private present(row: PlayableVersion): PlayableGameDetail {
@@ -39,10 +39,10 @@ export class PlayableGameService {
     };
   }
   async list(
-    user: Principal,
+    player: AbilityActor,
     query: PlayableGameQuery,
   ): Promise<PlayableGamePage> {
-    this.authorize(user);
+    this.authorize(player);
     const page = await this.repository.listPlayable(query);
     return {
       ...page,
@@ -52,8 +52,8 @@ export class PlayableGameService {
       }),
     };
   }
-  async detail(user: Principal, versionId: string) {
-    this.authorize(user);
+  async detail(player: AbilityActor, versionId: string) {
+    this.authorize(player);
     const row = await this.repository.findPlayable(versionId);
     if (!row)
       throw new NotFoundException(
@@ -61,11 +61,11 @@ export class PlayableGameService {
       );
     return this.present(row);
   }
-  async readUrl(user: Principal, versionId: string, assetId: string) {
-    const game = await this.detail(user, versionId);
+  async readUrl(player: AbilityActor, versionId: string, assetId: string) {
+    const game = await this.detail(player, versionId);
     if (!getGameContentAssetIds(game.content).includes(assetId))
       throw new ForbiddenException('Ảnh không thuộc trò chơi này.');
-    return this.assets.playableGameReadUrl(user, assetId);
+    return this.assets.playableGameReadUrl(player, assetId);
   }
   /** Immutable version content for replaying an existing session, even after archive. */
   async versionContent(versionId: string): Promise<GameContent> {

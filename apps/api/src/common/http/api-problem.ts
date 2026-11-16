@@ -106,6 +106,26 @@ const problems = {
     422,
     'Kết quả thao tác không khớp với đáp án của trò chơi.',
   ],
+  SCHOOL_YEAR_NAME_TAKEN: [409, 'Tên năm học đã tồn tại.'],
+  SCHOOL_YEAR_PERIOD_INVALID: [
+    422,
+    'Ngày kết thúc năm học phải sau ngày bắt đầu.',
+  ],
+  CLASSROOM_NAME_TAKEN: [409, 'Năm học này đã có lớp trùng tên.'],
+  CLASSROOM_REFERENCE_INVALID: [422, 'Năm học hoặc nhóm tuổi không tồn tại.'],
+  CLASSROOM_ARCHIVED: [409, 'Lớp đã lưu trữ, không thể thay đổi.'],
+  CLASSROOM_NOT_EMPTY: [
+    409,
+    'Lớp còn trẻ đang học. Hãy chuyển trẻ sang lớp khác trước khi lưu trữ.',
+  ],
+  TEACHER_INVALID: [422, 'Người dùng này không phải giáo viên đang hoạt động.'],
+  CHILD_ALREADY_IN_CLASS: [409, 'Trẻ đang học lớp này.'],
+  CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
+  CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
+  ENROLLMENT_CHANGED: [
+    409,
+    'Lớp của trẻ vừa được thay đổi. Hãy tải lại rồi thử lại.',
+  ],
 } as const;
 export type GenerationProblemCode = keyof typeof problems;
 export class ApiProblem extends HttpException {

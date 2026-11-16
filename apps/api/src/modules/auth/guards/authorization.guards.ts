@@ -47,11 +47,10 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     if (!permissions?.length) return true;
-    const user = context
-      .switchToHttp()
-      .getRequest<AuthenticatedRequest>().principal;
-    if (!user) throw new UnauthorizedException('Authentication is required.');
-    const ability = buildAbility(user);
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const actor = request.principal ?? request.child;
+    if (!actor) throw new UnauthorizedException('Authentication is required.');
+    const ability = buildAbility(actor);
     if (
       !permissions.every((permission) => {
         const target = permissionSubject(permission);

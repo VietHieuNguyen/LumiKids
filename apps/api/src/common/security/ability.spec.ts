@@ -1,8 +1,11 @@
 import { subject } from '@casl/ability';
 import { randomUUID } from 'node:crypto';
 import { buildAbility, permissionSubject } from './ability.js';
-import { childPermissions } from '../../modules/auth/child-permissions.js';
-import type { Principal } from './principal.js';
+import {
+  childPermissions,
+  childPrincipalPermissions,
+} from '../../modules/auth/child-permissions.js';
+import type { ChildPrincipal, Principal } from './principal.js';
 
 describe('CASL account ownership', () => {
   const principal: Principal = {
@@ -83,11 +86,11 @@ describe('CASL account ownership', () => {
       expect(ability.can(permission, 'GameAsset')).toBe(false);
     expect(ability.can('MANAGE_USERS', 'Administration')).toBe(false);
   });
-  it('limits child session reading and interaction submission to the authenticated owner', () => {
-    const child: Principal = {
-      ...principal,
-      roles: ['ROLE_CHILD'],
-      permissions: [...childPermissions],
+  it('limits child session reading and interaction submission to the signed-in child', () => {
+    const child: ChildPrincipal = {
+      childId: randomUUID(),
+      fullName: 'Trẻ',
+      permissions: [...childPrincipalPermissions],
     };
     const ability = buildAbility(child);
     for (const permission of [
@@ -97,33 +100,61 @@ describe('CASL account ownership', () => {
       expect(
         ability.can(
           permission,
-          subject('PlaySession', { userId: child.userId }),
+          subject('PlaySession', { childId: child.childId }),
         ),
       ).toBe(true);
       expect(
         ability.can(
           permission,
-          subject('PlaySession', { userId: randomUUID() }),
+          subject('PlaySession', { childId: randomUUID() }),
         ),
       ).toBe(false);
       expect(permissionSubject(permission)).toBe('PlaySession');
     }
+    expect(ability.can('PLAY_GAMES', 'Gameplay')).toBe(true);
     expect(permissionSubject('PLAY_GAMES')).toBe('Gameplay');
   });
-  it('does not grant gameplay from a child or admin role alone', () => {
-    for (const role of ['ROLE_CHILD', 'ROLE_ADMIN'] as const) {
-      const ability = buildAbility({
-        ...principal,
-        roles: [role],
-        permissions: ['READ_OWN_ACCOUNT'],
-      });
-      expect(ability.can('PLAY_GAMES', 'Gameplay')).toBe(false);
-      expect(
-        ability.can(
-          'SUBMIT_OWN_INTERACTIONS',
-          subject('PlaySession', { userId: principal.userId }),
-        ),
-      ).toBe(false);
-    }
+  it('gives an adult account holding the legacy child grants no play session', () => {
+    const legacyAccount: Principal = {
+      ...principal,
+      roles: ['ROLE_CHILD'],
+      permissions: [...childPermissions],
+    };
+    const legacy = buildAbility(legacyAccount);
+    expect(
+      legacy.can(
+        'SUBMIT_OWN_INTERACTIONS',
+        subject('PlaySession', { childId: principal.userId }),
+      ),
+    ).toBe(false);
+  });
+  it('does not grant gameplay from a role alone', () => {
+    const ability = buildAbility({
+      ...principal,
+      permissions: ['READ_OWN_ACCOUNT'],
+    });
+    expect(ability.can('PLAY_GAMES', 'Gameplay')).toBe(false);
+  });
+  it('maps classroom permissions to their subjects', () => {
+    const admin = buildAbility({
+      ...principal,
+      permissions: ['MANAGE_CLASSROOMS'],
+    });
+    expect(admin.can('MANAGE_CLASSROOMS', 'ClassroomAdministration')).toBe(
+      true,
+    );
+    const teacher = buildAbility({
+      ...principal,
+      permissions: ['READ_OWN_CLASSROOMS', 'RESET_CHILD_LOGIN_CODES'],
+    });
+    expect(teacher.can('READ_OWN_CLASSROOMS', 'Classroom')).toBe(true);
+    expect(teacher.can('RESET_CHILD_LOGIN_CODES', 'Classroom')).toBe(true);
+    expect(teacher.can('MANAGE_CLASSROOMS', 'ClassroomAdministration')).toBe(
+      false,
+    );
+    expect(permissionSubject('MANAGE_CLASSROOMS')).toBe(
+      'ClassroomAdministration',
+    );
+    expect(permissionSubject('READ_OWN_CLASSROOMS')).toBe('Classroom');
   });
 });

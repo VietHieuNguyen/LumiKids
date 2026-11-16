@@ -15,7 +15,10 @@ import { randomUUID } from 'node:crypto';
 import storageConfig from '../../common/config/storage.config.js';
 import { StorageService } from '../../common/storage/storage.service.js';
 import { buildAbility } from '../../common/security/ability.js';
-import type { Principal } from '../../common/security/principal.js';
+import type {
+  AbilityActor,
+  Principal,
+} from '../../common/security/principal.js';
 import type { PermissionCode } from '../../generated/prisma/enums.js';
 import { GameAssetRepository } from './game-asset.repository.js';
 import type {
@@ -79,18 +82,20 @@ export class GameAssetService {
     if (!buildAbility(user).can('READ_GAMES', 'GameLibrary'))
       throw new ForbiddenException();
     const asset = await this.repository.findById(id);
-    if (!asset) throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
+    if (!asset)
+      throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
     if (asset.status !== 'ACTIVE')
       throw new ConflictException('Học liệu của trò chơi đang ngừng sử dụng.');
     return this.storage.getReadUrl(asset.objectKey, asset.mimeType);
   }
 
   // Only gameplay calls this after verifying the asset belongs to a playable version.
-  async playableGameReadUrl(user: Principal, id: string) {
-    if (!buildAbility(user).can('PLAY_GAMES', 'Gameplay'))
+  async playableGameReadUrl(player: AbilityActor, id: string) {
+    if (!buildAbility(player).can('PLAY_GAMES', 'Gameplay'))
       throw new ForbiddenException();
     const asset = await this.repository.findById(id);
-    if (!asset) throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
+    if (!asset)
+      throw new NotFoundException('Học liệu của trò chơi không còn tồn tại.');
     if (asset.status !== 'ACTIVE')
       throw new ConflictException('Học liệu của trò chơi đang ngừng sử dụng.');
     return this.storage.getReadUrl(asset.objectKey, asset.mimeType);

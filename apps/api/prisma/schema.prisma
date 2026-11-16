@@ -34,6 +34,9 @@ enum PermissionCode {
   PLAY_GAMES
   SUBMIT_OWN_INTERACTIONS
   READ_OWN_PLAY_SESSIONS
+  MANAGE_CLASSROOMS
+  READ_OWN_CLASSROOMS
+  RESET_CHILD_LOGIN_CODES
 }
 
 enum GameAssetStatus {
@@ -55,7 +58,7 @@ model User {
   authSessions AuthSession[]
   gameAssets   GameAsset[]
   activities   Activity[]
-  child        Child?
+  classrooms   ClassroomTeacher[]
 }
 
 enum Gender {
@@ -63,16 +66,92 @@ enum Gender {
   FEMALE
 }
 
+enum ChildStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// A child is not a User: no email or password. Children sign in with a personal code issued by a teacher.
 model Child {
-  childId      String        @id @default(uuid()) @db.Uuid
-  fullName     String        @db.VarChar(200)
-  dob          DateTime      @db.Date
-  gender       Gender
-  userId       String        @unique @db.Uuid
-  user         User          @relation(fields: [userId], references: [userId], onDelete: Restrict)
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
-  playSessions PlaySession[]
+  childId           String                @id @default(uuid()) @db.Uuid
+  fullName          String                @db.VarChar(200)
+  dob               DateTime              @db.Date
+  gender            Gender
+  status            ChildStatus           @default(ACTIVE)
+  /// HMAC-SHA256 (hex) of the current login code; the code itself is never stored.
+  loginCodeDigest   String?               @unique @db.Char(64)
+  loginCodeIssuedAt DateTime?             @db.Timestamptz(3)
+  createdAt         DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @db.Timestamptz(3)
+  playSessions      PlaySession[]
+  enrollments       ClassroomEnrollment[]
+  authSessions      ChildAuthSession[]
+}
+
+model SchoolYear {
+  schoolYearId String      @id @default(uuid()) @db.Uuid
+  name         String      @unique @db.VarChar(50)
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  classrooms   Classroom[]
+}
+
+model AgeGroup {
+  ageGroupId   String      @id @db.VarChar(20)
+  name         String      @unique @db.VarChar(50)
+  minAge       Int
+  maxAge       Int
+  displayOrder Int
+  classrooms   Classroom[]
+}
+
+enum ClassroomStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Classroom {
+  classId      String                @id @default(uuid()) @db.Uuid
+  className    String                @db.VarChar(100)
+  schoolYearId String                @db.Uuid
+  schoolYear   SchoolYear            @relation(fields: [schoolYearId], references: [schoolYearId], onDelete: Restrict)
+  ageGroupId   String                @db.VarChar(20)
+  ageGroup     AgeGroup              @relation(fields: [ageGroupId], references: [ageGroupId], onDelete: Restrict)
+  status       ClassroomStatus       @default(ACTIVE)
+  createdAt    DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime              @updatedAt @db.Timestamptz(3)
+  teachers     ClassroomTeacher[]
+  enrollments  ClassroomEnrollment[]
+
+  @@unique([schoolYearId, className])
+  @@index([status])
+}
+
+model ClassroomTeacher {
+  classId   String    @db.Uuid
+  classroom Classroom @relation(fields: [classId], references: [classId], onDelete: Cascade)
+  userId    String    @db.Uuid
+  teacher   User      @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  addedAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@id([classId, userId])
+  @@index([userId])
+}
+
+/// Membership history. endedAt null = current class; the migration adds a partial unique index so a child
+/// has at most one open enrollment.
+model ClassroomEnrollment {
+  enrollmentId String    @id @default(uuid()) @db.Uuid
+  classId      String    @db.Uuid
+  classroom    Classroom @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  childId      String    @db.Uuid
+  child        Child     @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  startedAt    DateTime  @default(now()) @db.Timestamptz(3)
+  endedAt      DateTime? @db.Timestamptz(3)
+
+  @@index([childId, startedAt])
+  @@index([classId, endedAt])
 }
 
 enum PlaySessionStatus {
@@ -279,6 +358,33 @@ model AuthSession {
   tokens    RefreshToken[]
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Sign-in sessions of children; separate from AuthSession because a child is not a User.
+model ChildAuthSession {
+  sessionId String              @id @default(uuid()) @db.Uuid
+  childId   String              @db.Uuid
+  child     Child               @relation(fields: [childId], references: [childId], onDelete: Cascade)
+  createdAt DateTime            @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime            @db.Timestamptz(3)
+  revokedAt DateTime?           @db.Timestamptz(3)
+  tokens    ChildRefreshToken[]
+
+  @@index([childId])
+  @@index([expiresAt])
+}
+
+model ChildRefreshToken {
+  tokenId   String           @id @db.Uuid
+  sessionId String           @db.Uuid
+  verifier  String           @db.Char(64)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime         @db.Timestamptz(3)
+  usedAt    DateTime?        @db.Timestamptz(3)
+  session   ChildAuthSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId])
   @@index([expiresAt])
 }
 

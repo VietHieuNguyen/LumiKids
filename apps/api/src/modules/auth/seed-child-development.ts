@@ -8,6 +8,8 @@ import { childPermissions } from './child-permissions.js';
 config({ path: apiEnvFiles(), quiet: true });
 
 // Targeted seed: does not run the full development seed or touch adult accounts.
+// LEGACY (16/11/2026): children no longer sign in as a User (see docs/CLASSROOM_PLAN.md). This only keeps the
+// old ROLE_CHILD test account; it no longer creates a Child profile. Retire once classrooms can create children.
 const email = 'child1@lumikids.local';
 let prisma: PrismaService | undefined;
 try {
@@ -22,22 +24,6 @@ try {
   const password = process.env.SEED_CHILD_PASSWORD;
   if (!password || password.length < 8 || password.length > 128)
     throw new Error('SEED_CHILD_PASSWORD must contain 8–128 characters.');
-  // Child profile data must be real; both variables omitted means "no profile yet".
-  const dobInput = process.env.SEED_CHILD_DOB;
-  const genderInput = process.env.SEED_CHILD_GENDER;
-  let profile: { dob: Date; gender: 'MALE' | 'FEMALE' } | undefined;
-  if (dobInput || genderInput) {
-    const dob = new Date(`${dobInput ?? ''}T00:00:00.000Z`);
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(dobInput ?? '') ||
-      Number.isNaN(dob.getTime()) ||
-      dob > new Date()
-    )
-      throw new Error('SEED_CHILD_DOB must be a past date YYYY-MM-DD.');
-    if (genderInput !== 'MALE' && genderInput !== 'FEMALE')
-      throw new Error('SEED_CHILD_GENDER must be MALE or FEMALE.');
-    profile = { dob, gender: genderInput };
-  }
   const passwords = new PasswordService();
   const passwordHash = await passwords.hash(password);
   prisma = new PrismaService(database);
@@ -92,24 +78,12 @@ try {
         where: { userId: existing.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
-    const child = profile
-      ? await tx.child.upsert({
-          where: { userId: account.userId },
-          create: { userId: account.userId, fullName: account.fullName, ...profile },
-          update: profile,
-          select: { childId: true },
-        })
-      : await tx.child.findUnique({
-          where: { userId: account.userId },
-          select: { childId: true },
-        });
     return {
       email: account.email,
       role: 'ROLE_CHILD',
       status: account.status,
       permissions: childPermissions,
       created: !existing,
-      childProfile: Boolean(child),
     };
   });
   console.log(JSON.stringify({ seeded: result }, null, 2));
