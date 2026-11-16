@@ -124,3 +124,4 @@ export type {
   InteractionIdentity,
 } from "./game-runtime/types.js";
 export * from "./gameplay.js";
+export * from "./classroom.js";
