@@ -125,3 +125,7 @@ export type {
 } from "./game-runtime/types.js";
 export * from "./gameplay.js";
 export * from "./classroom.js";
+export * from "./assignment.js";
+export * from "./assignment-window.js";
+export * from "./staff.js";
+export * from "./admin-overview.js";
