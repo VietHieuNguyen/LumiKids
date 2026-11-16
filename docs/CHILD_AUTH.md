@@ -1,46 +1,52 @@
-# Auth cho ROLE_CHILD
+# Đăng nhập của trẻ (mã cá nhân)
 
-ROLE_CHILD là tài khoản đăng nhập của trẻ, chuẩn bị cho module gameplay. Dùng nguyên JWT access token, refresh cookie HttpOnly, PasswordService Argon2id và permission guards hiện có.
+> Cập nhật 16/11/2026 (nhánh `feat/classroom`). Thay cho mô hình cũ "User ROLE_CHILD + mật khẩu" (12–13/11). Kế hoạch và quyết định: [CLASSROOM_PLAN.md](./CLASSROOM_PLAN.md).
+
+## Mô hình
+
+- `Child` là thực thể **riêng**, không gắn `User`: không email, không mật khẩu, không `Child.userId`. `PlaySession.childId` trỏ thẳng tới `Child`.
+- Admin tạo hồ sơ trẻ **kèm lớp** (`ClassroomEnrollment` đang mở). Mỗi trẻ có đúng một lớp đang học (partial unique index `ClassroomEnrollment_childId_open_key`).
+- Giáo viên của lớp hiện tại cấp **mã đăng nhập** cho trẻ. Mã 8 kí tự từ bảng `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, hiển thị `XXXX-XXXX`.
+  - Chỉ lưu HMAC-SHA256 (`Child.loginCodeDigest`, unique) và thời điểm cấp (`loginCodeIssuedAt`). Mã chỉ trả về **một lần** (`Cache-Control: no-store`), không xem lại được.
+  - Cấp mã mới làm mã cũ hết hiệu lực và thu hồi mọi `ChildAuthSession` đang mở của trẻ, trong cùng transaction.
+  - Khóa HMAC: `CHILD_LOGIN_CODE_SECRET` (≥ 32 kí tự) nếu có, nếu không suy ra bằng HKDF từ `JWT_ACCESS_SECRET`. Đổi khóa làm mọi mã hiện có mất hiệu lực.
+- Đăng nhập chỉ thành công khi trẻ `ACTIVE` **và** đang học một lớp `ACTIVE`. Mã sai, trẻ bị khóa hoặc không có lớp đều trả cùng 401 "Mã đăng nhập không đúng." (không dò được).
+
+## Phiên và token
+
+| Thành phần | Trẻ | Người lớn |
+|---|---|---|
+| Route | `POST /api/v1/auth/child/{login,refresh-token,logout}`, `GET /auth/child/me` | `/api/v1/auth/*` |
+| Access JWT | `tokenUse: 'child_access'`, `sub = childId` | `tokenUse: 'access'`, `sub = userId` |
+| Refresh cookie | `lumikids_child_refresh`, path `/api/v1/auth/child`, TTL `CHILD_REFRESH_TTL_SECONDS` (mặc định 43200 = 12 giờ) | cookie người lớn |
+| Bảng | `ChildAuthSession`, `ChildRefreshToken` (xoay vòng, phát hiện replay như người lớn) | `AuthSession`, `RefreshToken` |
+
+- Hai cookie khác tên và path: giáo viên và trẻ đăng nhập cùng một máy của lớp không đè nhau.
+- Route trẻ đánh dấu `@ChildRoute()`; `JwtAuthGuard` trả 403 khi loại token không khớp route (token trẻ ở route người lớn và ngược lại). Mỗi request kiểm lại trẻ còn `ACTIVE` (`ChildAuthService.requireActiveChild`).
+- Login/refresh/logout: giới hạn 60 yêu cầu/phút (cả lớp đăng nhập từ một IP), cần header CSRF và Origin hợp lệ như người lớn.
 
 ## Quyền
 
-| Permission | CASL subject | Phạm vi |
-|---|---|---|
-| READ_OWN_ACCOUNT | Account | userId của principal |
-| PLAY_GAMES | Gameplay | Quyền vào luồng chơi; gameplay service vẫn phải kiểm tra trò được phép chơi |
-| SUBMIT_OWN_INTERACTIONS | PlaySession | userId của chủ phiên bằng principal.userId |
-| READ_OWN_PLAY_SESSIONS | PlaySession | Chỉ các phiên thuộc tài khoản trẻ |
+`ChildPrincipal` mang cố định `PLAY_GAMES`, `SUBMIT_OWN_INTERACTIONS`, `READ_OWN_PLAY_SESSIONS` (`child-permissions.ts`), không đọc từ RolePermission. CASL so `PlaySession.childId` với `childId` của principal; service luôn đọc phiên từ DB, không tin id do client gửi. Không cấp kho authoring/Library/generation/asset cho trẻ.
 
-Role không tự suy ra permission; các quyền được cấp qua RolePermission trong DB. Không cấp READ_GAMES, SAVE_GAMES, GENERATE_GAME_CONTENT, READ_GAME_ASSETS, MANAGE_GAME_ASSETS hoặc quyền quản lý user cho CHILD. Kho Admin/Teacher chứa dữ liệu phục vụ soạn/duyệt, không phải API chơi dành cho trẻ.
+Người lớn: `MANAGE_CLASSROOMS` (Admin) cho `/api/v1/admin/*` lớp học; `READ_OWN_CLASSROOMS`, `RESET_CHILD_LOGIN_CODES` và `ASSIGN_ACTIVITIES` (giao bài, quản lý nhóm) (Teacher) cho `/api/v1/teacher/classrooms/*`. Giáo viên chỉ thấy lớp mình là thành viên (`ClassroomTeacher`), và chỉ thấy lượt chơi bắt đầu trong khoảng trẻ học lớp đó.
 
-Hai migration `20261112000300_child_auth_enums` và `20261112000400_child_auth_grants` bổ sung enum ROLE_CHILD, ba permission gameplay và grants cho role mới. Không sửa quyền các role người lớn hoặc các migration đã áp dụng. Không tạo Child profile với dob/gender giả.
+## Web
 
-## Tài khoản test
+- `/login` có chế độ "Bé vào chơi" (ô nhập mã chữ to, tự định dạng). Link vào `/child/*` hoặc `?mode=child` mở thẳng chế độ này.
+- `ChildAuthProvider` (chỉ dưới `app/child/layout.tsx`) giữ phiên trẻ trong bộ nhớ, khôi phục bằng refresh cookie của trẻ. `/child/games` là trang "Bài của con" (chỉ bài được giao, xin chơi lại khi hết hạn) và có nút "Thoát"; giao diện trẻ ở `app/child/child.css`.
+- Giáo viên cấp mã ở `/teacher/classrooms/:classId` hoặc trang chi tiết trẻ; hộp mã có "In thẻ" (chỉ in tấm thẻ).
 
-Email `child1@lumikids.local`, fullName `Trẻ test 1`, status ACTIVE, duy nhất role ROLE_CHILD. Mật khẩu được truyền qua biến môi trường `SEED_CHILD_PASSWORD`, không hardcode trong source và không in password/hash/token. Hash bcrypt `$2a$...` không được lưu nguyên vì Auth đang xác minh Argon2id; seed hash lại mật khẩu rõ bằng PasswordService hiện có.
+## Dữ liệu cũ
 
-Seed riêng, chỉ dành local `lumikids_db`, chặn NODE_ENV=production:
+- Migration `20261116000200_classroom` bỏ `Child.userId`. Tài khoản `child1@lumikids.local` (ROLE_CHILD) còn trong DB nhưng **không chơi được nữa** (gameplay từ chối token người lớn). `seed-child-development.ts` đánh dấu LEGACY, chỉ còn tạo user ROLE_CHILD.
+- Hồ sơ Child và PlaySession/InteractionEvent cũ được giữ nguyên. Hồ sơ chưa có lớp hiện ở khung "Trẻ chưa có lớp" trong trang chi tiết lớp của Admin (`GET /api/v1/admin/children/unassigned`); xếp vào lớp rồi giáo viên cấp mã. Lượt chơi cũ bắt đầu trước khi trẻ vào lớp nên giáo viên **không** thấy (đúng quy tắc theo khoảng học).
+- Mã lỗi `CHILD_PROFILE_MISSING` còn trong `api-problem.ts` nhưng không còn được phát ra.
 
-```powershell
-$env:SEED_CHILD_PASSWORD = '<mat-khau-test-it-nhat-8-ky-tu>'
-try { pnpm --filter api db:seed:child }
-finally { Remove-Item Env:\SEED_CHILD_PASSWORD -ErrorAction SilentlyContinue }
-```
+## Kiểm thử
 
-Script riêng không chạy full seed, không đổi Admin/Teacher/Guardian. Email trùng với tài khoản không có duy nhất ROLE_CHILD sẽ bị từ chối. Chạy lại không nhân bản user; nếu mật khẩu/trạng thái không đổi, giữ passwordHash và session. Khi phải đổi mật khẩu hoặc kích hoạt lại, chỉ thu hồi refresh session của tài khoản trẻ đó.
-
-Full development seed cũng biết tài khoản CHILD và cần thêm SEED_CHILD_PASSWORD khi được chủ động gọi. Không tự chạy seed khi start/migrate.
-
-## Gameplay (13/11/2026)
-
-Module `apps/api/src/modules/gameplay` (migration `20261113000100_gameplay`, đã áp dụng trên DB dev ngày 13/11/2026) thêm bảng Child (liên kết 1–1 `userId` → User ROLE_CHILD), PlaySession và InteractionEvent, API `/api/v1/gameplay/*` và màn hình `/child/games`. Trẻ chơi mọi trò có Activity ACTIVE (tạm thời, chưa có ActivityAssignment). Server phát lại event bằng engine trong `@lumikids/shared` để tự tính kết quả, thứ tự và hoàn thành; eventId chống trùng. Tài khoản CHILD chưa có hồ sơ Child nhận 409 `CHILD_PROFILE_MISSING`.
-
-Seed child tạo/cập nhật hồ sơ Child khi truyền thêm `SEED_CHILD_DOB` (YYYY-MM-DD) và `SEED_CHILD_GENDER` (MALE/FEMALE) với dữ liệu thật; bỏ trống cả hai thì không tạo hồ sơ.
-
-Controller tương lai dùng `@Permissions('PLAY_GAMES')` để vào luồng chơi. Endpoint đọc phiên dùng READ_OWN_PLAY_SESSIONS, endpoint ingest dùng SUBMIT_OWN_INTERACTIONS. Permission guard chỉ kiểm tra capability; **service phải đọc session từ DB và kiểm tra CASL với `subject('PlaySession', {userId: ownerUserId})`**, không tin userId/childId do client gửi. Khi có Child profile, ownerUserId được resolve từ quan hệ profile/account, không so nhầm childId với userId.
-
-Gameplay cũng phải kiểm tra giao bài/quyền chơi của phiên bản, phiên đang hoạt động, schema event, eventId chống trùng và không cho client tự ghi kết quả đánh giá. Không cấp quyền rộng cho CHILD để dùng lại các API authoring chứa đáp án; xây scoped playable assets theo trò/phiên được phép chơi.
-
-## Kiểm tra ngày 12/11/2026
-
-Đã áp dụng hai migration CHILD, seed đúng một tài khoản như yêu cầu. Tám kiểm tra tập trung về CASL/ownership và mật khẩu đạt; Prisma validate, API typecheck/build/lint mục tiêu đạt. Đăng nhập, đọc `/auth/me` và tài khoản của chính trẻ, refresh và logout trả 200. Các API kho giáo viên, thư viện ảnh, lưu/sinh trò và quyền quản trị trả 403. Đối chiếu digest trước/sau xác nhận ba tài khoản người lớn (bao gồm passwordHash) và role grants không đổi. Không gọi Gemini hoặc thêm dữ liệu phiên chơi.
+- Unit: `child-login-code.spec.ts`, `ability.spec.ts`, `classrooms.service.spec.ts`, `gameplay.service.spec.ts`.
+- E2E (Prisma mock): `test/child-auth.e2e-spec.ts`, `test/gameplay.e2e-spec.ts`, `test/classrooms.e2e-spec.ts`.
+- Integration (DB `_test` riêng, `TEST_DATABASE_URL`): `test/classrooms.integration.ts` — chuyển lớp, lọc lượt chơi theo khoảng học, cấp mã thu hồi phiên.
+- Giao bài: `assignments.service.spec.ts`, `test/assignments.integration.ts`, shared `tests/assignment.test.mjs`.
+- Web: `tests/classrooms.test.mjs` (định dạng mã, ngày, tuổi, thời lượng, cách nói với trẻ, ngày giao bài).
