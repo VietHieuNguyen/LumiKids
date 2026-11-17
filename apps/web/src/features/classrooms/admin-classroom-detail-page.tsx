@@ -1,19 +1,23 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { ClassroomChild, ClassroomDetail } from "@lumikids/shared";
-import { classroomError } from "./api";
+import { AssignmentApi, classroomError } from "./api";
 import type { ClassroomApi } from "./api";
-import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
+import { AssignmentsPanel } from "./assignments-panel";
+import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill, TabLinks } from "./classroom-shell";
 import { childStatusLabels, classroomStatusLabels, formatDateOnly, genderLabels, localToday } from "./format";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
 
-export function AdminClassroomDetailPage({ classId }: { classId: string }) {
+export type AdminClassroomTab = "overview" | "assignments";
+
+export function AdminClassroomDetailPage({ classId, tab = "overview" }: { classId: string; tab?: AdminClassroomTab }) {
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Bạn chưa có quyền quản lý lớp học.</Notice>;
-  return <AdminClassroom key={`${session.user.userId}:${classId}`} api={api} classId={classId} />;
+  return <AdminClassroom key={`${session.user.userId}:${classId}`} api={api} classId={classId} tab={tab} />;
 }
 
 /** Runs one mutation at a time and keeps its error next to the section that triggered it. */
@@ -35,8 +39,10 @@ function useMutation() {
   return { busy, error, run, clear: () => setError("") };
 }
 
-function AdminClassroom({ api, classId }: { api: ClassroomApi; classId: string }) {
+function AdminClassroom({ api, classId, tab }: { api: ClassroomApi; classId: string; tab: AdminClassroomTab }) {
   const classroom = useResource((signal) => api.adminClassroom(classId, signal), classId);
+  const [assignments] = useState(() => new AssignmentApi(api, classId, "admin"));
+  const base = `/admin/classrooms/${classId}`;
   const back = { href: "/admin/classrooms", label: "Danh sách lớp" };
   if (!classroom.data)
     return (
@@ -55,6 +61,16 @@ function AdminClassroom({ api, classId }: { api: ClassroomApi; classId: string }
     >
       {classroom.error && <ErrorBanner message={classroom.error} onRetry={classroom.reload} />}
       {archived && <p className="mb-4 rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink-soft">Lớp đã lưu trữ: chỉ xem được, không thêm trẻ hoặc giáo viên.</p>}
+      <TabLinks
+        current={tab}
+        tabs={[
+          { id: "overview", label: `Trẻ (${data.children.length}) & giáo viên (${data.teachers.length})`, href: base },
+          { id: "assignments", label: "Bài đã giao", href: `${base}?tab=assignments` },
+        ]}
+      />
+      {tab === "assignments" ? (
+        <AssignmentsPanel api={assignments} classId={classId} canAssign={false} />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <ChildrenPanel api={api} classroom={data} onChange={classroom.replace} reload={classroom.reload} />
@@ -64,6 +80,7 @@ function AdminClassroom({ api, classId }: { api: ClassroomApi; classId: string }
           <SettingsPanel api={api} classroom={data} onChange={classroom.replace} />
         </aside>
       </div>
+      )}
     </ClassroomShell>
   );
 }
@@ -83,7 +100,7 @@ function ChildrenPanel({
   const [editing, setEditing] = useState<ClassroomChild | null>(null);
   const [moving, setMoving] = useState<ClassroomChild | null>(null);
   return (
-    <Panel title={`Trẻ trong lớp (${classroom.children.length})`} description="Trẻ đăng nhập bằng mã do giáo viên của lớp cấp.">
+    <Panel title={`Trẻ trong lớp (${classroom.children.length})`} description="Bấm tên trẻ để xem kết quả chơi. Trẻ đăng nhập bằng mã do giáo viên của lớp cấp.">
       {classroom.children.length === 0 ? (
         <p className="text-sm text-ink-soft">Lớp chưa có trẻ.</p>
       ) : (
@@ -91,7 +108,9 @@ function ChildrenPanel({
           {classroom.children.map((child) => (
             <li key={child.childId} className="flex flex-wrap items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
-                <p className="break-words font-semibold">{child.fullName}</p>
+                <Link className="break-words font-semibold text-leaf hover:underline" href={`/admin/classrooms/${classroom.classId}/children/${child.childId}`}>
+                  {child.fullName}
+                </Link>
                 <p className="text-sm text-ink-soft">
                   {formatDateOnly(child.dob)} · {genderLabels[child.gender]} · {child.loginCodeIssuedAt ? "Đã có mã" : "Chưa có mã"}
                 </p>

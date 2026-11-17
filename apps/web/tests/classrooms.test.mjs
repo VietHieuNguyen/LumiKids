@@ -113,3 +113,18 @@ test("adults land on their working screen after login", () => {
   assert.equal(homeFor(["READ_OWN_CLASSROOMS"]), "/teacher/classrooms");
   assert.equal(homeFor(["READ_OWN_ACCOUNT"]), "/account");
 });
+
+test("score: rounds to two decimals for display only, Vietnamese decimal comma", async () => {
+  const { formatScore } = await import("../src/features/classrooms/format.ts");
+  assert.equal(formatScore(75), "75%");
+  assert.equal(formatScore((5.5 / 6) * 100), "91,67%");
+  assert.equal(formatScore(0), "0%");
+  assert.equal(formatScore(100), "100%");
+  assert.equal(formatScore(null), "—");
+});
+
+test("level labels: one per LEVEL, no judgemental wording", async () => {
+  const { criterionLevelLabels } = await import("../src/features/classrooms/format.ts");
+  assert.deepEqual(Object.keys(criterionLevelLabels), ["LEVEL_0", "LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4"]);
+  for (const label of Object.values(criterionLevelLabels)) assert.doesNotMatch(label, /yếu|kém/i);
+});

@@ -50,6 +50,11 @@ const fallback: Record<number, string> = {
 };
 
 /** Admin (`/admin/*`) and teacher (`/teacher/classrooms/*`) classroom endpoints, on the adult session. */
+/** Who is reading a class: its teacher, or an admin (read-only, any class). */
+export type ClassroomScope = "teacher" | "admin";
+export const classPath = (scope: ClassroomScope, classId: string) =>
+  `/${scope === "admin" ? "admin" : "teacher"}/classrooms/${encodeURIComponent(classId)}`;
+
 export class ClassroomApi {
   constructor(
     private readonly token: string,
@@ -169,15 +174,15 @@ export class ClassroomApi {
   async myClassroom(classId: string, signal?: AbortSignal) {
     return classroomDetailSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}`, { signal }));
   }
-  async child(classId: string, childId: string, signal?: AbortSignal) {
+  async child(classId: string, childId: string, signal?: AbortSignal, scope: ClassroomScope = "teacher") {
     return classroomChildDetailSchema.parse(
-      await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}`, { signal }),
+      await this.request(`${classPath(scope, classId)}/children/${ClassroomApi.id(childId)}`, { signal }),
     );
   }
-  async playHistory(classId: string, childId: string, page: number, signal?: AbortSignal) {
+  async playHistory(classId: string, childId: string, page: number, signal?: AbortSignal, scope: ClassroomScope = "teacher") {
     return playHistoryPageSchema.parse(
       await this.request(
-        `/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/play-sessions?${new URLSearchParams({ page: String(page), pageSize: "20" })}`,
+        `${classPath(scope, classId)}/children/${ClassroomApi.id(childId)}/play-sessions?${new URLSearchParams({ page: String(page), pageSize: "20" })}`,
         { signal },
       ),
     );
@@ -189,14 +194,15 @@ export class ClassroomApi {
   }
 }
 
-/** Groups and assignments of one class (teacher). */
+/** Groups and assignments of one class (teacher; an admin scope only reads list/detail). */
 export class AssignmentApi {
   constructor(
     private readonly classrooms: ClassroomApi,
     private readonly classId: string,
+    readonly scope: ClassroomScope = "teacher",
   ) {}
   private path(suffix = "") {
-    return `/teacher/classrooms/${encodeURIComponent(this.classId)}${suffix}`;
+    return `${classPath(this.scope, this.classId)}${suffix}`;
   }
   async groups(signal?: AbortSignal) {
     return classGroupListSchema.parse(await this.classrooms.raw(this.path("/groups"), { signal }));

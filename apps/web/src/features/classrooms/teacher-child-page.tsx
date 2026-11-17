@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ClassroomChildDetail } from "@lumikids/shared";
-import type { ClassroomApi } from "./api";
+import type { ClassroomApi, ClassroomScope } from "./api";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
 import { gameTypeLabels } from "../game-library/library-page";
 import {
@@ -15,6 +15,7 @@ import {
   localToday,
   playStatusLabels,
 } from "./format";
+import { EvaluationCell } from "./evaluation-cell";
 import { LoginCodeDialog } from "./login-code-dialog";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
@@ -23,18 +24,38 @@ export function TeacherChildPage({ classId, childId }: { classId: string; childI
   const { session, loading, api, allowed, canIssueCodes } = useClassroomSession("READ_OWN_CLASSROOMS");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Tài khoản này không phụ trách lớp học.</Notice>;
-  return <TeacherChild key={`${session.user.userId}:${classId}:${childId}`} api={api} classId={classId} childId={childId} canIssueCodes={canIssueCodes} />;
+  return <ChildResults key={`${session.user.userId}:${classId}:${childId}`} api={api} scope="teacher" classId={classId} childId={childId} canIssueCodes={canIssueCodes} />;
+}
+
+/** Admin, read-only: the same results page reached from the class detail. */
+export function AdminChildPage({ classId, childId }: { classId: string; childId: string }) {
+  const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
+  if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
+  if (!allowed) return <Notice>Bạn chưa có quyền quản lý lớp học.</Notice>;
+  return <ChildResults key={`${session.user.userId}:${classId}:${childId}`} api={api} scope="admin" classId={classId} childId={childId} canIssueCodes={false} />;
 }
 
 const playTones = { COMPLETED: "green", ABANDONED: "slate", IN_PROGRESS: "blue" } as const;
 
-function TeacherChild({ api, classId, childId, canIssueCodes }: { api: ClassroomApi; classId: string; childId: string; canIssueCodes: boolean }) {
-  const classroom = useResource((signal) => api.myClassroom(classId, signal), classId);
-  const child = useResource((signal) => api.child(classId, childId, signal), childId);
+function ChildResults({
+  api,
+  scope,
+  classId,
+  childId,
+  canIssueCodes,
+}: {
+  api: ClassroomApi;
+  scope: ClassroomScope;
+  classId: string;
+  childId: string;
+  canIssueCodes: boolean;
+}) {
+  const classroom = useResource((signal) => (scope === "admin" ? api.adminClassroom(classId, signal) : api.myClassroom(classId, signal)), classId);
+  const child = useResource((signal) => api.child(classId, childId, signal, scope), childId);
   const [page, setPage] = useState(1);
-  const history = useResource((signal) => api.playHistory(classId, childId, page, signal), `${childId}:${page}`);
+  const history = useResource((signal) => api.playHistory(classId, childId, page, signal, scope), `${childId}:${page}`);
   const [issuing, setIssuing] = useState(false);
-  const back = { href: `/teacher/classrooms/${classId}`, label: classroom.data ? `Lớp ${classroom.data.className}` : "Lớp học" };
+  const back = { href: `/${scope}/classrooms/${classId}`, label: classroom.data ? `Lớp ${classroom.data.className}` : "Lớp học" };
   if (!child.data)
     return (
       <ClassroomShell title="Hồ sơ trẻ" back={back}>
@@ -43,7 +64,7 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
     );
   const profile: ClassroomChildDetail = child.data;
   const age = ageInYears(profile.dob, localToday());
-  const canIssue = canIssueCodes && profile.currentlyEnrolled && profile.status === "ACTIVE" && classroom.data?.status === "ACTIVE";
+  const canIssue = scope === "teacher" && canIssueCodes && profile.currentlyEnrolled && profile.status === "ACTIVE" && classroom.data?.status === "ACTIVE";
   return (
     <ClassroomShell
       title={profile.fullName}
@@ -95,13 +116,13 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
             </dl>
           </Panel>
         </aside>
-        <Panel title="Lịch sử chơi" description="Chỉ gồm các lượt chơi trong thời gian trẻ học lớp này. Đánh giá chỉ số sẽ có ở giai đoạn sau.">
+        <Panel title="Kết quả chơi" description="Chỉ gồm các lượt chơi trong thời gian trẻ học lớp này. Điểm = (số nhiệm vụ đúng ngay lần đầu + 0,5 × số nhiệm vụ sửa đúng) ÷ tổng nhiệm vụ × 100, tính khi trẻ chơi xong; lượt bỏ dở không chấm.">
           {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
           {history.loading && !history.data && <p role="status" className="text-sm">Đang tải lịch sử…</p>}
           {history.data && history.data.pagination.total === 0 && <p className="text-sm text-ink-soft">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
           {history.data && history.data.items.length > 0 && (
             <div className="-mx-4 overflow-x-auto sm:mx-0" aria-busy={history.loading}>
-              <table className="w-full min-w-[620px] text-left text-sm">
+              <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="border-b border-line text-ink-soft">
                   <tr>
                     <th className="px-4 py-2 font-medium sm:px-2">Trò chơi</th>
@@ -109,6 +130,7 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
                     <th className="px-2 py-2 font-medium">Thời lượng</th>
                     <th className="px-2 py-2 text-right font-medium">Số lần chọn</th>
                     <th className="px-2 py-2 font-medium">Kết quả</th>
+                    <th className="px-2 py-2 font-medium">Điểm · mức · nhận xét</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -123,6 +145,9 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
                       <td className="px-2 py-3 text-right tabular-nums">{item.attemptCount}</td>
                       <td className="px-2 py-3">
                         <StatusPill tone={playTones[item.status]}>{playStatusLabels[item.status]}</StatusPill>
+                      </td>
+                      <td className="px-2 py-3 align-top">
+                        <EvaluationCell evaluation={item.evaluation} />
                       </td>
                     </tr>
                   ))}
@@ -152,3 +177,4 @@ function TeacherChild({ api, classId, childId, canIssueCodes }: { api: Classroom
     </ClassroomShell>
   );
 }
+

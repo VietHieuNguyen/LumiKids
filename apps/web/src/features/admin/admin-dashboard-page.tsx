@@ -6,6 +6,7 @@ import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "../class
 import { formatDateTime } from "../classrooms/format";
 import { useClassroomSession } from "../classrooms/use-classroom-session";
 import { useResource } from "../classrooms/use-resource";
+import { useRowLink } from "../classrooms/use-row-link";
 import type { ClassroomApi } from "../classrooms/api";
 import { AdminApi } from "./api";
 import { attentionItems } from "./attention";
@@ -251,6 +252,7 @@ function Activity({ data }: { data: AdminOverview }) {
 // ---------- 4. Class by class ----------
 
 function Classes({ data }: { data: AdminOverview }) {
+  const rowLink = useRowLink();
   return (
     <Panel title="Các lớp đang mở" description="Tỉ lệ trẻ chơi trong 7 ngày cho biết lớp nào cần giáo viên để ý.">
       {data.classes.length === 0 ? (
@@ -295,7 +297,7 @@ function Classes({ data }: { data: AdminOverview }) {
               {data.classes.map((row) => {
                 const rate = percent(row.activeChildren7d, row.childCount);
                 return (
-                  <tr key={row.classId} className="hover:bg-cream/60">
+                  <tr key={row.classId} {...rowLink(`/admin/classrooms/${row.classId}`)} className="cursor-pointer hover:bg-cream/60">
                     <td className="py-3 pr-3">
                       <Link href={`/admin/classrooms/${row.classId}`} className="font-semibold text-ink hover:text-leaf">
                         {row.className}

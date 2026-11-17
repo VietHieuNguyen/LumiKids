@@ -14,7 +14,9 @@ export function AssignmentsPanel({ api, classId, canAssign }: { api: AssignmentA
       {list.data?.length === 0 && (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
           <p className="font-display text-xl font-bold">Chưa có bài nào</p>
-          <p className="mt-1 text-sm text-ink-soft">Trẻ chỉ thấy trò được giao. Giao bài đầu tiên để các bé bắt đầu chơi.</p>
+          <p className="mt-1 text-sm text-ink-soft">
+            {api.scope === "admin" ? "Giáo viên của lớp chưa giao bài nào. Trẻ đăng nhập sẽ chưa có trò để chơi." : "Trẻ chỉ thấy trò được giao. Giao bài đầu tiên để các bé bắt đầu chơi."}
+          </p>
           {canAssign && <Link className="lumi-button-sun mt-4" href={`/teacher/classrooms/${classId}/assignments/new`}>Giao bài mới</Link>}
         </div>
       )}
@@ -24,14 +26,14 @@ export function AssignmentsPanel({ api, classId, canAssign }: { api: AssignmentA
           return (
             <li key={item.assignmentId}>
               <Link
-                href={`/teacher/classrooms/${classId}/assignments/${item.assignmentId}`}
+                href={`/${api.scope}/classrooms/${classId}/assignments/${item.assignmentId}`}
                 className={`block rounded-2xl border border-line bg-white p-4 transition hover:border-leaf/50 hover:shadow-sm ${item.state === "CANCELLED" ? "opacity-60" : ""}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="break-words font-display text-lg font-bold">{item.title}</p>
                     <p className="text-xs text-ink-soft">
-                      {item.targetLabel} · {item.gameCount} trò · Mở {formatDateTime(item.opensAt)}
+                      {item.targetLabel} · {item.gameCount} trò · Giao bởi {item.createdByName} · Mở {formatDateTime(item.opensAt)}
                       {item.dueAt ? ` · Hạn ${formatDateTime(item.dueAt)}` : " · Không hạn"}
                     </p>
                   </div>

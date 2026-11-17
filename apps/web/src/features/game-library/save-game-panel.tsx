@@ -105,8 +105,8 @@ export function SaveGamePanel({
             Lưu trò chơi đã duyệt
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Chọn những chỉ số mà nội dung này hỗ trợ đánh giá. Mọi giáo viên có
-            thể mở và dùng lại trò đã lưu.
+            Chọn một chỉ số mà trò chơi này đánh giá. Mọi giáo viên có thể mở
+            và dùng lại trò đã lưu.
           </p>
         </div>
         <Link href={libraryHref} className="asset-button-secondary">
@@ -120,7 +120,7 @@ export function SaveGamePanel({
         >
           <strong>Đã lưu “{saved.name}” vào kho.</strong>
           <p className="mt-2 text-sm">
-            Nội dung, độ khó và các chỉ số đã được lưu lại.
+            Nội dung, độ khó và chỉ số đánh giá đã được lưu lại.
           </p>
           <Link
             className="asset-button-primary mt-4"
@@ -159,8 +159,8 @@ export function SaveGamePanel({
                 Chỉ số đánh giá <span className="text-red-600">*</span>
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Có thể chọn nhiều chỉ số trong nhiều Chuẩn. Việc gắn chỉ số do
-                giáo viên quyết định; hệ thống chưa tự chấm năng lực của trẻ.
+                Mỗi trò chơi đánh giá đúng một chỉ số. Khi trẻ chơi xong, hệ thống
+                tính điểm của lượt chơi cho chỉ số này.
               </p>
               {loading && (
                 <p className="mt-3 text-sm" role="status">
@@ -199,18 +199,11 @@ export function SaveGamePanel({
                           className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm leading-6 ${codes.includes(c.criterionCode) ? "border-indigo-300 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}
                         >
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="criterion"
                             className="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
                             checked={codes.includes(c.criterionCode)}
-                            onChange={(e) =>
-                              setCodes((current) =>
-                                e.target.checked
-                                  ? [...current, c.criterionCode]
-                                  : current.filter(
-                                      (code) => code !== c.criterionCode,
-                                    ),
-                              )
-                            }
+                            onChange={() => setCodes([c.criterionCode])}
                           />
                           <span>
                             <strong>Chỉ số {c.criterionCode}.</strong>{" "}
@@ -223,8 +216,9 @@ export function SaveGamePanel({
                 ))}
               </div>
               <p className="mt-3 text-sm font-medium text-indigo-700">
-                Đã chọn {codes.length} chỉ số
-                {codes.length ? `: ${codes.join(", ")}` : ""}.
+                {codes.length
+                  ? `Đã chọn chỉ số ${codes.join(", ")}.`
+                  : "Chưa chọn chỉ số."}
               </p>
             </div>
             <label className="flex cursor-pointer gap-3 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
@@ -236,7 +230,7 @@ export function SaveGamePanel({
               />
               <span>
                 Tôi đã kiểm tra hình ảnh, hướng dẫn, đáp án và sự phù hợp với
-                các chỉ số đã chọn.
+                chỉ số đã chọn.
               </span>
             </label>
           </fieldset>

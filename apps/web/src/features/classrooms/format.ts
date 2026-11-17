@@ -91,3 +91,19 @@ export function toLocalDateInput(value: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** Stored unrounded score (0–100) → "83,33%"; rounding happens only here, for display. */
+export function formatScore(score: number | null): string {
+  if (score === null || !Number.isFinite(score)) return "—";
+  const rounded = Math.round(score * 100) / 100;
+  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(rounded)}%`;
+}
+
+/** Teacher-facing LEVEL labels (product wording, not an official scale); never "yếu/kém". */
+export const criterionLevelLabels = {
+  LEVEL_0: "Chưa đủ bằng chứng",
+  LEVEL_1: "Cần luyện tập thêm",
+  LEVEL_2: "Thực hiện được một phần",
+  LEVEL_3: "Thực hiện tốt",
+  LEVEL_4: "Thực hiện rất tốt",
+} as const;
