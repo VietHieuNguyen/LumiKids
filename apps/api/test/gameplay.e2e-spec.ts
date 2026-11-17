@@ -63,6 +63,7 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     findForeignEventIds: vi.fn(),
     commitAppend: vi.fn(),
     abandon: vi.fn(),
+    primaryCriterionCode: vi.fn(() => Promise.resolve('50')),
   };
   const games = {
     list: vi.fn(),
@@ -191,7 +192,12 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
       .expect(200);
     expect(response.body.data).toMatchObject({ accepted: 1, duplicates: 0 });
     expect(sessions.commitAppend).toHaveBeenCalledWith(
-      expect.objectContaining({ completed: true, expectedEventCount: 0 }),
+      expect.objectContaining({
+        expectedEventCount: 0,
+        completion: expect.objectContaining({
+          evaluation: expect.objectContaining({ criterionCode: '50', score: 100 }),
+        }),
+      }),
     );
   });
 

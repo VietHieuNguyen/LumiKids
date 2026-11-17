@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { subject } from '@casl/ability';
 import type {
+  GameContent,
   GameInteraction,
   PlayableGameQuery,
   PlaySessionView,
@@ -13,12 +14,17 @@ import type { ChildPrincipal } from '../../../common/security/principal.js';
 import type { PermissionCode } from '../../../generated/prisma/enums.js';
 import { AssignmentsService } from '../../learning-content/assignments.service.js';
 import { PlayableGameService } from '../../learning-content/playable-game.service.js';
+import { evaluateCriterion } from '../domain/criterion-evaluation.js';
+import { computeSessionPerformance } from '../domain/session-performance.js';
 import {
   GameplayRuleError,
   appendInteractions,
 } from '../domain/session-replay.js';
 import { PlaySessionRepository } from './play-session.repository.js';
-import type { PlaySessionRecord } from './play-session.repository.js';
+import type {
+  PlaySessionRecord,
+  SessionCompletion,
+} from './play-session.repository.js';
 
 // One reload after a lost optimistic race usually turns the batch into duplicates.
 const APPEND_ATTEMPTS = 2;
@@ -126,7 +132,12 @@ export class GameplayService {
           sessionId,
           expectedEventCount: existing.length,
           accepted: result.accepted,
-          completed: result.completed,
+          completion: result.completed
+            ? await this.completion(session, content, [
+                ...existing,
+                ...result.accepted,
+              ])
+            : null,
         }))
       ) {
         const saved = await this.sessions.findById(sessionId);
@@ -158,6 +169,29 @@ export class GameplayService {
     const saved = await this.sessions.findById(sessionId);
     if (!saved) throw new NotFoundException();
     return view(saved);
+  }
+
+  /** SessionPerformance and score from the server-verified events of the completing batch. */
+  private async completion(
+    session: PlaySessionRecord,
+    content: GameContent,
+    events: readonly GameInteraction[],
+  ): Promise<SessionCompletion> {
+    const completedAt = new Date();
+    const performance = computeSessionPerformance({
+      content,
+      events,
+      criterionCode: await this.sessions.primaryCriterionCode(
+        session.versionId,
+      ),
+      startedAt: session.startedAt,
+      endedAt: completedAt,
+    });
+    return {
+      completedAt,
+      performance,
+      evaluation: evaluateCriterion(performance),
+    };
   }
 
   private sameStart(session: PlaySessionRecord, versionId: string) {

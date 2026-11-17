@@ -15,6 +15,7 @@ import { PlaySessionRepository } from './play-session.repository.js';
 import type {
   AppendCommit,
   PlaySessionRecord,
+  SessionCompletion,
   StartSessionData,
 } from './play-session.repository.js';
 
@@ -61,6 +62,8 @@ class MemoryRepository extends PlaySessionRepository {
   >();
   events = new Map<string, GameInteraction[]>();
   loseNextRaces = 0;
+  criterionCode: string | null = '50';
+  completions = new Map<string, SessionCompletion>();
   findById(sessionId: string) {
     const session = this.sessions.get(sessionId);
     return Promise.resolve(session ? { ...session } : null);
@@ -110,8 +113,16 @@ class MemoryRepository extends PlaySessionRepository {
       ...commit.accepted,
     ]);
     session.eventCount += commit.accepted.length;
-    if (commit.completed) session.status = 'COMPLETED';
+    if (commit.completion) {
+      if (this.completions.has(commit.sessionId))
+        throw new Error('second evaluation for one session');
+      session.status = 'COMPLETED';
+      this.completions.set(commit.sessionId, commit.completion);
+    }
     return Promise.resolve(true);
+  }
+  primaryCriterionCode() {
+    return Promise.resolve(this.criterionCode);
   }
   abandon(sessionId: string) {
     const session = this.sessions.get(sessionId);
@@ -202,6 +213,46 @@ describe('GameplayService (offline)', () => {
     await expect(
       service.submit(other, sessionId, [event('one')]),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('stores one score when the session completes, from the server-verified events', async () => {
+    const { service, versionId, register, repository } = setup();
+    const user = register();
+    const { sessionId } = await service.start(user, {
+      versionId,
+      startRequestId: randomUUID(),
+    });
+    await service.submit(user, sessionId, [event('two', 1)]);
+    expect(repository.completions.has(sessionId)).toBe(false);
+    const batch = [event('one', 2)];
+    await service.submit(user, sessionId, batch);
+    await service.submit(user, sessionId, batch); // retried batch: duplicate, no new score
+    const completion = repository.completions.get(sessionId);
+    expect(completion?.performance.criterionPerformance).toEqual({
+      totalScoredItems: 1,
+      finalizedScoredItems: 1,
+      firstAttemptCorrectCount: 0,
+      retryCorrectCount: 1,
+      attemptCount: 2,
+    });
+    expect(completion?.evaluation).toEqual({
+      criterionCode: '50',
+      score: 50,
+      minimumItemsMet: false,
+      ruleVersion: 'ce-score-v1',
+    });
+  });
+
+  it('completes without a score when the version has no criterion', async () => {
+    const { service, versionId, register, repository } = setup();
+    repository.criterionCode = null;
+    const user = register();
+    const { sessionId } = await service.start(user, {
+      versionId,
+      startRequestId: randomUUID(),
+    });
+    await service.submit(user, sessionId, [event('one')]);
+    expect(repository.completions.get(sessionId)?.evaluation).toBeNull();
   });
 
   it('rejects event IDs that belong to another session', async () => {
