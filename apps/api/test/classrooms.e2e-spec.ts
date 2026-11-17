@@ -46,6 +46,12 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     listClassrooms: vi.fn(() => Promise.resolve([])),
     createChild: vi.fn(() => Promise.resolve({})),
     teacherClassrooms: vi.fn(() => Promise.resolve([])),
+    classPlayHistory: vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pagination: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      }),
+    ),
     issueLoginCode: vi.fn(() =>
       Promise.resolve({
         childId: child.childId,
@@ -57,6 +63,7 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
 
   const assignments = {
     list: vi.fn(() => Promise.resolve([])),
+    adminList: vi.fn(() => Promise.resolve([])),
     create: vi.fn(() => Promise.resolve({})),
     forChild: vi.fn(() => Promise.resolve([])),
     playableVersionIds: vi.fn(() => Promise.resolve(new Set())),
@@ -120,6 +127,39 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
       .get('/api/v1/teacher/classrooms')
       .auth(await token(), { type: 'bearer' })
       .expect(403);
+  });
+
+  it('lets an admin read results and assignments of any class, read-only', async () => {
+    const classId = randomUUID();
+    const childId = randomUUID();
+    const history = `/api/v1/admin/classrooms/${classId}/children/${childId}/play-sessions`;
+    const assigned = `/api/v1/admin/classrooms/${classId}/assignments`;
+    // A teacher (no MANAGE_CLASSROOMS) cannot use the admin views, even for their own class.
+    for (const path of [history, assigned])
+      await request(app.getHttpServer())
+        .get(path)
+        .auth(await token(), { type: 'bearer' })
+        .expect(403);
+    actor = admin;
+    await request(app.getHttpServer())
+      .get(`${history}?page=1&pageSize=20`)
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    expect(classrooms.classPlayHistory).toHaveBeenCalledWith(classId, childId, {
+      page: 1,
+      pageSize: 20,
+    });
+    await request(app.getHttpServer())
+      .get(assigned)
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    expect(assignments.adminList).toHaveBeenCalledWith(classId);
+    // Changing an assignment stays a teacher action.
+    await request(app.getHttpServer())
+      .patch(`${assigned}/${randomUUID()}`)
+      .auth(await token(), { type: 'bearer' })
+      .send({ status: 'CANCELLED' })
+      .expect(404);
   });
 
   it('refuses children on classroom routes', async () => {

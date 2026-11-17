@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { sessionPerformanceSchema } from '@lumikids/shared';
+import type { CriterionEvaluationView } from '@lumikids/shared';
 import type {
   AgeGroup,
   ClassGroup,
@@ -36,6 +38,29 @@ const CHILD_NOT_FOUND = 'Không tìm thấy trẻ trong lớp này.';
 
 /** "YYYY-MM-DD" ↔ a @db.Date value (UTC midnight). */
 const toDate = (value: string) => new Date(`${value}T00:00:00.000Z`);
+/** Score stored when the session completed; read as-is, never recomputed here. */
+function evaluationView(row: {
+  performance: unknown;
+  evaluation: {
+    criterionCode: string;
+    score: number | null;
+    level: CriterionEvaluationView['level'];
+    summary: string | null;
+    minimumItemsMet: boolean;
+    ruleVersion: string;
+    criterion: { description: string };
+  } | null;
+}): CriterionEvaluationView | null {
+  const performance = sessionPerformanceSchema.safeParse(row.performance);
+  if (!row.evaluation || !performance.success) return null;
+  const { criterion, ...evaluation } = row.evaluation;
+  return {
+    ...evaluation,
+    criterionDescription: criterion.description,
+    performance: performance.data.criterionPerformance,
+  };
+}
+
 const fromDate = (value: Date) => value.toISOString().slice(0, 10);
 
 function isUniqueViolation(error: unknown): boolean {
@@ -444,6 +469,10 @@ export class ClassroomsService {
     childId: string,
   ) {
     await this.requireTeacherOf(teacher, classId);
+    return this.childInClass(classId, childId);
+  }
+  /** No access check: callers authorize first (teacher of the class, or an admin). */
+  private async childInClass(classId: string, childId: string) {
     const periods = await this.repository.listPeriods(classId, childId);
     const child = periods.length
       ? await this.repository.findChild(childId)
@@ -456,11 +485,15 @@ export class ClassroomsService {
     classId: string,
     childId: string,
   ): Promise<ClassroomChildDetail> {
-    const { child, periods } = await this.requireChildInClass(
-      teacher,
-      classId,
-      childId,
-    );
+    await this.requireTeacherOf(teacher, classId);
+    return this.classChild(classId, childId);
+  }
+  /** A child as seen from one class (admin reads any class; teachers go through teacherChild). */
+  async classChild(
+    classId: string,
+    childId: string,
+  ): Promise<ClassroomChildDetail> {
+    const { child, periods } = await this.childInClass(classId, childId);
     return {
       ...childProfile(child),
       currentlyEnrolled: periods.some((period) => period.endedAt === null),
@@ -477,11 +510,16 @@ export class ClassroomsService {
     childId: string,
     query: PlayHistoryQuery,
   ): Promise<PlayHistoryPage> {
-    const { periods } = await this.requireChildInClass(
-      teacher,
-      classId,
-      childId,
-    );
+    await this.requireTeacherOf(teacher, classId);
+    return this.classPlayHistory(classId, childId, query);
+  }
+  /** Sessions started while the child was in this class, with their stored scores. */
+  async classPlayHistory(
+    classId: string,
+    childId: string,
+    query: PlayHistoryQuery,
+  ): Promise<PlayHistoryPage> {
+    const { periods } = await this.childInClass(classId, childId);
     const { total, rows } = await this.repository.listPlaySessions(
       childId,
       periods,
@@ -498,6 +536,7 @@ export class ClassroomsService {
         attemptCount: row.eventCount,
         startedAt: row.startedAt.toISOString(),
         endedAt: row.endedAt?.toISOString() ?? null,
+        evaluation: evaluationView(row),
       })),
       pagination: {
         page: query.page,

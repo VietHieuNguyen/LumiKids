@@ -114,6 +114,14 @@ export class AssignmentsService {
     classId: string,
   ): Promise<AssignmentSummary[]> {
     await this.classrooms.requireTeacherOf(teacher, classId);
+    return this.listForClass(classId);
+  }
+  /** Admin, read-only: any class (404 when it does not exist). */
+  async adminList(classId: string): Promise<AssignmentSummary[]> {
+    await this.classrooms.classroom(classId);
+    return this.listForClass(classId);
+  }
+  private async listForClass(classId: string): Promise<AssignmentSummary[]> {
     const rows = await this.repository.listForClass(classId);
     if (!rows.length) return [];
     const childIds = [
@@ -173,6 +181,19 @@ export class AssignmentsService {
     assignmentId: string,
   ): Promise<AssignmentDetail> {
     await this.classrooms.requireTeacherOf(teacher, classId);
+    return this.detailForClass(classId, assignmentId);
+  }
+  /** Admin, read-only. find() is scoped to the class, so another class's assignment is a 404. */
+  adminDetail(
+    classId: string,
+    assignmentId: string,
+  ): Promise<AssignmentDetail> {
+    return this.detailForClass(classId, assignmentId);
+  }
+  private async detailForClass(
+    classId: string,
+    assignmentId: string,
+  ): Promise<AssignmentDetail> {
     const row = await this.repository.find(classId, assignmentId);
     if (!row) throw new NotFoundException(NOT_FOUND);
     const versionIds = row.items.map((item) => item.version.versionId);
