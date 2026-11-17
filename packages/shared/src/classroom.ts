@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { gameTypeSchema } from "./game-content/common.js";
 import { playSessionStatusSchema } from "./gameplay.js";
+import { criterionEvaluationViewSchema } from "./assessment.js";
 
 /** Calendar date "YYYY-MM-DD" (no time zone): school years and birthdays. */
 const dateOnlySchema = z.iso.date();
@@ -141,6 +142,8 @@ export const playHistoryItemSchema = z.object({
   attemptCount: z.number().int(),
   startedAt: z.iso.datetime(),
   endedAt: z.iso.datetime().nullable(),
+  /** Stored when the session completed; null for unfinished or unscored sessions. */
+  evaluation: criterionEvaluationViewSchema.nullable(),
 });
 export const playHistoryPageSchema = z.object({
   items: z.array(playHistoryItemSchema),
