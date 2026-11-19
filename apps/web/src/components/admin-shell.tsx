@@ -13,11 +13,13 @@ const adminSections = [
   { href: "/admin/teachers", label: "Giáo viên", permission: "MANAGE_USERS", icon: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8a3 3 0 0 1 0 6m4 7v-2a4 4 0 0 0-3-4" },
   { href: "/admin/games", label: "Kho trò chơi", permission: "READ_GAMES", icon: "M7 8h10a4 4 0 0 1 4 3l1 7a2 2 0 0 1-3 2l-4-3H9l-4 3a2 2 0 0 1-3-2l1-7a4 4 0 0 1 4-3ZM6 12v4m-2-2h4m8-1h.01m3 2h.01" },
   { href: "/admin/game-assets", label: "Hình ảnh", permission: "MANAGE_GAME_ASSETS", icon: "M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M16 7h.01" },
+  { href: "/admin/token-usage", label: "Mức sử dụng AI", permission: "MANAGE_USERS", icon: "M4 20h16M6 16v-5m6 5V4m6 12V8" },
 ] as const;
 
 const teacherSections = [
   { href: "/teacher/classrooms", label: "Lớp của tôi", permission: "READ_OWN_CLASSROOMS", icon: adminSections[1].icon },
   { href: "/teacher/games", label: "Kho trò chơi", permission: "READ_GAMES", icon: adminSections[3].icon },
+  { href: "/teacher/token-usage", label: "Mức sử dụng AI", permission: "READ_OWN_ACCOUNT", icon: "M4 20h16M6 16v-5m6 5V4m6 12V8" },
 ] as const;
 
 function Icon({ path }: { path: string }) {

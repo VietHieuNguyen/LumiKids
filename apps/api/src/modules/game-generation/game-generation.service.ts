@@ -8,7 +8,12 @@ import {
   AiClientError,
   gameResponseSchema,
 } from '@lumikids/ai-client';
-import type { AiDiagnostic, GenerateGameInput } from '@lumikids/ai-client';
+import type {
+  AiDiagnostic,
+  GenerateGameInput,
+  AiGenerationRequest,
+} from '@lumikids/ai-client';
+import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import {
   getGameContentAssetIds,
   getGameContentAssetIssues,
@@ -35,6 +40,7 @@ export class GameGenerationService {
     private readonly assets: GameAssetService,
     @Inject(aiConfig.KEY) private readonly config: ConfigType<typeof aiConfig>,
     private readonly ai: AiClient,
+    private readonly usage: TokenUsageService,
   ) {}
 
   async generate(user: Principal, input: GenerateGameInput) {
@@ -70,7 +76,7 @@ export class GameGenerationService {
         diagnostic = undefined;
         validationStage = undefined;
         try {
-          const output = await this.ai.generate({
+          const output = await this.generateTracked(user.userId, {
             ...input,
             requestId,
             candidates,
@@ -176,5 +182,22 @@ export class GameGenerationService {
         }
       }
     }
+  }
+
+  private async generateTracked(userId: string, request: AiGenerationRequest) {
+    let output;
+    try {
+      output = await this.ai.generate(request);
+    } catch (error) {
+      await this.usage.record(
+        userId,
+        request,
+        error instanceof AiClientError ? error.code : 'INTERNAL_ERROR',
+        error instanceof AiClientError ? error.usage : undefined,
+      );
+      throw error;
+    }
+    await this.usage.record(userId, request, 'OK', output.usage, output.model);
+    return output;
   }
 }

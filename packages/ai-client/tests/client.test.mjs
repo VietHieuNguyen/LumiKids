@@ -38,6 +38,15 @@ const client = (fetcher) =>
     timeoutMs: 20,
     fetcher,
   });
+test('usage is preserved on successful and rejected generated content', async () => {
+  const usage = { inputTokens: 100, outputTokens: 20, thoughtTokens: 5, cachedTokens: 10, totalTokens: 125 };
+  const result = await client(async () => Response.json({ ...output, usage })).generate(input);
+  assert.deepEqual(result.usage, usage);
+  await assert.rejects(client(async () => Response.json({ error: { code: 'AI_OUTPUT_INVALID', retryable: true, usage } }, { status: 502 })).generate(input), (error) => {
+    assert.deepEqual(error.usage, usage);
+    return error.code === 'AI_OUTPUT_INVALID';
+  });
+});
 test("request validates type, whitespace, length, strict fields and disallows client asset list", () => {
   for (const value of [
     { gameType: "NOPE", prompt: "x" },
@@ -55,7 +64,7 @@ for (const gameType of ["COUNTING", "MATCHING", "CLASSIFICATION"]) {
   test(`${gameType} schema derives literal constraints and whitelists every asset reference`, () => {
     const schema = gameResponseSchema(gameType, [id]);
     assert.deepEqual(schema.properties.gameType.enum, [gameType]);
-    assert.deepEqual(schema.properties.schemaVersion.enum, [1]);
+    assert.deepEqual(schema.properties.schemaVersion.enum, [gameType === 'MATCHING' ? 1 : 2]);
     const arrays =
       gameType === "MATCHING"
         ? ["sourceItems", "targetItems"]

@@ -6,6 +6,7 @@ import {
 } from '@lumikids/ai-client';
 import type { CandidateAsset } from '@lumikids/ai-client';
 import { GameGenerationService } from './game-generation.service.js';
+import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import { GameAssetService } from '../game-assets/game-asset.service.js';
 import {
   concepts,
@@ -291,6 +292,7 @@ describe('Generation validation and metadata selection', () => {
 });
 
 describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
+  const tracked = { record: vi.fn() };
   const assets = { generationCandidates: vi.fn(), generationAssets: vi.fn() };
   const ai = { generate: vi.fn() };
   const user = {
@@ -317,6 +319,7 @@ describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
       assets as unknown as GameAssetService,
       config,
       ai as unknown as AiClient,
+      tracked as unknown as TokenUsageService,
     );
   });
   afterEach(() => vi.restoreAllMocks());
@@ -428,6 +431,7 @@ describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
       assets as unknown as GameAssetService,
       { ...config, url: undefined },
       ai as unknown as AiClient,
+      { record: vi.fn().mockResolvedValue({}) } as unknown as TokenUsageService,
     );
     await expect(
       unconfigured.generate(user, { gameType: 'COUNTING', prompt: 'Bóng' }),
@@ -451,9 +455,29 @@ describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
       prompt: 'Bóng',
     });
     expect(result.generation.attempts).toBe(2);
+    expect(tracked.record).toHaveBeenCalledTimes(2);
+    expect(tracked.record.mock.calls.map((c) => c[1].attempt)).toEqual([1, 2]);
+    expect(tracked.record.mock.calls[0][0]).toBe(user.userId);
     expect(ai.generate.mock.calls[1][0].validationErrors).toEqual([
       'GAME_SCHEMA_INVALID',
     ]);
+  });
+  it('records provider token metadata even when generated output is rejected', async () => {
+    const usage = {
+      inputTokens: 100,
+      outputTokens: 20,
+      thoughtTokens: 5,
+      cachedTokens: 10,
+      totalTokens: 125,
+    };
+    ai.generate.mockRejectedValue(
+      new AiClientError('AI_OUTPUT_INVALID', true, undefined, usage),
+    );
+    await expect(
+      service.generate(user, { gameType: 'COUNTING', prompt: 'Bóng' }),
+    ).rejects.toBeDefined();
+    expect(tracked.record).toHaveBeenCalledTimes(2);
+    expect(tracked.record.mock.calls[0][3]).toEqual(usage);
   });
   it('bounds repeated invalid outputs and leaves no stale in-flight lock', async () => {
     ai.generate.mockResolvedValue({ gameContent: {}, model: 'fixture' });

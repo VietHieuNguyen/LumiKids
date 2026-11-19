@@ -25,6 +25,18 @@ const load = (name) =>
       ),
     ),
   );
+
+test("child play selects its own looping music; adult previews stay silent", () => {
+  for (const name of ["classification", "matching", "counting"]) {
+    const content = load(name);
+    const play = renderToStaticMarkup(React.createElement(GameRuntime, { content, assetUrls: {}, mode: "PLAY" }));
+    assert.match(play, new RegExp(`<audio[^>]*src="/audio/game/${name}\\.mp3"[^>]*loop=""`));
+    assert.match(play, /data-game-music-toggle/);
+    const preview = renderToStaticMarkup(React.createElement(GameRuntime, { content, assetUrls: {}, mode: "PREVIEW" }));
+    assert.doesNotMatch(preview, /<audio|data-game-music-toggle/);
+  }
+});
+
 function fakeClock() {
   let now = Date.now();
   let key = 0;

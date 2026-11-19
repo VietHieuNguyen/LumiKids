@@ -76,9 +76,6 @@ export default function AccountPage() {
             {shortcuts.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className="group flex h-full flex-col rounded-3xl border border-line bg-paper p-5 transition hover:-translate-y-0.5 hover:border-leaf/50 hover:shadow-[0_16px_32px_-20px_rgb(24_56_41/40%)]">
-                  <span aria-hidden="true" className={`mb-4 grid h-12 w-12 place-items-center rounded-2xl ${item.tone}`}>
-                    <svg width="22" height="22" viewBox="0 0 22 22"><path d="M5 11h12m-4.5-4.5L17 11l-4.5 4.5" fill="none" stroke="#183829" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
                   <span className="font-display text-xl font-bold group-hover:text-leaf">{item.title}</span>
                   <span className="mt-1 text-sm leading-6 text-ink-soft">{item.text}</span>
                 </Link>

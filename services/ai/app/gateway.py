@@ -53,6 +53,7 @@ class AiFailure(Exception):
         self.retryable = retryable
         self.status = status
         self.diagnostic = diagnostic
+        self.usage: dict | None = None
 
 
 def parse_output(text: str | None, schema: dict) -> dict:
@@ -70,7 +71,7 @@ def parse_output(text: str | None, schema: dict) -> dict:
         raise AiFailure('AI_CONTRACT_INVALID') from None
 
 
-async def generate(request: GenerationRequest, settings: Settings) -> dict:
+async def generate(request: GenerationRequest, settings: Settings, usage: dict | None = None) -> dict:
     if not settings.configured:
         raise AiFailure('AI_NOT_CONFIGURED', status=503)
     # No SDK retry: Nest owns the single bounded regenerate/retry policy.
@@ -92,6 +93,15 @@ async def generate(request: GenerationRequest, settings: Settings) -> dict:
                     max_output_tokens=settings.gemini_max_output_tokens,
                 ),
             ), timeout=settings.gemini_timeout_ms / 1000)
+        metadata = response.usage_metadata
+        if metadata is not None and metadata.total_token_count is not None and usage is not None:
+            usage.update({
+                'inputTokens': metadata.prompt_token_count or 0,
+                'outputTokens': metadata.candidates_token_count or 0,
+                'thoughtTokens': metadata.thoughts_token_count or 0,
+                'cachedTokens': metadata.cached_content_token_count or 0,
+                'totalTokens': metadata.total_token_count,
+            })
         if response.prompt_feedback and response.prompt_feedback.block_reason:
             raise AiFailure('AI_OUTPUT_BLOCKED')
         candidates = response.candidates or []

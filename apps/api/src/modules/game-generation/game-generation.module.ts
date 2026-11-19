@@ -9,9 +9,11 @@ import { GameGenerationService } from './game-generation.service.js';
 import { GamePreviewAccessService } from './game-preview-access.service.js';
 import { JwtModule } from '@nestjs/jwt';
 import authConfig from '../../common/config/auth.config.js';
+import { TokenUsageModule } from '../token-usage/token-usage.module.js';
 
 @Module({
   imports: [
+    TokenUsageModule,
     ConfigModule.forFeature(aiConfig),
     ConfigModule.forFeature(authConfig),
     JwtModule.register({}),
