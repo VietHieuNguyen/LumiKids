@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { GameLibraryPage, SavedGame, Skill } from "@lumikids/shared";
+import { StaffPage } from "@/components/staff-shell";
+import { Notice } from "../classrooms/classroom-shell";
+import { LibraryIcon as Icon } from "./library-icon";
 import { GameLibraryApi, libraryError } from "./api";
 import { useLibrarySession } from "./use-library-session";
 
@@ -17,13 +20,17 @@ export const difficultyLabels = {
   MEDIUM: "Trung bình",
   HARD: "Khó",
 };
-const gameIcons = { COUNTING: "●", MATCHING: "↔", CLASSIFICATION: "▦" };
+const typeStyles = {
+  COUNTING: { cover: "bg-sky", badge: "bg-sky text-[#245b73]" },
+  MATCHING: { cover: "bg-leaf-soft", badge: "bg-leaf-soft text-[#27633b]" },
+  CLASSIFICATION: { cover: "bg-sun-soft", badge: "bg-sun-soft text-[#805b13]" },
+};
 function Cover({ api, game }: { api: GameLibraryApi; game: SavedGame }) {
   const [images, setImages] = useState<{ id: string; url: string }[]>([]);
   useEffect(() => {
     let current = true;
     void Promise.allSettled(
-      game.coverAssetIds.map(async (id) => ({
+      game.coverAssetIds.slice(0, 3).map(async (id) => ({
         id,
         url: (await api.readUrl(game.versionId, id)).url,
       })),
@@ -41,29 +48,30 @@ function Cover({ api, game }: { api: GameLibraryApi; game: SavedGame }) {
   }, [api, game]);
   return (
     <div
-      className="flex h-44 items-center justify-center gap-3 overflow-hidden bg-gradient-to-br from-indigo-50 via-sky-50 to-amber-50 px-5"
+      className={`library-cover relative flex h-44 items-center justify-center gap-3 overflow-hidden px-7 ${typeStyles[game.gameType].cover}`}
       aria-hidden="true"
     >
+      <span className="absolute -right-8 -top-14 h-40 w-40 rounded-full border-[20px] border-white/35" />
+      <span className="absolute -bottom-10 -left-4 h-24 w-24 rounded-full bg-white/30" />
       {images.length ? (
         images.map((image, index) => (
           <div
-            className={`flex h-24 min-w-0 flex-1 items-center justify-center rounded-2xl border-2 border-white bg-white/90 p-2 shadow-sm ${index % 2 ? "-rotate-6" : "rotate-3"}`}
+            className={`relative flex h-24 min-w-0 max-w-28 flex-1 items-center justify-center rounded-2xl border-2 border-white bg-white/90 p-2 shadow-sm ${index % 2 ? "rotate-3" : "-rotate-3"}`}
             key={image.id}
           >
             <img
               src={image.url}
               alt=""
               className="h-full w-full object-contain"
-              onError={(event) => {
-                event.currentTarget.style.visibility = "hidden";
-              }}
+              onError={() => setImages((current) => current.filter((item) => item.id !== image.id))}
             />
           </div>
         ))
       ) : (
-        <span className="text-6xl text-indigo-300">
-          {gameIcons[game.gameType]}
-        </span>
+        <div className="relative flex items-center gap-4 text-ink/65">
+          <span className="grid h-24 w-24 -rotate-3 place-items-center rounded-3xl border-2 border-white bg-paper/90 shadow-sm"><Icon name={game.gameType} className="h-12 w-12" /></span>
+          <span className="font-display text-2xl font-bold">{gameTypeLabels[game.gameType]}</span>
+        </div>
       )}
     </div>
   );
@@ -81,30 +89,29 @@ export function LibraryPage({ admin = false }: { admin?: boolean }) {
   const { session, loading, api } = useLibrarySession();
   if (loading || !session || !api)
     return (
-      <main className="p-8" role="status">
+      <Notice>
         Đang kiểm tra phiên đăng nhập…
-      </main>
+      </Notice>
     );
   if (
     !session.user.permissions.includes("READ_GAMES") ||
     (admin && !session.user.permissions.includes("MANAGE_ALL_GAMES"))
   )
     return (
-      <main className="p-8">
+      <Notice>
         <h1 className="text-xl font-bold">
           Bạn chưa có quyền truy cập kho trò chơi này.
         </h1>
         <Link href="/account" className="asset-button-secondary mt-5">
           Về tài khoản
         </Link>
-      </main>
+      </Notice>
     );
   return (
     <LibraryContent
       key={session.user.userId}
       api={api}
       admin={admin}
-      fullName={session.user.fullName}
       canSave={
         session.user.permissions.includes("GENERATE_GAME_CONTENT") &&
         session.user.permissions.includes("SAVE_GAMES")
@@ -115,17 +122,16 @@ export function LibraryPage({ admin = false }: { admin?: boolean }) {
 function LibraryContent({
   api,
   admin,
-  fullName,
   canSave,
 }: {
   api: GameLibraryApi;
   admin: boolean;
-  fullName: string;
   canSave: boolean;
 }) {
   const base = admin ? "/admin/games" : "/teacher/games";
   const [filters, setFilters] = useState(initialFilters);
   const [applied, setApplied] = useState(initialFilters);
+  const [advanced, setAdvanced] = useState(false);
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
   const [catalog, setCatalog] = useState<Skill[]>([]);
@@ -174,67 +180,56 @@ function LibraryContent({
       (skill) => !filters.skillCode || skill.skillCode === filters.skillCode,
     )
     .flatMap((skill) => skill.criterions);
+  const advancedCount = Number(Boolean(filters.skillCode)) + Number(Boolean(filters.criterionCode)) + Number(filters.status !== "ACTIVE");
+  const activeLabels = [
+    applied.search && `Tìm: ${applied.search}`,
+    gameTypeLabels[applied.gameType as keyof typeof gameTypeLabels],
+    applied.difficulty && `Độ khó: ${difficultyLabels[applied.difficulty as keyof typeof difficultyLabels]}`,
+    applied.skillCode && `Chuẩn ${applied.skillCode}`,
+    applied.criterionCode && `Chỉ số ${applied.criterionCode}`,
+    applied.status === "ARCHIVED" && "Đã lưu trữ",
+    applied.mine === "true" && "Do tôi tạo",
+  ].filter(Boolean);
+  function reset() {
+    setFilters(initialFilters);
+    setApplied({ ...initialFilters });
+    setPage(1);
+  }
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-6 text-slate-900 sm:px-8 sm:py-10">
-      <div className="mx-auto max-w-7xl">
-        <nav className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <Link href="/account" className="font-bold text-indigo-700">
-            ← LumiKids · Tài khoản
-          </Link>
-          <span className="text-slate-500">{fullName}</span>
-        </nav>
-        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-700 via-indigo-600 to-sky-500 p-6 text-white shadow-sm sm:p-9">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-6 -top-8 text-[180px] leading-none text-white/10"
-          >
-            ✦
-          </span>
-          <div className="relative flex flex-wrap items-center justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-widest text-indigo-100">
-                {admin ? "Không gian quản trị" : "Không gian giáo viên"} · Kho
-                dùng chung
-              </p>
-              <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
-                Kho trò chơi
-              </h1>
-              <p className="mt-3 text-sm leading-6 text-indigo-50">
-                Lưu những ý tưởng phù hợp, chọn chỉ số đánh giá và cùng chia sẻ
-                học liệu trò chơi với các giáo viên.
-              </p>
-            </div>
-            {canSave && (
-              <Link
-                href={`${base}/create`}
-                className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-indigo-700 shadow-sm hover:bg-indigo-50"
-              >
-                ＋ Tạo trò chơi mới
-              </Link>
-            )}
+    <StaffPage>
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-7 sm:px-6 sm:pt-9">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">{admin ? "Quản trị" : "Giáo viên"} · Học liệu dùng chung</p>
+            <h1 className="font-display text-4xl font-extrabold leading-tight text-ink">Kho trò chơi</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">Tìm ý tưởng, chơi thử và chọn trò chơi phù hợp cho giờ học của bé.</p>
           </div>
-          <div className="mt-6 flex flex-wrap gap-3 text-xs font-medium">
-            <span className="rounded-full bg-white/15 px-4 py-2">
-              3 dạng trò chơi
-            </span>
-            <span className="rounded-full bg-white/15 px-4 py-2">
-              Chuẩn 15–17
-            </span>
-            <span className="rounded-full bg-white/15 px-4 py-2">
-              11 chỉ số nhận thức
-            </span>
-          </div>
+          {canSave && <Link href={`${base}/create`} className="lumi-button-sun"><Icon name="plus" />Tạo trò chơi mới</Link>}
         </header>
+        <aside className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-leaf/15 bg-leaf-soft/60 px-5 py-4" aria-label="Thông tin kho trò chơi">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-paper text-leaf"><Icon name="book" className="h-6 w-6" /></span>
+            <div><p className="font-display text-lg font-bold">Cùng tạo nên những giờ học thú vị</p><p className="mt-0.5 text-xs leading-5 text-ink-soft">Trò chơi được giáo viên duyệt và gắn mục tiêu đánh giá.</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-ink-soft">
+            <span className="rounded-lg border border-line bg-paper/80 px-3 py-2">3 dạng trò chơi</span>
+            {catalog.length > 0 && <span className="rounded-lg border border-line bg-paper/80 px-3 py-2">{catalog.reduce((sum, skill) => sum + skill.criterions.length, 0)} chỉ số đánh giá</span>}
+          </div>
+        </aside>
         <form
           onSubmit={apply}
-          className="mt-6 rounded-2xl border border-slate-200 bg-white p-5"
+          className="rounded-3xl border border-line bg-paper p-4 shadow-sm sm:p-5"
+          aria-label="Bộ lọc trò chơi"
         >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="text-sm font-medium">
-              Tìm trò chơi
+          <div className="mb-4 flex items-center gap-2"><Icon name="search" className="h-4 w-4 text-leaf" /><h2 className="text-sm font-bold">Tìm trò chơi phù hợp</h2></div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+            <label className="asset-label sm:col-span-2 lg:col-span-1">
+              <span id="library-search-label">Tìm trò chơi</span>
               <input
+                aria-labelledby="library-search-label"
                 className="asset-input mt-2"
-                placeholder="Tên hoặc ghi chú…"
+                type="search"
+                placeholder="Nhập tên hoặc ghi chú…"
                 value={filters.search}
                 maxLength={200}
                 onChange={(e) =>
@@ -242,9 +237,10 @@ function LibraryContent({
                 }
               />
             </label>
-            <label className="text-sm font-medium">
-              Loại trò chơi
+            <label className="asset-label">
+              <span id="library-type-label">Loại trò chơi</span>
               <select
+                aria-labelledby="library-type-label"
                 className="asset-input mt-2"
                 value={filters.gameType}
                 onChange={(e) =>
@@ -259,9 +255,10 @@ function LibraryContent({
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium">
-              Độ khó
+            <label className="asset-label">
+              <span id="library-difficulty-label">Độ khó</span>
               <select
+                aria-labelledby="library-difficulty-label"
                 className="asset-input mt-2"
                 value={filters.difficulty}
                 onChange={(e) =>
@@ -276,9 +273,12 @@ function LibraryContent({
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium">
-              Chuẩn
+          </div>
+          <div id="library-advanced-filters" hidden={!advanced} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="asset-label">
+              <span id="library-skill-label">Chuẩn</span>
               <select
+                aria-labelledby="library-skill-label"
                 className="asset-input mt-2"
                 value={filters.skillCode}
                 onChange={(e) =>
@@ -289,7 +289,7 @@ function LibraryContent({
                   })
                 }
               >
-                <option value="">Tất cả Chuẩn</option>
+                <option value="">Tất cả chuẩn</option>
                 {catalog.map((skill) => (
                   <option key={skill.skillCode} value={skill.skillCode}>
                     Chuẩn {skill.skillCode} · {skill.name}
@@ -297,16 +297,17 @@ function LibraryContent({
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium">
-              Chỉ số
+            <label className="asset-label">
+              <span id="library-criterion-label">Chỉ số</span>
               <select
+                aria-labelledby="library-criterion-label"
                 className="asset-input mt-2"
                 value={filters.criterionCode}
                 onChange={(e) =>
                   setFilters({ ...filters, criterionCode: e.target.value })
                 }
               >
-                <option value="">Tất cả Chỉ số</option>
+                <option value="">Tất cả chỉ số</option>
                 {criteria.map((c) => (
                   <option key={c.criterionCode} value={c.criterionCode}>
                     Chỉ số {c.criterionCode} · {c.description}
@@ -314,9 +315,10 @@ function LibraryContent({
                 ))}
               </select>
             </label>
-            <label className="text-sm font-medium">
-              Trạng thái
+            <label className="asset-label">
+              <span id="library-status-label">Trạng thái</span>
               <select
+                aria-labelledby="library-status-label"
                 className="asset-input mt-2"
                 value={filters.status}
                 onChange={(e) =>
@@ -330,188 +332,194 @@ function LibraryContent({
               </select>
             </label>
           </div>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={filters.mine === "true"}
-                onChange={(e) =>
-                  setFilters({
-                    ...filters,
-                    mine: e.target.checked ? "true" : "false",
-                  })
-                }
-                className="h-4 w-4 accent-indigo-600"
-              />
-              Chỉ trò chơi do tôi tạo
-            </label>
-            <div className="flex gap-2">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 border-t border-line pt-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <button type="button" aria-expanded={advanced} aria-controls="library-advanced-filters" className="inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-semibold text-ink-soft hover:text-ink" onClick={() => setAdvanced((value) => !value)}>
+                <Icon name="filter" className="h-4 w-4" />Bộ lọc thêm{advancedCount > 0 && <span className="rounded-full bg-leaf-soft px-2 text-xs text-leaf">{advancedCount}</span>}<span aria-hidden="true">{advanced ? "−" : "+"}</span>
+              </button>
+              <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm text-ink-soft">
+                <input
+                  type="checkbox"
+                  checked={filters.mine === "true"}
+                  onChange={(e) =>
+                    setFilters({
+                      ...filters,
+                      mine: e.target.checked ? "true" : "false",
+                    })
+                  }
+                  className="h-4 w-4 accent-leaf"
+                />
+                Chỉ trò chơi do tôi tạo
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
                 className="asset-text-button"
-                onClick={() => {
-                  setFilters(initialFilters);
-                  setApplied({ ...initialFilters });
-                  setPage(1);
-                }}
+                onClick={reset}
               >
                 Đặt lại
               </button>
               <button className="asset-button-primary" type="submit">
-                Áp dụng bộ lọc
+                <Icon name="search" className="h-4 w-4" />Áp dụng bộ lọc
               </button>
             </div>
           </div>
         </form>
-        <div className="my-6 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold">
-            {applied.mine === "true"
-              ? "Trò chơi của tôi"
-              : applied.status === "ARCHIVED"
-                ? "Trò chơi đã lưu trữ"
-                : "Cùng khám phá và học tập"}
-            {data && !busy && !error && (
-              <span className="ml-2 rounded-full bg-indigo-100 px-3 py-1 text-sm text-indigo-700">
-                {data.pagination.total}
-              </span>
-            )}
-          </h2>
-          <button
-            className="asset-text-button"
-            type="button"
-            onClick={() => setReload((n) => n + 1)}
-          >
-            ↻ Tải lại
-          </button>
-        </div>
-        {busy ? (
-          <div
-            role="status"
-            className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500"
-          >
-            Đang mở kho trò chơi…
-          </div>
-        ) : error ? (
-          <div role="alert" className="asset-error p-6">
-            {error}
+        <section className="mt-7" aria-labelledby="library-results-heading" aria-busy={busy}>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 id="library-results-heading" className="font-display text-2xl font-bold">
+              {applied.mine === "true"
+                ? "Trò chơi của tôi"
+                : applied.status === "ARCHIVED"
+                  ? "Trò chơi đã lưu trữ"
+                  : "Danh sách trò chơi"}
+              {data && !busy && !error && (
+                <span className="ml-2 rounded-full bg-leaf-soft px-2.5 py-1 font-sans text-sm text-leaf">
+                  {data.pagination.total}
+                </span>
+              )}
+            </h2>
             <button
+              className="asset-button-secondary"
               type="button"
-              className="asset-button-secondary ml-3"
+              disabled={busy}
               onClick={() => setReload((n) => n + 1)}
             >
-              Thử lại
+              <Icon name="refresh" className="h-4 w-4" /><span className="hidden sm:inline">Tải lại</span><span className="sr-only sm:hidden">Tải lại danh sách</span>
             </button>
           </div>
-        ) : !data?.items.length ? (
-          <div className="rounded-3xl border border-dashed border-indigo-200 bg-white px-6 py-16 text-center">
-            <span aria-hidden="true" className="text-5xl text-indigo-300">
-              ✦
-            </span>
-            <h3 className="mt-5 text-xl font-bold">Chưa có trò chơi phù hợp</h3>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">
-              Thử thay đổi bộ lọc hoặc tạo trò chơi mới. Sau khi chơi thử và
-              chọn chỉ số, bạn có thể lưu trò vào đây.
-            </p>
-            {canSave && (
-              <Link
-                href={`${base}/create`}
-                className="asset-button-primary mt-6"
-              >
-                Tạo trò chơi đầu tiên
-              </Link>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {data.items.map((game) => (
-                <article
-                  className="flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
-                  key={game.versionId}
-                >
-                  <Cover api={api} game={game} />
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
-                        {gameTypeLabels[game.gameType]}
-                      </span>
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">
-                        {difficultyLabels[game.difficulty]}
-                      </span>
-                      {game.status === "ARCHIVED" && (
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-                          Đã lưu trữ
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="mt-4 break-words text-lg font-bold leading-7">
-                      <Link
-                        href={`${base}/${game.versionId}`}
-                        className="hover:text-indigo-700"
-                      >
-                        {game.name}
-                      </Link>
-                    </h3>
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
-                      {game.description ||
-                        "Trò chơi đã được người tạo duyệt và lưu vào kho chung."}
-                    </p>
-                    <div className="my-4 flex flex-wrap gap-2">
-                      {game.criterions.map((c) => (
-                        <span
-                          title={c.description}
-                          key={c.criterionCode}
-                          className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800"
-                        >
-                          Chỉ số {c.criterionCode}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-auto border-t border-slate-100 pt-4">
-                      <p className="truncate text-xs text-slate-500">
-                        {game.creatorName} ·{" "}
-                        {new Date(game.createdAt).toLocaleDateString("vi-VN")}
-                      </p>
-                      <Link
-                        href={`${base}/${game.versionId}`}
-                        className="asset-button-secondary mt-4 w-full"
-                      >
-                        Mở và chơi thử →
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <nav
-              className="mt-8 flex items-center justify-center gap-4"
-              aria-label="Phân trang kho trò chơi"
+          {activeLabels.length > 0 && <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Bộ lọc đang áp dụng">{activeLabels.map((label, index) => <span key={index} className="max-w-full break-words rounded-lg border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft">{label}</span>)}<button type="button" className="asset-text-button px-2 text-xs" onClick={reset}>Xóa bộ lọc</button></div>}
+          {busy ? (
+            <div
+              role="status"
+              className="rounded-3xl border border-line bg-paper p-12 text-center text-sm text-ink-soft"
             >
+              Đang mở kho trò chơi…
+            </div>
+          ) : error ? (
+            <div role="alert" className="asset-error p-6">
+              {error}
               <button
-                className="asset-button-secondary"
-                disabled={page <= 1}
-                onClick={() => setPage((n) => n - 1)}
+                type="button"
+                className="asset-button-secondary ml-3"
+                onClick={() => setReload((n) => n + 1)}
               >
-                ← Trước
+                Thử lại
               </button>
-              <span className="text-sm font-medium">
-                {page} / {data.pagination.totalPages}
+            </div>
+          ) : !data?.items.length ? (
+            <div className="rounded-3xl border border-dashed border-ink/20 bg-paper px-6 py-12 text-center">
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-sun-soft text-ink-soft">
+                <Icon name={activeLabels.length ? "search" : "book"} className="h-8 w-8" />
               </span>
-              <button
-                className="asset-button-secondary"
-                disabled={page >= data.pagination.totalPages}
-                onClick={() => setPage((n) => n + 1)}
+              <h3 className="mt-4 font-display text-2xl font-bold">{activeLabels.length ? "Chưa có trò chơi phù hợp" : "Kho trò chơi đang chờ ý tưởng đầu tiên"}</h3>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink-soft">
+                {activeLabels.length ? "Thử thay đổi từ khóa hoặc bỏ bớt bộ lọc để tìm trò chơi khác." : canSave ? "Tạo nội dung, chơi thử và chọn chỉ số đánh giá để lưu trò chơi vào kho dùng chung." : "Các trò chơi sẽ xuất hiện tại đây khi được tạo và lưu vào kho dùng chung."}
+              </p>
+              {activeLabels.length > 0 && <button type="button" className="asset-button-secondary mt-5 mr-3" onClick={reset}>Xóa bộ lọc</button>}
+              {canSave && (
+                <Link
+                  href={`${base}/create`}
+                  className="lumi-button-sun mt-5"
+                >
+                  <Icon name="plus" className="h-4 w-4" />Tạo trò chơi mới
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {data.items.map((game) => (
+                  <article
+                    className="flex min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-paper shadow-sm transition-shadow hover:shadow-md"
+                    key={game.versionId}
+                  >
+                    <Cover api={api} game={game} />
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 ${typeStyles[game.gameType].badge}`}>
+                          <Icon name={game.gameType} className="h-3.5 w-3.5" />{gameTypeLabels[game.gameType]}
+                        </span>
+                        <span className="rounded-lg bg-ink/5 px-2.5 py-1.5 text-ink-soft">
+                          {difficultyLabels[game.difficulty]}
+                        </span>
+                        {game.status === "ARCHIVED" && (
+                          <span className="rounded-lg border border-line px-2.5 py-1.5 text-ink-soft">
+                            Đã lưu trữ
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="mt-3 break-words font-display text-xl font-bold leading-7">
+                        <Link
+                          href={`${base}/${game.versionId}`}
+                          className="rounded hover:text-leaf"
+                        >
+                          {game.name}
+                        </Link>
+                      </h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-soft">
+                        {game.description ||
+                          "Trò chơi đã được người tạo duyệt và lưu vào kho chung."}
+                      </p>
+                      <div className="my-4 flex flex-wrap gap-2">
+                        {game.criterions.map((c) => (
+                          <span
+                            title={c.description}
+                            key={c.criterionCode}
+                            className="rounded-md border border-leaf/20 px-2 py-1 text-xs font-medium text-leaf"
+                          >
+                            Chỉ số {c.criterionCode}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-auto border-t border-line pt-4">
+                        <p className="truncate text-xs text-ink-soft">
+                          {game.creatorName} ·{" "}
+                          {new Date(game.createdAt).toLocaleDateString("vi-VN")}
+                        </p>
+                        <Link
+                          href={`${base}/${game.versionId}`}
+                          className="asset-button-secondary mt-3 w-full"
+                          aria-label={`Xem và chơi thử: ${game.name}`}
+                        >
+                          Xem và chơi thử<Icon name="arrow" className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              {data.pagination.totalPages > 1 && <nav
+                className="mt-7 flex items-center justify-center gap-4"
+                aria-label="Phân trang kho trò chơi"
               >
-                Sau →
-              </button>
-            </nav>
-          </>
-        )}
-        <p className="mt-8 text-xs leading-5 text-slate-500">
-          Chỉ số được giáo viên gắn để xác định mục tiêu. Kho chưa lưu kết quả
-          chơi hoặc tự đánh giá năng lực của trẻ.
+                <button
+                  className="asset-button-secondary"
+                  disabled={page <= 1}
+                  onClick={() => setPage((n) => n - 1)}
+                >
+                  ← Trước
+                </button>
+                <span className="text-sm font-medium">
+                  {page} / {data.pagination.totalPages}
+                </span>
+                <button
+                  className="asset-button-secondary"
+                  disabled={page >= data.pagination.totalPages}
+                  onClick={() => setPage((n) => n + 1)}
+                >
+                  Sau →
+                </button>
+              </nav>}
+            </>
+          )}
+        </section>
+        <p className="mt-7 max-w-3xl text-xs leading-5 text-ink-soft">
+          Chỉ số giúp giáo viên xác định mục tiêu học tập. Việc gắn chỉ số vào trò
+          chơi không thay thế đánh giá năng lực của trẻ.
         </p>
-      </div>
-    </main>
+      </main>
+    </StaffPage>
   );
 }

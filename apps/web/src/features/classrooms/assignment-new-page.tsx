@@ -93,7 +93,7 @@ function AssignmentForm({ api, libraryApi, classroom }: { api: ClassroomApi; lib
   }
 
   return (
-    <form className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]" onSubmit={submit}>
+    <form className="teacher-assignment-form grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]" onSubmit={submit}>
       <div className="min-w-0 space-y-6">
         <Panel title="1. Bài này là gì?">
           <div className="space-y-4">

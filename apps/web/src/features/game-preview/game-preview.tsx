@@ -60,7 +60,7 @@ function ValidatedPreview({
   const preview = mode === "PREVIEW";
   const controls = (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-slate-800">
+      <h2 className="text-lg font-semibold text-ink">
         {preview ? "Xem thử" : "Trò chơi"} ·{" "}
         {gameRegistry[content.gameType].label}
       </h2>
@@ -70,7 +70,7 @@ function ValidatedPreview({
         </Link>
         <span
           role="status"
-          className={`rounded-full px-3 py-2 text-sm font-semibold ${completed ? "bg-emerald-50 text-emerald-800" : "bg-blue-50 text-blue-800"}`}
+          className={`rounded-full px-3 py-2 text-sm font-semibold ${completed ? "bg-leaf-soft text-leaf" : "bg-leaf-soft text-leaf"}`}
         >
           {completed
             ? "Đã hoàn thành"
@@ -94,7 +94,7 @@ function ValidatedPreview({
       {snapshot.status === "loading" && (
         <div
           role="status"
-          className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-6 text-sm text-blue-800"
+          className="rounded-2xl border border-leaf/20 bg-leaf-soft px-5 py-6 text-sm text-leaf"
         >
           Đang tải hình ảnh… {snapshot.total - snapshot.pending}/
           {snapshot.total}
@@ -165,7 +165,7 @@ function ValidatedPreview({
       {controlsPosition === "after" && controls}
       {snapshot.status === "ready" && (
         <div className="flex flex-wrap items-center justify-end gap-3">
-          <span role="status" className="text-xs text-slate-500">
+          <span role="status" className="text-xs text-ink-soft">
             {snapshot.refreshing
               ? "Đang làm mới ảnh…"
               : preview
@@ -185,11 +185,11 @@ function ValidatedPreview({
         </div>
       )}
       {debug && (
-        <details className="rounded-2xl border border-slate-200 bg-white p-4">
-          <summary className="cursor-pointer text-sm font-medium text-slate-600">
+        <details className="rounded-2xl border border-line bg-paper p-4">
+          <summary className="cursor-pointer text-sm font-medium text-ink-soft">
             Debug tương tác · {events.length} event trong bộ nhớ
           </summary>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-ink-soft">
             Chỉ hiển thị trong development, giữ tối đa 100 event của lượt hiện
             tại.
           </p>

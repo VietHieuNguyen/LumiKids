@@ -18,6 +18,8 @@ import { createGameCreationController } from "./controller";
 import { MAX_GAME_PROMPT_LENGTH } from "./types";
 import { GameLibraryApi } from "../game-library/api";
 import { SaveGamePanel } from "../game-library/save-game-panel";
+import { GameSymbol } from "../game-runtime/components/game-symbol";
+import { CreatorIllustration } from "./creator-illustration";
 
 export const gameCreationOptions: {
   type: GameType;
@@ -50,12 +52,10 @@ interface GameCreatorProps {
   libraryApi?: GameLibraryApi | null;
   libraryHref?: string;
   api: GameGenerationApi;
-  fullName: string;
   onUnauthorized: () => void;
 }
 export function GameCreator({
   api,
-  fullName,
   onUnauthorized,
   libraryApi,
   libraryHref = "/teacher/games",
@@ -128,52 +128,40 @@ export function GameCreator({
         if (success) promptDialog.current?.close();
       });
   }
+  function openPrompt(type?: GameType) {
+    if (type) setGameType(type);
+    promptDialog.current?.showModal();
+  }
   return (
-    <main className="min-h-dvh bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6">
-          <Link
-            href="/account"
-            className="text-xl font-bold tracking-tight text-blue-700"
-          >
-            LumiKids
-          </Link>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-            <span>{fullName}</span>
-            {libraryApi && (
-              <Link href={libraryHref} className="asset-button-secondary">
-                Kho trò chơi
-              </Link>
-            )}
-            <Link href="/account" className="asset-button-secondary">
-              ← Tài khoản
-            </Link>
-          </div>
-        </div>
-      </header>
-      <div className="creator-workspace" ref={workspace}>
-        <div className="creator-toolbar">
+    <main className="creator-workspace text-ink" ref={workspace}>
+      <div className="creator-page-inner">
+        <Link href={libraryApi ? libraryHref : "/account"} className="mb-4 inline-flex min-h-9 items-center gap-2 rounded-lg text-sm font-semibold text-leaf hover:text-ink">
+          <span aria-hidden="true">←</span>{libraryApi ? "Kho trò chơi" : "Tài khoản"}
+        </Link>
+        <header className="creator-toolbar">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              Không gian trò chơi
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">Học liệu · Sáng tạo cùng LumiKids</p>
+            <h1 className="font-display text-4xl font-extrabold leading-tight">
+              Tạo trò chơi
             </h1>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-ink-soft">
               {busy
-                ? "Đang tạo nội dung mới…"
-                : "Mở mô tả để tạo hoặc điều chỉnh trò chơi."}
+                ? "LumiKids đang chuẩn bị trò chơi từ ý tưởng của bạn…"
+                : "Từ một ý tưởng nhỏ, tạo nên giờ học đầy khám phá cho bé."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="asset-button-primary"
-              onClick={() => promptDialog.current?.showModal()}
+              className="lumi-button-sun"
+              onClick={() => openPrompt()}
             >
+              <span aria-hidden="true">✦</span>
               {busy
                 ? "Xem tiến trình tạo"
                 : draft
-                  ? "Chỉnh mô tả / Tạo lại"
-                  : "Tạo trò chơi"}
+                  ? "Chỉnh mô tả"
+                  : "Bắt đầu tạo"}
             </button>
             <button
               type="button"
@@ -181,12 +169,27 @@ export function GameCreator({
               aria-pressed={fullscreen}
               onClick={() => void toggleFullscreen()}
             >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" /></svg>
               {fullscreen ? "Thu nhỏ màn hình" : "Toàn màn hình"}
             </button>
           </div>
-        </div>
+        </header>
+        <ol className="creator-steps" aria-label="Quy trình tạo trò chơi">
+          {[
+            ["Chọn loại & mô tả", "Kể ý tưởng của bạn"],
+            ["Chơi thử & kiểm tra", "Trải nghiệm như bé"],
+            ["Hoàn thiện học liệu", libraryApi ? "Chọn độ khó, duyệt và lưu" : "Chọn độ khó phù hợp"],
+          ].map(([title, description], index) => {
+            const active = index === (!draft ? 0 : !draft.difficulty ? 1 : 2);
+            const done = !!draft && (index === 0 || (index === 1 && !!draft.difficulty));
+            return <li key={title} className={`creator-step ${active ? "is-current" : ""} ${done ? "is-done" : ""}`} aria-current={active ? "step" : undefined}>
+              <span className="creator-step-number" aria-hidden="true">{done ? "✓" : index + 1}</span>
+              <div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs leading-5 text-ink-soft">{description}</p></div>
+            </li>;
+          })}
+        </ol>
         {fullscreenError && (
-          <p role="status" className="text-sm text-slate-600">
+          <p role="status" className="text-sm text-ink-soft">
             {fullscreenError}
           </p>
         )}
@@ -206,7 +209,7 @@ export function GameCreator({
             aria-labelledby={dialogTitleId}
           >
             <div className="creator-dialog-heading">
-              <h2 id={dialogTitleId} className="text-lg font-semibold">
+              <h2 id={dialogTitleId} className="font-display text-2xl font-bold">
                 Thiết kế trò chơi bằng AI
               </h2>
               <button
@@ -219,19 +222,19 @@ export function GameCreator({
               </button>
             </div>
             <section
-              className="min-w-0 bg-white p-5 sm:p-6"
+              className="min-w-0 bg-paper p-5 sm:p-6"
               aria-label="Thiết kế trò chơi bằng mô tả"
             >
               <form onSubmit={submit} noValidate aria-busy={busy}>
-                <fieldset disabled={busy}>
+                <fieldset disabled={busy} className="disabled:opacity-60">
                   <legend className="text-base font-semibold">
                     1. Chọn loại trò chơi
                   </legend>
-                  <div className="mt-4 space-y-3">
+                  <div className="creator-type-options">
                     {gameCreationOptions.map((option) => (
                       <label
                         key={option.type}
-                        className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-xl border p-4 ${gameType === option.type ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
+                        className={`creator-type-option ${gameType === option.type ? "is-selected" : ""}`}
                       >
                         <input
                           type="radio"
@@ -239,13 +242,14 @@ export function GameCreator({
                           value={option.type}
                           checked={gameType === option.type}
                           onChange={() => setGameType(option.type)}
-                          className="mt-1 h-4 w-4 accent-blue-700"
+                          className="mt-1 h-4 w-4 accent-leaf"
                         />
+                        <span className="creator-option-symbol"><GameSymbol type={option.type} /></span>
                         <span>
                           <span className="block text-sm font-semibold">
                             {option.label}
                           </span>
-                          <span className="mt-1 block text-xs leading-5 text-slate-600">
+                          <span className="mt-1 block text-xs leading-5 text-ink-soft">
                             {option.description}
                           </span>
                         </span>
@@ -270,7 +274,7 @@ export function GameCreator({
                     aria-describedby={`${helpId}${touched && invalid ? ` ${errorId}` : ""}`}
                     className="asset-input mt-3 min-h-44 resize-y leading-6"
                   />
-                  <div className="mt-2 flex justify-between gap-3 text-xs text-slate-500">
+                  <div className="mt-2 flex justify-between gap-3 text-xs text-ink-soft">
                     <span id={helpId}>
                       Nêu rõ đối tượng, số lượng và cách chơi.
                     </span>
@@ -279,7 +283,7 @@ export function GameCreator({
                     </span>
                   </div>
                   {touched && invalid && (
-                    <p id={errorId} className="mt-2 text-sm text-red-700">
+                    <p id={errorId} className="mt-2 text-sm text-berry">
                       Vui lòng nhập mô tả từ 1 đến {MAX_GAME_PROMPT_LENGTH} ký
                       tự.
                     </p>
@@ -322,7 +326,7 @@ export function GameCreator({
                       Gợi ý: chỉ đếm bóng đỏ giữa các màu
                     </button>
                   )}
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                  <p className="mt-2 text-xs leading-5 text-ink-soft">
                     Gợi ý cần có ảnh phù hợp trong thư viện. Nếu thiếu học liệu,
                     hãy đổi mô tả hoặc nhờ quản trị viên bổ sung.
                   </p>
@@ -340,24 +344,24 @@ export function GameCreator({
                 <button
                   type="submit"
                   disabled={busy || invalid}
-                  className="asset-button-primary mt-5 w-full"
+                  className="lumi-button-sun mt-5 w-full"
                 >
                   {busy
                     ? "Đang tạo trò chơi…"
                     : draft
-                      ? "Regenerate · Tạo lại"
-                      : "Generate Game · Tạo trò chơi"}
+                      ? "Tạo lại trò chơi"
+                      : "Tạo trò chơi từ mô tả"}
                 </button>
                 {busy && (
                   <p
                     role="status"
-                    className="mt-3 text-sm leading-6 text-blue-800"
+                    className="mt-3 text-sm leading-6 text-leaf"
                   >
                     AI đang chuẩn bị nội dung. Bạn có thể tiếp tục chơi bản
                     trước trong lúc chờ.
                   </p>
                 )}
-                <p className="mt-4 text-xs leading-5 text-slate-500">
+                <p className="mt-4 text-xs leading-5 text-ink-soft">
                   Bản chơi thử chỉ giữ trong trang này và có thể mất khi tải lại
                   hoặc rời trang. Sau khi duyệt, hãy chọn chỉ số và lưu vào kho
                   ở bên dưới bảng chơi.
@@ -366,32 +370,30 @@ export function GameCreator({
             </section>
           </dialog>
           <section className="min-w-0 space-y-4" aria-label="Khu vực Preview">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">3. Chơi thử trò chơi</h2>
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                Preview
-              </span>
-            </div>
+            {draft && <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-display text-2xl font-bold">Bản chơi thử của bạn</h2><p className="mt-1 text-xs leading-5 text-ink-soft">Kiểm tra hình ảnh, cách chơi và đáp án trước khi dùng cho bé.</p></div>
+              <span className="rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-leaf">{gameCreationOptions.find((option) => option.type === draft.game.gameContent.gameType)?.label}</span>
+            </div>}
             {draft && reader ? (
               <>
                 <GamePreview
                   key={draft.revision}
                   content={draft.game.gameContent}
                   assetReader={reader}
-                  backHref="/account"
-                  backLabel="Tài khoản"
+                  backHref={libraryApi ? libraryHref : "/account"}
+                  backLabel={libraryApi ? "Kho trò chơi" : "Tài khoản"}
                   controlsPosition="after"
                 />
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                <div className="rounded-xl border border-sun-edge/30 bg-sun-soft px-4 py-3 text-sm leading-6 text-[#805b13]">
                   Đây là nội dung do AI tạo. Hãy kiểm tra hình ảnh, hướng dẫn và
                   đáp án trước khi sử dụng với trẻ.
                 </div>
                 <fieldset
                   disabled={busy}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
+                  className="rounded-2xl border border-line bg-paper p-4 sm:p-5"
                 >
-                  <legend className="px-1 text-sm font-semibold text-slate-800">
-                    Độ khó do giáo viên lựa chọn
+                  <legend className="px-2 font-display text-xl font-bold text-ink">
+                    Chọn độ khó phù hợp với bé
                   </legend>
                   <div className="grid grid-cols-3 gap-2">
                     {(
@@ -403,7 +405,7 @@ export function GameCreator({
                     ).map(([value, label]) => (
                       <label
                         key={value}
-                        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-2 py-3 text-sm font-medium ${draft.difficulty === value ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 text-slate-600"}`}
+                        className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-2 py-3 text-sm font-medium ${draft.difficulty === value ? "border-leaf bg-leaf-soft text-leaf" : "border-line text-ink-soft"}`}
                       >
                         <input
                           type="radio"
@@ -411,13 +413,13 @@ export function GameCreator({
                           value={value}
                           checked={draft.difficulty === value}
                           onChange={() => controller.setDifficulty(value)}
-                          className="accent-blue-700"
+                          className="accent-leaf"
                         />
                         {label}
                       </label>
                     ))}
                   </div>
-                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                  <p className="mt-3 text-xs leading-5 text-ink-soft">
                     {draft.difficulty
                       ? "Đã gán mức độ cho bản đang xem. "
                       : "Chưa gán mức độ. "}
@@ -437,17 +439,17 @@ export function GameCreator({
                   />
                 )}
                 {draft.game.gameContent.gameType === "CLASSIFICATION" && (
-                  <details className="rounded-xl border border-slate-200 bg-white p-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                  <details className="rounded-xl border border-line bg-paper p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-ink">
                       Duyệt các nhóm được chấp nhận
                     </summary>
-                    <p className="mt-3 text-xs leading-5 text-slate-500">
+                    <p className="mt-3 text-xs leading-5 text-ink-soft">
                       Mỗi hình chỉ cần xếp một lần vào bất kỳ nhóm nào được chấp
                       nhận. Nhiều nhóm có thể cùng đúng; không bắt buộc mỗi nhóm
                       nhận một hình. Giáo viên cần xem lại metadata và đáp án
                       trước khi dùng với trẻ.
                     </p>
-                    <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                    <ul className="mt-3 space-y-2 text-sm text-ink">
                       {draft.game.gameContent.items.map((item) => (
                         <li key={item.id}>
                           <strong>{item.label ?? item.id}</strong>:{" "}
@@ -469,7 +471,7 @@ export function GameCreator({
                 {draft.game.generation.warnings.includes(
                   "METADATA_ANSWERS_NORMALIZED",
                 ) && (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-ink-soft">
                     Các nhóm đúng đã được bổ sung từ metadata học liệu. Bạn vẫn
                     cần duyệt hình ảnh, hướng dẫn và đáp án trước khi dùng với
                     trẻ.
@@ -478,7 +480,7 @@ export function GameCreator({
                 {draft.game.generation.warnings.includes(
                   "GROUP_IMAGES_NORMALIZED",
                 ) && (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-ink-soft">
                     Hình minh họa nhóm đã được đối chiếu lại với học liệu. Nhóm
                     không có ảnh phù hợp sẽ hiển thị bằng tên. Bạn vẫn cần duyệt
                     nội dung trước khi dùng với trẻ.
@@ -493,7 +495,7 @@ export function GameCreator({
                       "GROUP_IMAGES_NORMALIZED",
                     ].includes(warning),
                 ) && (
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-sm leading-6 text-ink-soft">
                     Một số đặc điểm học liệu chưa đủ thông tin để kiểm chứng tự
                     động. Bạn cần xem lại các cặp ghép hoặc nhóm phân loại.
                   </p>
@@ -501,7 +503,7 @@ export function GameCreator({
                 {changed && (
                   <p
                     role="status"
-                    className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+                    className="rounded-xl border border-leaf/20 bg-leaf-soft px-4 py-3 text-sm text-ink"
                   >
                     Bạn đã đổi yêu cầu. Bản xem thử phía trên vẫn là kết quả
                     trước; nhấn Tạo lại để cập nhật.
@@ -509,23 +511,28 @@ export function GameCreator({
                 )}
               </>
             ) : (
-              <div className="flex min-h-96 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-                <span
-                  aria-hidden="true"
-                  className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-3xl text-blue-700"
-                >
-                  ✦
-                </span>
-                <h3 className="text-lg font-semibold">
-                  {busy
-                    ? "Đang chuẩn bị trò chơi của bạn"
-                    : "Ý tưởng nhỏ, trò chơi mới"}
-                </h3>
-                <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
-                  {busy
-                    ? "Khi nội dung sẵn sàng, bạn có thể chơi thử ngay tại đây."
-                    : "Nhấn Tạo trò chơi để chọn loại và nhập mô tả. Trò chơi sẽ xuất hiện tại đây để bạn thử trước."}
-                </p>
+              <div className="creator-start">
+                <div className="creator-welcome">
+                  <div className="creator-welcome-copy">
+                    <span className="creator-ai-label"><span aria-hidden="true">✦</span> Trợ lý sáng tạo của giáo viên</span>
+                    <h2 className="font-display text-3xl font-extrabold leading-tight sm:text-4xl">{busy ? "Ý tưởng đang thành trò chơi…" : <>Bạn có ý tưởng.<br />LumiKids giúp bạn tạo trò chơi.</>}</h2>
+                    <p className="mt-4 max-w-md text-sm leading-7 text-ink-soft">{busy ? "Nội dung và học liệu đang được chuẩn bị. Bản chơi thử sẽ xuất hiện tại đây khi sẵn sàng." : "Chọn một cách chơi, mô tả điều bé sẽ khám phá. Bạn có thể chơi thử và điều chỉnh trước khi đưa vào giờ học."}</p>
+                    <button type="button" className="asset-button-primary mt-5" onClick={() => openPrompt()}>{busy ? "Xem tiến trình tạo" : "Viết ý tưởng của bạn"}<span aria-hidden="true">→</span></button>
+                    {busy && <p role="status" className="mt-4 text-sm font-semibold text-leaf">Đang chuẩn bị nội dung trò chơi…</p>}
+                  </div>
+                  <CreatorIllustration />
+                </div>
+                <div className="creator-start-options">
+                  <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-display text-xl font-bold">Hôm nay bé sẽ khám phá điều gì?</h3><p className="text-xs text-ink-soft">Chọn một loại để bắt đầu</p></div>
+                  <div className="creator-starter-grid">
+                    {gameCreationOptions.map((option) => <button key={option.type} type="button" disabled={busy} onClick={() => openPrompt(option.type)} className="creator-starter-card" data-type={option.type}>
+                      <span className="creator-starter-icon"><GameSymbol type={option.type} /></span>
+                      <span className="min-w-0"><span className="block font-display text-xl font-bold">{option.label}</span><span className="mt-1 block text-xs leading-5 text-ink-soft">{option.description}</span></span>
+                      <span className="creator-starter-arrow" aria-hidden="true">↗</span>
+                    </button>)}
+                  </div>
+                  <p className="mt-5 text-xs leading-5 text-ink-soft">Bạn luôn có thể đổi mô tả và tạo lại. Trò chơi chỉ được lưu vào kho sau khi bạn kiểm tra và xác nhận.</p>
+                </div>
               </div>
             )}
           </section>

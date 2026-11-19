@@ -27,7 +27,7 @@
 | **1** | Lớp học, tài khoản trẻ tách riêng, đăng nhập bằng mã, giáo viên xem lớp và lịch sử chơi | — | ✅ xong (đã push) |
 | **2** | Giao trò, nhóm cố định, xin chơi lại; trẻ chỉ thấy trò được giao | GĐ 1 | ✅ xong (chưa commit) |
 | 3 | Gắn chỉ số theo từng nhiệm vụ (GameContent + màn soạn trò) | — | ⬜ |
-| 4 | Engine đánh giá + hồ sơ phát triển | GĐ 1, 3 | ⬜ |
+| 4 | Engine đánh giá + hồ sơ phát triển | GĐ 1, 3 | 🟡 4A điểm CriterionEvaluation xong (chưa commit) |
 | sau | Phụ huynh, giáo án, nhận xét AI, quản lý tài khoản giáo viên | GĐ 4 | ⬜ |
 
 ## 3. Giai đoạn 1 — chi tiết
@@ -113,6 +113,15 @@ Quy tắc chung:
 - API giáo viên `/teacher/classrooms/:classId/{groups,assignments}`; API trẻ `GET /gameplay/assignments`, `POST /gameplay/assignments/:id/replay-requests`.
 - Web: `/child/games` thành "Bài của con" (thẻ bài, ô trò theo loại, sao tiến độ, hạn tính theo ngày, nút "Xin cô chơi lại", đọc to khi máy có giọng tiếng Việt); giáo viên có tab Bài giao/Trẻ/Nhóm, trang giao bài mới và trang theo dõi bài (duyệt xin chơi lại, giao lại cho trẻ chọn, đổi/bỏ hạn, hủy bài). Toàn bộ màn người lớn dùng bảng màu và phông của landing/login (`StaffTopBar`).
 
+**GĐ 4A — Điểm một phiên chơi (17/11/2026):**
+
+- Quyết định: một ActivityVersion đánh giá **một** AssessmentCriterion (thay D8 “nhiều chỉ số”). `saveGameSchema.criterionCodes` dài đúng 1; màn lưu trò chọn một chỉ số. Hai trò cũ gắn 2 chỉ số: chấm theo chỉ số mã nhỏ nhất (`PlaySessionRepository.primaryCriterionCode`), không sửa dữ liệu. Bỏ Hint.
+- Nhiệm vụ (item) lấy từ GameContent: COUNTING = 1 câu; MATCHING = mỗi cặp (lần thả sai tính cho `sourceId`); CLASSIFICATION = mỗi hình. F = đúng ngay lần đầu, R = sai rồi sửa đúng (một lần/nhiệm vụ). Engine hiện không khóa câu sai nên phiên COMPLETED luôn có F + R = N.
+- Domain thuần `gameplay/domain/session-performance.ts`, `criterion-evaluation.ts`. Ghi `PlaySession.performance` + `CriterionEvaluation` (unique `sessionId`) trong cùng transaction chuyển COMPLETED. Phiên ABANDONED không chấm. Thời lượng = bắt đầu → hoàn thành (chưa có dữ liệu tạm dừng), không dùng tính điểm.
+- Migration `20261117000300_criterion_evaluation` (thêm bảng/enum/cột, không đổi dữ liệu). Phiên COMPLETED trước migration được chấm bù bằng `pnpm --filter api db:backfill:evaluations` (chỉ thêm, chạy lại không trùng; phát lại event bằng engine trước khi chấm).
+- Giáo viên: cột “Điểm chỉ số” ở lịch sử chơi của trẻ (điểm làm tròn 2 số khi hiển thị, F/R/N, nhãn “Chưa đủ 5 nhiệm vụ”).
+- Để sau: LEVEL, summary (AI/RAG), CriterionState/SkillState/hồ sơ.
+
 **GĐ 3 — Chỉ số theo nhiệm vụ:** mở rộng GameContent (phiên bản contract mới, không tạo contract song song); màn soạn trò chọn chỉ số cho từng nhiệm vụ; trò cũ mặc định theo D8.
 
 **GĐ 4 — Đánh giá:** module `evaluation-profile` (Clean Architecture); `SessionPerformance` → `CriterionEvaluation` → `CriterionState` → `SkillState` → `ChildDevelopmentProfile` đúng công thức, ngưỡng, Evidence Window của `system.md`; lưu `ruleVersion`/`scopeVersion`; unit test theo ví dụ mục 4 của `system.md`; màn hồ sơ cho giáo viên.
@@ -131,3 +140,5 @@ Quy tắc chung:
 | 16/11/2026 | GĐ 2 API: migration giao bài (đã sao lưu DB dev trước, chạy DB test trước), module nhóm + bài giao + xin chơi lại, cổng chơi theo bài giao | VERIFIED/RUN: API typecheck/lint đạt; unit 185/195 (10 lỗi có sẵn `game-asset.dto.spec.ts`); e2e 70/70; integration 10/10 trên `lumikids_test` (DB test về 0 dòng); shared 36/44 (4 test mới qua, 8 lỗi GameContent có sẵn). DB dev sau migrate: số Child/PlaySession/InteractionEvent không đổi, có grant ASSIGN_ACTIVITIES. |
 | 16/11/2026 | GĐ 2 web + làm lại giao diện admin/giáo viên/trẻ theo phong cách landing | VERIFIED/RUN: web typecheck, eslint sạch; `pnpm --filter web test` qua hết (thêm 2 test cách nói với trẻ và ngày giao bài); route mới trả 200 trên web dev; giao diện trẻ chụp bằng Chromium headless với dữ liệu giả (trang tạm, đã xóa) ở 1280px và 390px. **Chưa** thử trọn luồng giáo viên giao bài → trẻ chơi trên trình duyệt với dữ liệu thật (DB dev chưa có lớp nào). |
 | 17/11/2026 | Admin: dashboard `/admin` (việc cần xử lý, chỉ số, lượt chơi 14 ngày, các lớp), quản lý tài khoản giáo viên `/admin/teachers`, tự đổi mật khẩu ở `/account`, đăng nhập về trang theo vai trò. Không đổi schema, không migration | VERIFIED/RUN: API typecheck, lint đạt; unit 195/205 (10 lỗi có sẵn `game-asset.dto.spec.ts`; 10 test mới qua); e2e 73/73 (gồm `admin.e2e-spec.ts`); integration 12/12 trên `lumikids_test` (gồm truy vấn SQL theo ngày giờ Việt Nam; DB test chỉ còn `ROLE_CHILD` do migration tạo); shared 36/44 (8 lỗi GameContent có sẵn); web typecheck, eslint sạch, test qua hết (thêm 3 test); route mới API trả 401 khi chưa đăng nhập, web 200. Dashboard chụp bằng Chromium headless với dữ liệu giả (trang tạm đã xóa) ở 1280px và 390px. **Chưa** thử với tài khoản admin thật trên trình duyệt. |
+| 17/11/2026 | GĐ 4A: SessionPerformance + điểm CriterionEvaluation (1 chỉ số/phiên bản), cột điểm ở lịch sử chơi của giáo viên, màn lưu trò chọn 1 chỉ số | VERIFIED/RUN: sao lưu DB dev (`pg_dump`, ngoài repo) rồi `prisma migrate deploy` 14 migration; Child/PlaySession/InteractionEvent/ActivityVersion trước = sau (2/5/22/2). Backfill 3 phiên COMPLETED (66,67%, 87,5% cờ N<5, 91,67%, khớp tính tay); chạy lại 0 pending; 2 phiên ABANDONED không chấm. API typecheck/lint đạt; unit 209/219 (10 lỗi có sẵn `game-asset.dto.spec.ts`); e2e 73/73; web typecheck/lint/test đạt; shared 36/44 (8 lỗi GameContent có sẵn). **Chưa** chạy integration DB `_test` và chưa thử trên trình duyệt. |
+| 17/11/2026 | Màn kết quả: Admin chỉ đọc lớp (tab trẻ & giáo viên / bài đã giao), kết quả chơi của trẻ, chi tiết bài; cả dòng bảng lớp bấm được (danh sách lớp, dashboard). Cột “Điểm · mức · nhận xét” dùng chung Admin/Giáo viên; mức/nhận xét hiện chỗ chờ khi NULL. Không schema, không migration. Phụ huynh để sau | VERIFIED/RUN: API typecheck/lint đạt; unit 209/219 (10 lỗi có sẵn `game-asset.dto.spec.ts`); e2e 74/74 (thêm test Admin chỉ đọc, giáo viên bị 403); web typecheck/lint/test đạt; route API mới trả 401 khi chưa đăng nhập, route web mới 200 trên dev. **Chưa** thử bằng tài khoản thật trên trình duyệt. |

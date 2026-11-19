@@ -100,17 +100,17 @@ export function AssetImage({
       {loading && (
         <p
           role="status"
-          className="rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-500"
+          className="rounded-lg bg-white/90 px-3 py-2 text-xs text-ink-soft"
         >
           Đang tải ảnh…
         </p>
       )}
       {error && (
         <div className="max-w-64 px-5 py-6 text-center">
-          <span aria-hidden="true" className="text-2xl text-slate-400">
+          <span aria-hidden="true" className="text-2xl text-ink-soft/70">
             ▧
           </span>
-          <p className="mt-2 text-xs leading-5 text-slate-600">{error}</p>
+          <p className="mt-2 text-xs leading-5 text-ink-soft">{error}</p>
           <button
             type="button"
             className="asset-text-button mt-3"

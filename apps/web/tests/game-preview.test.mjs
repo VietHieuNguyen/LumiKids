@@ -95,12 +95,38 @@ for (const name of ["counting", "matching", "classification"]) {
     assert.ok(html.includes("Chơi thử"));
     assert.ok(html.includes("signature=unchanged"));
     assert.ok(html.includes("Chơi lại"));
+    const theme = { counting: "pond", matching: "forest", classification: "savanna" }[name];
+    assert.ok(html.includes({ pond: "/game-scenes/pond/background_pond.png", forest: "/game-scenes/forest/background.png", savanna: "/game-scenes/savana/savanna_background.png" }[theme]));
+    assert.ok(html.includes(`data-scene-theme="${theme}"`));
+    assert.equal((html.match(/class="game-forest-canvas"/g) ?? []).length, 1);
+    assert.match(html, /<canvas[^>]*aria-hidden="true"[^>]*pointer-events:none/);
     if (name === "counting") assert.ok(html.includes("Chọn đáp án 4"));
     if (name === "matching") assert.ok(html.includes("Ghép vào Bóng con mèo"));
     if (name === "classification")
       assert.ok(html.includes("Đặt hình vào Giỏ màu đỏ"));
   });
 }
+test("PLAY uses the same forest backdrop as teacher previews without changing game controls", () => {
+  const html = renderToStaticMarkup(React.createElement(GameRuntime, {
+    content: load("matching"), assetUrls: {}, mode: "PLAY",
+  }));
+  assert.ok(html.includes("/game-scenes/forest/background.png"));
+  assert.equal((html.match(/class="game-forest-canvas"/g) ?? []).length, 1);
+  assert.ok(html.includes("Ghép vào Bóng con mèo"));
+  assert.ok(html.includes("Tiến độ hoàn thành"));
+});
+test("counting PLAY selects the pond and classification PLAY the savanna", () => {
+  const scenes = { pond: "/game-scenes/pond/background_pond.png", forest: "/game-scenes/forest/background.png", savanna: "/game-scenes/savana/savanna_background.png" };
+  for (const [name, theme] of [["counting", "pond"], ["classification", "savanna"]]) {
+    const html = renderToStaticMarkup(React.createElement(GameRuntime, {
+      content: load(name), assetUrls: {}, mode: "PLAY",
+    }));
+    for (const [other, url] of Object.entries(scenes)) assert.equal(html.includes(url), other === theme, `${name}: ${other}`);
+    assert.ok(html.includes(`data-scene-theme="${theme}"`));
+    assert.equal((html.match(/class="game-forest-canvas"/g) ?? []).length, 1);
+    assert.ok(html.includes("Tiến độ hoàn thành"));
+  }
+});
 test("invalid content renders an understandable error, without runtime or asset requests", () => {
   let calls = 0;
   const html = renderToStaticMarkup(

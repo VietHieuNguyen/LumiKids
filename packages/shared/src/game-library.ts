@@ -21,14 +21,8 @@ export const saveGameSchema = z
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(1000).default(""),
     difficulty: gameDifficultySchema,
-    criterionCodes: z
-      .array(z.string().regex(/^\d{2}$/))
-      .min(1)
-      .max(11)
-      .refine(
-        (values) => new Set(values).size === values.length,
-        "Duplicate criteria",
-      ),
+    // One ActivityVersion is assessed for exactly one AssessmentCriterion.
+    criterionCodes: z.array(z.string().regex(/^\d{2}$/)).length(1),
     content: gameContentSchema,
     previewToken: z.string().min(1).max(20000),
     reviewConfirmed: z.literal(true),

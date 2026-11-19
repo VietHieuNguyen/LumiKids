@@ -1,4 +1,9 @@
-import type { GameInteraction, PlaySessionStatus } from '@lumikids/shared';
+import type {
+  GameInteraction,
+  PlaySessionStatus,
+  SessionPerformance,
+} from '@lumikids/shared';
+import type { CriterionEvaluationDraft } from '../domain/criterion-evaluation.js';
 
 export interface PlaySessionRecord {
   sessionId: string;
@@ -18,7 +23,13 @@ export interface AppendCommit {
   sessionId: string;
   expectedEventCount: number;
   accepted: readonly GameInteraction[];
-  completed: boolean;
+  /** Present only when this batch completes the session; written in the same transaction. */
+  completion: SessionCompletion | null;
+}
+export interface SessionCompletion {
+  completedAt: Date;
+  performance: SessionPerformance;
+  evaluation: CriterionEvaluationDraft | null;
 }
 
 /** Port implemented by infrastructure; application code never touches Prisma. */
@@ -39,4 +50,9 @@ export abstract class PlaySessionRepository {
   /** False when another request changed the session first (optimistic concurrency). */
   abstract commitAppend(commit: AppendCommit): Promise<boolean>;
   abstract abandon(sessionId: string): Promise<void>;
+  /**
+   * The criterion a version is assessed for. A version has exactly one; versions saved before
+   * that rule may have several, and the first by code is used.
+   */
+  abstract primaryCriterionCode(versionId: string): Promise<string | null>;
 }

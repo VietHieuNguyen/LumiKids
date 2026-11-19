@@ -1,0 +1,83 @@
+/* One forest across authoring, review, demos and play. Scoped to the shared runtime. */
+.game-picture-only:has(> .game-forest-scene) {
+  --scene-height: clamp(720px, calc(100dvh - 155px), 940px);
+  font-family: var(--font-lumi), sans-serif;
+  border-color: #fffaf0;
+  background: #dcebc8;
+  box-shadow: 0 5px 0 #b0c4a0, 0 16px 35px #36584712;
+}
+.game-picture-only > .game-forest-scene {
+  position: relative; isolation: isolate;
+  background: #c6e9e5 var(--game-scene) center / cover no-repeat;
+}
+.game-forest-scene > .game-forest-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+.game-forest-scene > fieldset { position: relative; z-index: 1; padding: 0; border: 0; }
+.game-picture-only .game-forest-scene :is(.classification-stage, .play-board) { background: transparent; }
+/* Reserve a clear woodland floor for large animals, separate from the flower and prop clusters. */
+.game-picture-only .game-forest-scene .scene-play-area {
+  inset: 28px clamp(14px, 14%, 200px) max(230px, 33%);
+}
+.game-picture-only.is-expanded:has(> .game-forest-scene) { --scene-height: max(720px, calc(100dvh - 70px)); }
+.game-picture-only:has(> .game-forest-scene) > header {
+  background: linear-gradient(90deg, #edf7e8, #fffcf0);
+  color: #476951;
+}
+.game-picture-only:has(> .game-forest-scene) .game-mode-emblem {
+  color: #b08c42; background: #fff4d5; border-color: #fffdf0; box-shadow: 0 3px 0 #dace9e;
+}
+.game-picture-only:has(> .game-forest-scene) > header .asset-button-secondary {
+  color: #547764; background: #fffaf0; box-shadow: 0 4px 0 #b8cbaa;
+}
+.game-picture-only:has(> .game-forest-scene) .game-progress::-webkit-progress-bar { background: #dae7ca; }
+.game-picture-only:has(> .game-forest-scene) .game-progress::-webkit-progress-value { background: linear-gradient(90deg, #edce88, #83bca1); }
+.game-picture-only:has(> .game-forest-scene) .game-progress::-moz-progress-bar { background: linear-gradient(90deg, #edce88, #83bca1); }
+.game-picture-only .game-forest-scene .matching-card-list > :is(.matching-picture-card, .classification-animal-card, .classification-environment-card, .counting-picture-card) {
+  --frame-color: #edce88;
+  background: #fffaf0; border-radius: 22px;
+  box-shadow: inset 0 0 0 2px #fffef8, 0 5px 0 #c4a568, 0 12px 20px #36584718;
+}
+.game-picture-only .game-forest-scene .matching-card-list > .matching-target-card { background: #f6f1e6; }
+.game-picture-only .game-forest-scene .matching-card-list > :nth-child(4n + 1) { --peg-color: #dcae87; }
+.game-picture-only .game-forest-scene .matching-card-list > :nth-child(4n + 2) { --peg-color: #b2cda4; }
+.game-picture-only .game-forest-scene .matching-card-list > :nth-child(4n + 3) { --peg-color: #d4b4c4; }
+.game-picture-only .game-forest-scene .matching-card-list > :nth-child(4n + 4) { --peg-color: #bdb5d5; }
+.game-picture-only .game-forest-scene .hanging-rail-rope path:first-child { stroke: #fff9e1; }
+.game-picture-only .game-forest-scene .hanging-rail-rope path:last-child { stroke: #b99f70; stroke-width: 2; }
+.game-picture-only .game-forest-scene .matching-rail-arrow {
+  color: #94764a; background: #fff9e9; border-color: #fffdf3; box-shadow: 0 4px 0 #b6bd8e80;
+}
+.game-picture-only .game-forest-scene .matching-rail-range { color: #547764; background: #fffaf0; box-shadow: 0 2px 0 #b8cbaa; }
+.game-picture-only .game-forest-scene .matching-card-note { color: #66836a; background: #f3edd9; }
+.game-picture-only .game-forest-scene .matching-card-list > :is(.game-source-selected, .is-hovered, .is-matched) {
+  --frame-color: #83b99a; background: #f0f9ec; box-shadow: 0 5px 0 #5e9174, 0 0 0 3px #fffdf1;
+}
+.game-picture-only .game-forest-scene .matching-card-list > .is-incorrect {
+  --frame-color: #d99581; background: #fff1e9; box-shadow: 0 5px 0 #bc816c;
+}
+.game-picture-only:has(> .game-forest-scene) > [role="status"] { box-shadow: 0 3px 0 #aaba8a; }
+@media (max-width: 600px) {
+  .game-picture-only:has(> .game-forest-scene) { --scene-height: max(760px, calc(100dvh - 100px)); }
+  .game-picture-only .game-forest-scene .scene-play-area { inset: 26px 7px 260px; }
+}
+
+/* Counting visits the pond; all controls still use the shared runtime and answer engine. */
+.game-picture-only:has(> [data-scene-theme="pond"]) { background: #d8eff2; box-shadow: 0 5px 0 #abcfd0, 0 16px 35px #305e7412; }
+.game-picture-only:has(> [data-scene-theme="pond"]) > header { background: linear-gradient(90deg, #ecfaff, #fffdf0); }
+.game-picture-only .game-forest-scene[data-scene-theme="pond"] { background-color: #afe3f2; }
+.game-picture-only .game-forest-scene[data-scene-theme="pond"] .scene-play-area { inset-inline: clamp(14px, 9%, 135px); }
+@media (max-width: 600px) {
+  .game-picture-only .game-forest-scene[data-scene-theme="pond"] .scene-play-area { inset-inline: 7px; }
+}
+
+/* Classification visits the African savanna (environment/savanna). Warm frame, same controls. */
+.game-picture-only:has(> [data-scene-theme="savanna"]) { border-color: #fffaf0; background: #f6e7bd; box-shadow: 0 5px 0 #dcc58c, 0 16px 35px #6b582014; }
+.game-picture-only:has(> [data-scene-theme="savanna"]) > header { background: linear-gradient(90deg, #fff4d6, #fffcf3 55%, #eef8ff); color: #6f5523; }
+.game-picture-only .game-forest-scene[data-scene-theme="savanna"] { background-color: #f3d27a; }
+.game-picture-only:has(> [data-scene-theme="savanna"]) > header .asset-button-secondary { color: #8a6a2c; box-shadow: 0 4px 0 #dcc58c; }
+.game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-webkit-progress-bar { background: #f1e3bb; }
+.game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-webkit-progress-value { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
+.game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-moz-progress-bar { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
+.game-picture-only:has(> [data-scene-theme="savanna"]) > [role="status"] { box-shadow: 0 3px 0 #d6bd80; }

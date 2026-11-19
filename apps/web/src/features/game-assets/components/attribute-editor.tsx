@@ -121,7 +121,7 @@ export function AttributeEditor({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${prefix}-heading`} className="asset-label">
           Đặc điểm hình ảnh{" "}
-          <span className="font-normal text-slate-400">· tùy chọn</span>
+          <span className="font-normal text-ink-soft/70">· tùy chọn</span>
         </h3>
         <button
           type="button"
@@ -131,14 +131,14 @@ export function AttributeEditor({
           {value.mode === "pairs" ? "Chuyển sang JSON" : "Chuyển sang bảng"}
         </button>
       </div>
-      <p className="text-xs leading-5 text-slate-500">
+      <p className="text-xs leading-5 text-ink-soft">
         Dùng objectType cụ thể cho mọi học liệu, ví dụ MANGO, JACKFRUIT, BOOK,
         CAR; animalType chỉ dành cho con vật. Thêm aliases dạng JSON cho tên gọi
         ngắn hoặc đồng nghĩa để prompt “dâu tây” vẫn tìm đúng ảnh tên “Quả dâu
         tây đỏ”. Không đưa màu, nhóm chung như fruit/toy hoặc loại trò chơi vào
         aliases.
       </p>
-      <p className="text-xs leading-5 text-slate-500">
+      <p className="text-xs leading-5 text-ink-soft">
         Mô tả màu sắc, hình dạng hoặc môi trường phù hợp để ảnh dùng được cho
         nhiều trò chơi. Bài đếm theo màu cần trường color (ví dụ RED), không chỉ
         tag “đỏ”. Với con vật, khai báo tất cả môi trường đúng để trẻ được chấp
@@ -148,7 +148,7 @@ export function AttributeEditor({
         <summary className="cursor-pointer text-sm font-medium text-violet-900">
           Thiết lập ảnh thường, hình bóng và con non
         </summary>
-        <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
+        <div className="mt-3 space-y-2 text-xs leading-5 text-ink-soft">
           <p>
             Ảnh thường dùng variant NORMAL; ảnh bóng dùng SHADOW. Bài đếm/phân
             loại thông thường không chọn ảnh bóng.
@@ -171,11 +171,11 @@ export function AttributeEditor({
           </p>
         </div>
       </details>
-      <details className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium text-blue-900">
+      <details className="rounded-xl border border-leaf/20 bg-leaf-soft/60 px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-ink">
           Thiết lập ảnh cho bài phân loại môi trường sống
         </summary>
-        <p className="mt-3 text-xs leading-5 text-slate-600">
+        <p className="mt-3 text-xs leading-5 text-ink-soft">
           Dùng chế độ JSON cho danh sách môi trường. Chọn đúng các giá trị phù
           hợp với ảnh và mục tiêu bài học, không mặc định mọi loài cá đều sống ở
           mọi nơi. Các ví dụ dưới đây chỉ áp dụng khi đã được người quản trị xác
@@ -207,14 +207,14 @@ export function AttributeEditor({
             ],
           ].map(([label, json]) => (
             <div key={label} className="rounded-lg bg-white px-3 py-2">
-              <p className="text-xs font-semibold text-slate-700">{label}</p>
-              <code className="mt-1 block select-all whitespace-pre-wrap break-all text-xs leading-5 text-blue-900">
+              <p className="text-xs font-semibold text-ink">{label}</p>
+              <code className="mt-1 block select-all whitespace-pre-wrap break-all text-xs leading-5 text-ink">
                 {json}
               </code>
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs leading-5 text-slate-600">
+        <p className="mt-3 text-xs leading-5 text-ink-soft">
           Mã hỗ trợ: LAND (trên cạn), WATER (dưới nước), AIR (bầu trời), SAVANNA
           (thảo nguyên), GRASSLAND (đồng cỏ), FOREST (rừng), TREE (trên cây),
           SEA (biển), RIVER (sông), LAKE (hồ), FARM (nông trại), DESERT (sa
@@ -225,17 +225,17 @@ export function AttributeEditor({
           nhận WATER. LAND hoặc WATER riêng lẻ không chứng minh được môi trường
           cụ thể.
         </p>
-        <p className="mt-2 text-xs leading-5 text-slate-600">
+        <p className="mt-2 text-xs leading-5 text-ink-soft">
           Với ảnh nhóm đích, nhập tên như “Đồng cỏ”, loại đối tượng HABITAT, và
           thuộc tính tương ứng, ví dụ {`{"habitat":"GRASSLAND"}`}. Ảnh nhóm là
           tùy chọn; trò chơi vẫn có thể dùng nhãn chữ.
         </p>
       </details>
-      <details className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+      <details className="rounded-xl border border-line bg-cream px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-ink">
           Thuộc tính AI hiện nhận và ví dụ nhập
         </summary>
-        <p className="mt-3 text-xs leading-5 text-slate-600">
+        <p className="mt-3 text-xs leading-5 text-ink-soft">
           Nhập đúng tên thuộc tính, phân biệt chữ hoa/thường. AI nhận giá trị
           chữ tối đa 200 ký tự, số hoặc đúng/sai. Riêng aliases, habitats và
           specificHabitats nhận mảng từ 1–12 chuỗi, mỗi chuỗi tối đa 40 ký tự;
@@ -246,16 +246,16 @@ export function AttributeEditor({
         <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           {aiAttributes.map(({ key, label, example }) => (
             <div key={key} className="min-w-0 rounded-lg bg-white px-3 py-2">
-              <dt className="text-xs font-medium text-slate-700">
-                {label} <code className="text-blue-800">{key}</code>
+              <dt className="text-xs font-medium text-ink">
+                {label} <code className="text-leaf">{key}</code>
               </dt>
-              <dd className="mt-1 break-words text-xs leading-5 text-slate-500">
+              <dd className="mt-1 break-words text-xs leading-5 text-ink-soft">
                 {example}
               </dd>
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs leading-5 text-slate-500">
+        <p className="mt-3 text-xs leading-5 text-ink-soft">
           Chỉ thêm những đặc điểm đúng với ảnh. Không cần điền đủ các thuộc
           tính.
         </p>
@@ -263,7 +263,7 @@ export function AttributeEditor({
       {extraKeys.length > 0 && (
         <div
           role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900"
+          className="rounded-xl border border-sun-edge/30 bg-sun-soft px-4 py-3 text-xs leading-5 text-[#805b13]"
         >
           <p className="font-semibold">Thông tin bổ sung không gửi tới AI</p>
           <p className="mt-1 break-words">
@@ -277,7 +277,7 @@ export function AttributeEditor({
         <>
           {value.rows.length > 0 && (
             <div
-              className="hidden grid-cols-[1fr_1fr_2.5rem] gap-2 px-1 text-xs font-medium text-slate-500 sm:grid"
+              className="hidden grid-cols-[1fr_1fr_2.5rem] gap-2 px-1 text-xs font-medium text-ink-soft sm:grid"
               aria-hidden="true"
             >
               <span>Tên thuộc tính</span>
@@ -288,7 +288,7 @@ export function AttributeEditor({
           {value.rows.map((row, index) => (
             <div
               key={row.id}
-              className="grid grid-cols-[1fr_2.5rem] items-start gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[1fr_1fr_2.5rem]"
+              className="grid grid-cols-[1fr_2.5rem] items-start gap-2 rounded-xl bg-cream p-2 sm:grid-cols-[1fr_1fr_2.5rem]"
             >
               <label className="col-start-1">
                 <span className="sr-only">Tên thuộc tính {index + 1}</span>
@@ -330,7 +330,7 @@ export function AttributeEditor({
               </label>
               <button
                 type="button"
-                className="asset-icon-button col-start-2 row-start-1 text-red-600 sm:col-start-3"
+                className="asset-icon-button col-start-2 row-start-1 text-berry sm:col-start-3"
                 aria-label={`Xóa thuộc tính ${row.key || index + 1}`}
                 onClick={() =>
                   onChange({
@@ -373,7 +373,7 @@ export function AttributeEditor({
               onChange({ mode: "json", json: event.target.value })
             }
           />
-          <span className="mt-2 block text-xs text-slate-500">
+          <span className="mt-2 block text-xs text-ink-soft">
             Dùng JSON để giữ các giá trị số, boolean, array hoặc object. Tối đa
             16 KiB.
           </span>
@@ -387,7 +387,7 @@ export function AttributeEditor({
         ))}
       </datalist>
       {error && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-berry">
           {error}
         </p>
       )}

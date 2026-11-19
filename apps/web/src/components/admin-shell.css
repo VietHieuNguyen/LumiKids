@@ -1,0 +1,170 @@
+/* Shared staff dashboard tokens and treatments. Children's screens keep their own theme. */
+.admin-shell {
+  --color-cream: #f8f7f0;
+  --color-paper: #fffdf8;
+  --color-ink: #20382b;
+  --color-ink-soft: #607064;
+  --color-ink-hover: #172b20;
+  --color-leaf: #527b55;
+  --color-leaf-soft: #edf2e9;
+  --color-line: #dfe2d9;
+  --admin-sage: #9dbb9d;
+  min-height: 100dvh;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-size: 14px;
+}
+.admin-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; display: flex; width: 240px; flex-direction: column; border-right: 1px solid var(--color-line); background: var(--color-paper); }
+.admin-brand { display: flex; min-height: 72px; align-items: center; gap: 10px; margin: 0 20px; font-size: 22px; color: var(--color-ink); }
+.admin-navigation { display: grid; gap: 4px; padding: 16px 12px; }
+.admin-navigation a { display: flex; min-height: 42px; align-items: center; gap: 12px; border-radius: 6px; padding: 10px 14px; color: var(--color-ink-soft); font-size: 14px; font-weight: 500; }
+.admin-navigation a:hover { background: var(--color-leaf-soft); color: var(--color-ink); }
+.admin-navigation a[aria-current="page"] { background: var(--color-ink); color: #fffdf8; }
+.admin-sidebar-footer { margin-top: auto; border-top: 1px solid var(--color-line); padding: 18px 24px; color: var(--color-ink-soft); font-size: 12px; }
+.admin-workspace { min-width: 0; margin-left: 240px; }
+.admin-topbar { position: sticky; top: 0; z-index: 30; display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--color-line); padding: 12px 28px; background: var(--color-paper); }
+.admin-page-label { display: flex; min-width: 0; align-items: center; gap: 12px; color: var(--color-ink-soft); font-size: 13px; }
+.admin-page-label strong { overflow: hidden; color: var(--color-ink); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.admin-account { display: flex; min-width: 0; align-items: center; gap: 10px; border-radius: 6px; font-size: 13px; }
+.admin-account > span:last-child { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-avatar { display: grid; width: 32px; height: 32px; flex-shrink: 0; place-items: center; border: 1px solid var(--color-line); border-radius: 50%; background: var(--color-leaf-soft); font-weight: 600; }
+.admin-menu-button, .admin-drawer-close { display: none; width: 36px; height: 36px; flex-shrink: 0; align-items: center; justify-content: center; border: 1px solid var(--color-line); border-radius: 6px; }
+.admin-content { min-width: 0; }
+.admin-content > main { width: 100%; max-width: 1440px; margin-inline: auto; padding: 28px 32px 48px; }
+.admin-content > main > header { margin-bottom: 24px; gap: 16px; }
+.admin-content > main > header h1 { font-size: 24px; line-height: 1.4; }
+.admin-content > main > header p { margin-top: 4px; font-size: 13px; letter-spacing: normal; text-transform: none; }
+.admin-shell :focus-visible { outline: 2px solid var(--color-leaf); outline-offset: 3px; }
+.admin-content:focus { outline: none; }
+.admin-skip { position: fixed; top: -100px; left: 16px; z-index: 100; border-radius: 4px; padding: 10px 16px; background: var(--color-ink); color: white; }
+.admin-skip:focus { top: 12px; }
+.admin-drawer { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; border: 0; padding: 0; background: transparent; color: var(--color-ink); }
+.admin-drawer::backdrop { background: rgb(18 30 22 / 35%); }
+.admin-drawer-content { position: relative; display: flex; width: min(280px, 88vw); height: 100%; flex-direction: column; border-right: 1px solid var(--color-line); background: var(--color-paper); }
+.admin-drawer-close { position: absolute; top: 18px; right: 12px; display: flex; }
+.admin-drawer .admin-brand { padding-right: 32px; font-size: 20px; }
+
+/* Bridge compiled Tailwind inline colors to staff tokens; preserve the game board. */
+.admin-content .text-ink:not(:where(.game-picture-only, .game-picture-only *)) { color: var(--color-ink); }
+.admin-content .text-ink-soft:not(:where(.game-picture-only, .game-picture-only *)) { color: var(--color-ink-soft); }
+.admin-content .text-leaf:not(:where(.game-picture-only, .game-picture-only *)) { color: var(--color-leaf); }
+.admin-content .bg-paper:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-paper); }
+.admin-content .bg-cream:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-cream); }
+.admin-content .bg-ink:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-ink); }
+.admin-content .bg-leaf-soft:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-leaf-soft); }
+.admin-content .bg-leaf:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-leaf); }
+.admin-content .border-line:not(:where(.game-picture-only, .game-picture-only *)) { border-color: var(--color-line); }
+.admin-content :where(.font-display):not(:where(.game-picture-only, .game-picture-only *)) { font-family: var(--font-sans); }
+.admin-content h1:not(:where(.game-picture-only, .game-picture-only *)) { font-size: 24px; line-height: 1.4; }
+.admin-content .text-5xl:not(:where(.game-picture-only, .game-picture-only *)) { font-size: 30px; }
+.admin-content :where(.rounded-xl, .rounded-2xl, .rounded-3xl):not(:where(.game-picture-only, .game-picture-only *)) { border-radius: 8px; }
+.admin-content :where(.shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl, [class*="shadow-["]):not(:where(.game-picture-only, .game-picture-only *)) { box-shadow: none; }
+.admin-content :where(h2):not(:where(.game-picture-only, .game-picture-only *)) { font-size: 16px; line-height: 1.5; font-weight: 600; }
+.admin-content :where(h3):not(:where(.game-picture-only, .game-picture-only *)) { font-size: 14px; font-weight: 600; }
+.admin-content :where(.asset-input, .auth-input) { min-height: 38px; border-color: var(--color-line); border-radius: 6px; background: var(--color-paper); color: var(--color-ink); padding: 8px 12px; font-size: 13px; }
+.admin-content select.w-auto { width: auto; }
+.admin-content :where(.asset-input, .auth-input):focus { border-color: var(--color-leaf); box-shadow: 0 0 0 2px rgb(157 187 157 / 20%); }
+.admin-content .asset-label { font-size: 12px; font-weight: 500; }
+.admin-content .bg-sky:not(:where(.game-picture-only, .game-picture-only *)) { background-color: var(--color-leaf-soft); color: var(--color-ink-soft); }
+.admin-content :where(.asset-button-primary, .asset-button-secondary, .asset-button-danger, .lumi-button-sun):not(:where(.game-picture-only *)) { min-height: 36px; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; line-height: 20px; box-shadow: none; transform: none; translate: none; }
+.admin-content .lumi-button-sun { background: var(--color-ink); color: var(--color-paper); }
+.admin-content .lumi-button-sun:hover { background: var(--color-ink-hover); }
+.admin-content .asset-button-primary:not(:where(.game-picture-only *)) { background: var(--color-ink); }
+.admin-content .asset-button-primary:hover:not(:where(.game-picture-only *)) { background: var(--color-ink-hover); }
+.admin-content .asset-button-secondary:not(:where(.game-picture-only *)) { border-color: var(--color-line); background: var(--color-paper); color: var(--color-ink); }
+.admin-content .asset-button-secondary.text-berry { color: var(--color-berry); }
+.admin-content .asset-button-secondary:hover:not(:where(.game-picture-only *)) { border-color: var(--admin-sage); background: var(--color-leaf-soft); }
+.admin-content :where(.asset-dialog, .creator-prompt-dialog) { border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); box-shadow: 0 12px 40px rgb(20 35 25 / 16%); }
+.admin-content :where(.asset-dialog, .creator-prompt-dialog)::backdrop { background: rgb(18 30 22 / 35%); backdrop-filter: none; }
+.admin-content .asset-icon-button { color: var(--color-ink-soft); }
+.admin-content .asset-icon-button:hover { background: var(--color-leaf-soft); }
+.admin-content table { font-size: 13px; }
+.admin-content thead { border-bottom: 1px solid var(--color-line); background: var(--color-cream); font-size: 11px; letter-spacing: .02em; }
+.admin-content th { font-weight: 500; }
+.admin-content :where(th, td) { padding-top: 11px; padding-bottom: 11px; }
+.admin-content input[type="checkbox"], .admin-content input[type="radio"] { accent-color: var(--color-ink); }
+.admin-content .asset-image-surface { background: #f1f2eb; }
+.admin-content .library-cover { height: 140px; border-bottom: 1px solid var(--color-line); background: var(--color-leaf-soft); }
+.admin-content .library-cover > span { display: none; }
+.admin-content .library-cover :where(.rotate-3, .-rotate-3) { rotate: none; }
+.admin-content .library-cover > div > span:last-child { font-size: 16px; }
+.admin-content article :where(.bg-sky, .bg-sun-soft) { background: var(--color-leaf-soft); color: var(--color-ink-soft); }
+.admin-content :where(.ring-inset):not(:where(.game-picture-only *)) { border-radius: 4px; }
+.admin-content article:has(> .asset-image-surface) > .asset-image-surface { aspect-ratio: 16 / 10; }
+.admin-content aside[aria-label="Thông tin kho trò chơi"], .admin-content aside[aria-label="Thông tin thư viện hình ảnh"] { display: none; }
+.admin-content .creator-workspace { background: var(--color-cream); }
+.admin-content .creator-page-inner { max-width: none; }
+.admin-content .creator-toolbar h1 { font-family: var(--font-sans); font-size: 24px; }
+.admin-content .creator-toolbar .lumi-button-sun > span[aria-hidden] { display: none; }
+.admin-content :where(.creator-start, .creator-steps, .creator-type-option, .creator-starter-card, .creator-starter-icon, .creator-step-number) { border-radius: 6px; box-shadow: none; }
+.admin-content .creator-welcome { display: block; padding: 24px; background: var(--color-paper); }
+.admin-content .creator-welcome h2 { font-size: 20px; }
+.admin-content .creator-starter-card .font-display { font-size: 16px; }
+.admin-content .creator-illustration, .admin-content .creator-ai-label { display: none; }
+.admin-content .creator-step.is-current .creator-step-number { border-color: var(--color-ink); background: var(--color-ink); color: white; }
+.admin-content .creator-starter-card .creator-starter-icon { background: var(--color-leaf-soft); color: var(--color-ink-soft); }
+.admin-content .creator-type-option.is-selected { border-color: var(--color-leaf); box-shadow: none; }
+.admin-content .admin-dashboard { display: grid; gap: 20px; }
+.admin-content .admin-ready { gap: 10px; border: 1px solid var(--color-line); border-left: 3px solid var(--admin-sage); border-radius: 6px; padding: 12px 16px; background: var(--color-leaf-soft); }
+.admin-content .admin-ready > span { width: 22px; height: 22px; border-radius: 50%; background: transparent; color: var(--color-leaf); }
+.admin-content .admin-ready > span svg { width: 18px; height: 18px; }
+.admin-content .admin-ready h2 { font-size: 13px; }
+.admin-content .admin-ready p { margin-top: 2px; font-size: 12px; }
+.admin-content .admin-kpi { padding: 16px 18px; }
+.admin-content .admin-kpi-value { margin-top: 10px; font-size: 28px; font-weight: 600; }
+.admin-content .admin-kpi:hover { transform: none; }
+.admin-content .admin-chart { height: 200px; background: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), var(--color-line) 25%); }
+.admin-content .admin-chart-bar { background: var(--admin-sage); }
+.admin-content .admin-chart-bar.is-today { background: var(--color-ink); }
+.admin-content .admin-panel { border: 1px solid var(--color-line); border-radius: 8px; padding: 20px; background: var(--color-paper); box-shadow: none; }
+.admin-content .admin-panel > div:first-child { margin-bottom: 16px; }
+.admin-content .admin-panel > div:first-child p { font-size: 12px; }
+.admin-content .admin-teacher-list, .admin-content .admin-teacher-row { min-width: 0; }
+.admin-content .admin-teacher-identity > span:first-child { width: 36px; height: 36px; background: var(--color-leaf-soft); font-size: 15px; --tw-ring-color: var(--color-line); }
+.admin-content .admin-teacher-identity p { font-size: 13px; }
+.admin-content .admin-teacher-identity p:first-child { font-size: 14px; }
+.admin-content .admin-teacher-classes a { min-height: 26px; border: 1px solid var(--color-line); border-radius: 4px; background: transparent; padding: 3px 8px; color: var(--color-ink-soft); }
+.admin-content .admin-teacher-classes a:hover { background: var(--color-leaf-soft); }
+.teacher-dashboard .teacher-classroom-card { gap: 10px; padding: 18px; box-shadow: none; }
+.teacher-dashboard .teacher-classroom-card > div > span { font-size: 16px; font-weight: 600; }
+.teacher-dashboard .teacher-classroom-card > span { font-size: 13px; }
+.teacher-dashboard .teacher-children-list > li { min-width: 0; }
+.teacher-dashboard .teacher-children-list > li > span[aria-hidden] { width: 32px; height: 32px; flex-shrink: 0; background: var(--color-leaf-soft); font-size: 13px; --tw-ring-color: var(--color-line); }
+.teacher-dashboard .teacher-assignment-form > aside { min-width: 0; }
+@media (min-width: 1280px) {
+  .admin-content .admin-teacher-list { grid-template-columns: minmax(0, 1fr); gap: 0; overflow: hidden; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); }
+  .admin-content .admin-teacher-row { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(140px, .8fr) minmax(90px, .6fr) minmax(280px, 1.3fr); align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; padding: 16px; }
+  .admin-content .admin-teacher-row:last-child { border-bottom: 0; }
+  .admin-content .admin-teacher-identity { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: start; gap: 8px; }
+  .admin-content .admin-teacher-identity > .ring-inset { grid-column: 2; justify-self: start; }
+  .admin-content .admin-teacher-stats { grid-column: 2; margin-top: 0; }
+  .admin-content .admin-teacher-classes { grid-column: 3; margin-top: 0; }
+  .admin-content .admin-teacher-actions { grid-column: 4; justify-content: end; margin-top: 0; padding-top: 0; }
+  .admin-content .admin-teacher-row > [role="alert"] { grid-column: 1 / -1; }
+}
+
+@media (max-width: 1199px) {
+  .admin-content > main { padding-inline: 24px; }
+  .admin-content .admin-classroom-columns { grid-template-columns: minmax(0, 1fr); }
+  .admin-content .admin-classroom-columns > aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+  .admin-content .admin-classroom-columns > aside > * { margin-top: 0; }
+  .teacher-dashboard .teacher-assignment-form { grid-template-columns: minmax(0, 1fr); }
+  .teacher-dashboard .teacher-assignment-form > aside { position: static; }
+}
+@media (max-width: 767px) {
+  .admin-sidebar { display: none; }
+  .admin-workspace { margin-left: 0; }
+  .admin-topbar { min-height: 60px; gap: 10px; padding: 10px 16px; }
+  .admin-menu-button { display: flex; }
+  .admin-page-label { flex: 1; gap: 8px; }
+  .admin-page-label > span { display: none; }
+  .admin-account > span:last-child { display: none; }
+  .admin-content > main { padding: 20px 16px 32px; }
+  .admin-content > main > header h1, .admin-content .creator-toolbar h1 { font-size: 22px; }
+  .admin-content .admin-panel { padding: 16px; }
+  .admin-content .admin-classroom-columns > aside { grid-template-columns: minmax(0, 1fr); }
+  .admin-content .admin-kpi { padding: 14px; }
+  .admin-content .admin-ready { align-items: start; }
+  .admin-content .admin-chart { height: 160px; }
+}
+@media (min-width: 768px) { .admin-drawer[open] { display: none; } }

@@ -180,18 +180,21 @@ enum InteractionResult {
 }
 
 model PlaySession {
-  sessionId      String             @id @default(uuid()) @db.Uuid
-  childId        String             @db.Uuid
-  child          Child              @relation(fields: [childId], references: [childId], onDelete: Restrict)
-  versionId      String             @db.Uuid
-  version        ActivityVersion    @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
-  status         PlaySessionStatus  @default(IN_PROGRESS)
-  startRequestId String             @db.Uuid
-  eventCount     Int                @default(0)
-  startedAt      DateTime           @default(now()) @db.Timestamptz(3)
-  endedAt        DateTime?          @db.Timestamptz(3)
-  lastEventAt    DateTime?          @db.Timestamptz(3)
+  sessionId      String               @id @default(uuid()) @db.Uuid
+  childId        String               @db.Uuid
+  child          Child                @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  versionId      String               @db.Uuid
+  version        ActivityVersion      @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  status         PlaySessionStatus    @default(IN_PROGRESS)
+  startRequestId String               @db.Uuid
+  eventCount     Int                  @default(0)
+  startedAt      DateTime             @default(now()) @db.Timestamptz(3)
+  endedAt        DateTime?            @db.Timestamptz(3)
+  lastEventAt    DateTime?            @db.Timestamptz(3)
+  /// SessionPerformance value object, written once when the session completes.
+  performance    Json?                @db.JsonB
   interactions   InteractionEvent[]
+  evaluation     CriterionEvaluation?
 
   @@unique([childId, startRequestId])
   @@index([childId, startedAt])
@@ -212,6 +215,33 @@ model InteractionEvent {
   receivedAt      DateTime             @default(now()) @db.Timestamptz(3)
 
   @@unique([sessionId, attemptIndex])
+}
+
+enum CriterionLevel {
+  LEVEL_0
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+  LEVEL_4
+}
+
+/// Result of one completed PlaySession for the version's single criterion. Score only for now;
+/// level and summary are filled by the later assessment/AI phase.
+model CriterionEvaluation {
+  criterionEvaluationId String              @id @default(uuid()) @db.Uuid
+  sessionId             String              @unique @db.Uuid
+  session               PlaySession         @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+  criterionCode         String              @db.VarChar(20)
+  criterion             AssessmentCriterion @relation(fields: [criterionCode], references: [criterionCode], onDelete: Restrict)
+  /// Unrounded percentage 0–100; null when the version has no scored item.
+  score                 Float?
+  level                 CriterionLevel?
+  summary               String?
+  minimumItemsMet       Boolean
+  ruleVersion           String              @db.VarChar(40)
+  evaluatedAt           DateTime            @default(now()) @db.Timestamptz(3)
+
+  @@index([criterionCode])
 }
 
 enum ActivityStatus {
@@ -252,6 +282,7 @@ model AssessmentCriterion {
   displayOrder  Int
   skill         Skill                      @relation(fields: [skillCode], references: [skillCode], onDelete: Restrict)
   versions      ActivityVersionCriterion[]
+  evaluations   CriterionEvaluation[]
 
   @@index([skillCode, displayOrder])
 }

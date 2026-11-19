@@ -11,6 +11,7 @@ import { PlayableGameService } from './playable-game.service.js';
 import { AssignmentsRepository } from './assignments.repository.js';
 import { AssignmentsService } from './assignments.service.js';
 import { TeacherAssignmentsController } from './teacher-assignments.controller.js';
+import { AdminAssignmentsController } from './admin-assignments.controller.js';
 
 @Module({
   imports: [
@@ -20,7 +21,11 @@ import { TeacherAssignmentsController } from './teacher-assignments.controller.j
     GameGenerationModule,
     ClassroomsModule,
   ],
-  controllers: [GameLibraryController, TeacherAssignmentsController],
+  controllers: [
+    GameLibraryController,
+    TeacherAssignmentsController,
+    AdminAssignmentsController,
+  ],
   providers: [
     GameLibraryRepository,
     GameLibraryService,

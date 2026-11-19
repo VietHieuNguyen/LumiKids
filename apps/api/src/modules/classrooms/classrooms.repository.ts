@@ -371,6 +371,18 @@ export class ClassroomsRepository {
           eventCount: true,
           startedAt: true,
           endedAt: true,
+          performance: true,
+          evaluation: {
+            select: {
+              criterionCode: true,
+              score: true,
+              level: true,
+              summary: true,
+              minimumItemsMet: true,
+              ruleVersion: true,
+              criterion: { select: { description: true } },
+            },
+          },
           version: {
             select: { gameType: true, activity: { select: { name: true } } },
           },

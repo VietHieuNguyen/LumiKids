@@ -106,14 +106,13 @@ test("creator renders three choices, prompt limit, samples, disabled empty submi
   const html = renderToStaticMarkup(
     React.createElement(GameCreator, {
       api,
-      fullName: "Giáo viên test",
       onUnauthorized: () => {},
     }),
   );
   assert.match(html, /Thiết kế trò chơi bằng AI/);
   assert.equal((html.match(/type="radio"/g) ?? []).length, 3);
   assert.match(html, new RegExp(`maxLength="${MAX_GAME_PROMPT_LENGTH}"`, "i"));
-  assert.match(html, /Generate Game/);
+  assert.match(html, /Tạo trò chơi từ mô tả/);
   assert.match(html, /disabled=""/);
   assert.match(html, /có thể mất khi tải lại hoặc rời trang/);
   assert.equal(gameCreationOptions.length, 3);

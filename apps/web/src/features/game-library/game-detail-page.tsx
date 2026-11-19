@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SavedGameDetail } from "@lumikids/shared";
+import { StaffPage } from "@/components/staff-shell";
+import { Notice } from "../classrooms/classroom-shell";
 import { GamePreview } from "../game-preview/game-preview";
 import { GameLibraryApi, libraryError } from "./api";
 import { useLibrarySession } from "./use-library-session";
@@ -17,19 +19,19 @@ export function GameDetailPage({
   const { session, loading, api } = useLibrarySession();
   if (loading || !session || !api)
     return (
-      <main className="p-8" role="status">
+      <Notice>
         Đang kiểm tra phiên đăng nhập…
-      </main>
+      </Notice>
     );
   if (
     !session.user.permissions.includes("READ_GAMES") ||
     (admin && !session.user.permissions.includes("MANAGE_ALL_GAMES"))
   )
     return (
-      <main className="p-8">Bạn chưa có quyền truy cập kho trò chơi này.</main>
+      <Notice>Bạn chưa có quyền truy cập kho trò chơi này.</Notice>
     );
   return (
-    <DetailContent
+    <StaffPage><DetailContent
       key={`${session.user.userId}:${versionId}`}
       api={api}
       versionId={versionId}
@@ -37,7 +39,7 @@ export function GameDetailPage({
       userId={session.user.userId}
       manageAll={session.user.permissions.includes("MANAGE_ALL_GAMES")}
       canSave={session.user.permissions.includes("SAVE_GAMES")}
-    />
+    /></StaffPage>
   );
 }
 function DetailContent({
@@ -115,18 +117,18 @@ function DetailContent({
     }
   }
   return (
-    <main className="min-h-dvh bg-slate-50 px-3 py-5 text-slate-900 sm:px-6">
-      <div className="mx-auto max-w-[1600px]">
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-7 text-ink sm:px-6 sm:pt-9">
+      <div className="min-w-0">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <Link className="asset-button-secondary" href={base}>
+          <Link className="inline-flex min-h-9 items-center gap-2 rounded-lg text-sm font-semibold text-leaf hover:text-ink" href={base}>
             ← Kho trò chơi
           </Link>
           {game && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-indigo-100 px-3 py-2 text-xs font-semibold text-indigo-800">
+              <span className="rounded-full bg-leaf-soft px-3 py-2 text-xs font-semibold text-leaf">
                 {gameTypeLabels[game.gameType]}
               </span>
-              <span className="rounded-full bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-900">
+              <span className="rounded-full bg-sun-soft px-3 py-2 text-xs font-semibold text-[#805b13]">
                 {difficultyLabels[game.difficulty]}
               </span>
             </div>
@@ -149,11 +151,12 @@ function DetailContent({
         ) : (
           game && (
             <>
-              <h1 className="mb-5 break-words text-2xl font-bold">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">Học liệu · Chi tiết trò chơi</p>
+              <h1 className="mb-5 break-words font-display text-3xl font-extrabold leading-tight sm:text-4xl">
                 {game.name}
               </h1>
               {game.status === "ARCHIVED" && (
-                <p className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="mb-4 rounded-xl bg-sun-soft p-4 text-sm text-[#805b13]">
                   Trò chơi đang được lưu trữ và đã ẩn khỏi kho chung.
                 </p>
               )}
@@ -164,13 +167,13 @@ function DetailContent({
                 backLabel="Kho trò chơi"
                 controlsPosition="after"
               />
-              <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6">
+              <section className="mt-6 rounded-3xl border border-line bg-paper p-6">
                 <div className="flex flex-wrap justify-between gap-5">
                   <div>
-                    <h2 className="text-lg font-bold">
+                    <h2 className="font-display text-2xl font-bold">
                       Thông tin dành cho giáo viên
                     </h2>
-                    <p className="mt-2 text-sm text-slate-500">
+                    <p className="mt-2 text-sm text-ink-soft">
                       {game.creatorName} · Phiên bản {game.versionNumber} ·{" "}
                       {new Date(game.createdAt).toLocaleDateString("vi-VN")}
                     </p>
@@ -195,7 +198,7 @@ function DetailContent({
                   </p>
                 )}
                 {game.description && (
-                  <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                  <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-ink-soft">
                     {game.description}
                   </p>
                 )}
@@ -203,7 +206,7 @@ function DetailContent({
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">
                   {game.criterions.map((c) => (
                     <li
-                      className="rounded-xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-950"
+                      className="rounded-xl bg-leaf-soft p-4 text-sm leading-6 text-ink"
                       key={c.criterionCode}
                     >
                       <strong>
@@ -213,7 +216,7 @@ function DetailContent({
                     </li>
                   ))}
                 </ul>
-                <details className="mt-5 rounded-xl border border-slate-100 p-4">
+                <details className="mt-5 rounded-xl border border-line p-4">
                   <summary className="cursor-pointer text-sm font-semibold">
                     Hướng dẫn đã lưu
                   </summary>
@@ -221,7 +224,7 @@ function DetailContent({
                     {game.content.instruction}
                   </p>
                 </details>
-                <p className="mt-5 text-xs leading-5 text-slate-500">
+                <p className="mt-5 text-xs leading-5 text-ink-soft">
                   Lượt chơi thử không lưu kết quả của trẻ. Việc chọn chỉ số xác
                   định mục tiêu của trò chơi và chưa phải kết quả đánh giá.
                 </p>

@@ -47,7 +47,7 @@ function LocalPreview({
       className="h-28 w-28 rounded-xl bg-white object-contain"
     />
   ) : (
-    <div className="h-28 w-28 rounded-xl bg-slate-100" />
+    <div className="h-28 w-28 rounded-xl bg-ink/5" />
   );
 }
 
@@ -110,11 +110,11 @@ export function AssetForm({
     >
       <form onSubmit={submit} className="space-y-6 p-5 sm:p-7" aria-busy={busy}>
         <fieldset disabled={busy} className="space-y-6 disabled:opacity-70">
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 sm:p-5">
-            <p className="text-sm font-semibold text-blue-950">
+          <div className="rounded-2xl border border-leaf/20 bg-leaf-soft/70 p-4 sm:p-5">
+            <p className="text-sm font-semibold text-ink">
               Một hình ảnh, nhiều cách chơi
             </p>
-            <p className="mt-2 text-sm leading-6 text-blue-900">
+            <p className="mt-2 text-sm leading-6 text-ink">
               Mô tả hình ảnh để hệ thống tìm đúng học liệu từ yêu cầu của giáo
               viên. Không cần tải ảnh riêng cho từng loại trò chơi.
             </p>
@@ -125,8 +125,8 @@ export function AssetForm({
                 ["Phân loại", "Cần các ảnh và đặc điểm phù hợp với từng nhóm."],
               ].map(([title, description]) => (
                 <div key={title} className="rounded-xl bg-white/80 px-3 py-2.5">
-                  <p className="font-semibold text-blue-950">{title}</p>
-                  <p className="mt-1 text-slate-600">{description}</p>
+                  <p className="font-semibold text-ink">{title}</p>
+                  <p className="mt-1 text-ink-soft">{description}</p>
                 </div>
               ))}
             </div>
@@ -134,12 +134,12 @@ export function AssetForm({
           {!asset && (
             <div>
               <label htmlFor={`${id}-file`} className="asset-label">
-                File ảnh <span className="text-red-600">*</span>
+                File ảnh <span className="text-berry">*</span>
               </label>
-              <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+              <div className="mt-2 rounded-xl border border-dashed border-ink/20 bg-cream p-4">
                 <p
                   id={`${id}-file-help`}
-                  className="mb-3 text-sm text-slate-500"
+                  className="mb-3 text-sm text-ink-soft"
                 >
                   PNG, JPEG hoặc WebP · tối đa 5 MiB
                 </p>
@@ -149,7 +149,7 @@ export function AssetForm({
                   accept="image/png,image/jpeg,image/webp"
                   aria-describedby={`${id}-file-help ${id}-file-error`}
                   aria-invalid={!!fileError}
-                  className="block w-full rounded-lg text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2.5 file:font-medium file:text-blue-700 hover:file:bg-blue-50"
+                  className="block w-full rounded-lg text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2.5 file:font-medium file:text-leaf hover:file:bg-leaf-soft"
                   onChange={(event) => {
                     setError("");
                     const selected = event.target.files?.[0] ?? null;
@@ -174,13 +174,13 @@ export function AssetForm({
                       }}
                     />
                     <div className="min-w-0">
-                      <p className="break-all text-sm font-medium text-slate-700">
+                      <p className="break-all text-sm font-medium text-ink">
                         {file.name}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-ink-soft">
                         {formatBytes(file.size)}
                       </p>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-2 text-xs text-ink-soft">
                         Chọn file khác ở trên để thay đổi.
                       </p>
                     </div>
@@ -190,14 +190,14 @@ export function AssetForm({
               <p
                 id={`${id}-file-error`}
                 role={fileError ? "alert" : undefined}
-                className="mt-2 text-sm text-red-700"
+                className="mt-2 text-sm text-berry"
               >
                 {fileError}
               </p>
             </div>
           )}
           {asset && (
-            <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800">
+            <p className="rounded-xl bg-leaf-soft px-4 py-3 text-sm leading-6 text-leaf">
               Bạn đang chỉnh sửa thông tin hình ảnh. File ảnh gốc và mã asset
               được giữ nguyên.
             </p>
@@ -205,7 +205,7 @@ export function AssetForm({
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
               <span className="asset-label">
-                Tên hình ảnh <span className="text-red-600">*</span>
+                Tên hình ảnh <span className="text-berry">*</span>
               </span>
               <input
                 autoFocus={!!asset}
@@ -222,7 +222,7 @@ export function AssetForm({
               />
               <span
                 id={`${id}-name-help`}
-                className="mt-2 block text-xs leading-5 text-slate-500"
+                className="mt-2 block text-xs leading-5 text-ink-soft"
               >
                 Nên dùng tên tiếng Việt rõ nghĩa, đúng với nội dung ảnh để khớp
                 mô tả của giáo viên.
@@ -230,7 +230,7 @@ export function AssetForm({
             </label>
             <label className="block">
               <span className="asset-label">
-                Loại đối tượng <span className="text-red-600">*</span>
+                Loại đối tượng <span className="text-berry">*</span>
               </span>
               <input
                 className="asset-input mt-2"
@@ -254,7 +254,7 @@ export function AssetForm({
               </datalist>
               <span
                 id={`${id}-type-help`}
-                className="mt-2 block text-xs leading-5 text-slate-500"
+                className="mt-2 block text-xs leading-5 text-ink-soft"
               >
                 Mã viết hoa của đối tượng trong ảnh, ví dụ LION cho sư tử. Có
                 thể nhập mã mới ngoài các gợi ý; đây không phải loại trò chơi.
@@ -264,7 +264,7 @@ export function AssetForm({
           <label className="block">
             <span className="asset-label">
               Từ khóa tìm ảnh (tags){" "}
-              <span className="font-normal text-slate-400">· tùy chọn</span>
+              <span className="font-normal text-ink-soft/70">· tùy chọn</span>
             </span>
             <input
               className="asset-input mt-2"
@@ -279,7 +279,7 @@ export function AssetForm({
             />
             <span
               id={`${id}-tags-help`}
-              className="mt-2 block text-xs leading-5 text-slate-500"
+              className="mt-2 block text-xs leading-5 text-ink-soft"
             >
               Thêm tên gọi, từ đồng nghĩa và đặc điểm bằng tiếng Việt hoặc tiếng
               Anh. Với đối tượng mới, nên có từ khóa tiếng Việt khớp prompt.
@@ -287,7 +287,7 @@ export function AssetForm({
             </span>
             <span
               id={`${id}-tags-games`}
-              className="mt-2 block text-xs leading-5 text-blue-800"
+              className="mt-2 block text-xs leading-5 text-leaf"
             >
               Không bắt buộc gắn counting, matching hoặc classification. Các tag
               này không quyết định ảnh dùng được cho trò chơi nào.
@@ -306,7 +306,7 @@ export function AssetForm({
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+        <div className="flex justify-end gap-3 border-t border-line pt-5">
           <button
             type="button"
             onClick={onClose}

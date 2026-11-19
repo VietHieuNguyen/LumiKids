@@ -69,17 +69,15 @@ export function RuntimePreview({
     }
   }
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-6xl">
+    <main className="mx-auto max-w-6xl px-4 pb-16 pt-7 text-ink sm:px-6 sm:pt-9">
+      <div className="min-w-0">
         <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <Link href="/account" className="font-bold text-blue-700">
-              LumiKids
-            </Link>
-            <h1 className="mt-3 text-3xl font-bold text-slate-900">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">Học liệu · Không gian xem thử</p>
+            <h1 className="font-display text-4xl font-extrabold leading-tight text-ink">
               Xem thử trò chơi
             </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="mt-2 text-sm leading-6 text-ink-soft">
               Chơi thử nội dung trước khi sử dụng. Không lưu phiên chơi hoặc dữ
               liệu đánh giá.
             </p>
@@ -102,13 +100,13 @@ export function RuntimePreview({
         </header>
         {isDevelopment && (
           <section
-            className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"
+            className="mb-5 rounded-2xl border border-sun-edge/30 bg-sun-soft p-4"
             aria-label="JSON mẫu phát triển"
           >
-            <h2 className="text-sm font-semibold text-amber-900">
+            <h2 className="text-sm font-semibold text-[#805b13]">
               Mẫu phát triển · ảnh minh họa cục bộ
             </h2>
-            <p className="mt-2 text-xs leading-5 text-amber-800">
+            <p className="mt-2 text-xs leading-5 text-[#805b13]">
               Ba JSON Bước 4A dùng UUID minh họa chưa có trong database. Các nút
               dưới chỉ dùng ảnh mẫu, không giả lập API hoặc thay ảnh khi Library
               báo lỗi.
@@ -129,9 +127,9 @@ export function RuntimePreview({
         )}
         <details
           open={!request}
-          className="mb-5 rounded-2xl border border-slate-200 bg-white p-5"
+          className="mb-5 rounded-2xl border border-line bg-paper p-5"
         >
-          <summary className="cursor-pointer font-semibold text-slate-700">
+          <summary className="cursor-pointer font-semibold text-ink">
             Nhập GameContent JSON để xem thử với ảnh thư viện
           </summary>
           <label className="mt-4 block">
@@ -145,7 +143,7 @@ export function RuntimePreview({
               onChange={(event) => setDraft(event.target.value)}
             />
           </label>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
+          <p className="mt-2 text-xs leading-5 text-ink-soft">
             Ảnh được đọc tự động qua Backend theo đúng assetId trong JSON. Không
             upload hoặc lưu nội dung từ trang này.
           </p>
@@ -167,7 +165,7 @@ export function RuntimePreview({
             {request.source === "development" && (
               <p
                 role="status"
-                className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                className="mb-4 rounded-xl bg-sun-soft px-4 py-3 text-sm text-[#805b13]"
               >
                 Đang dùng ảnh mẫu development. Để kiểm tra MinIO thật, thay UUID
                 mẫu bằng assetId có sẵn rồi chọn “Kiểm tra và xem thử”.
@@ -186,7 +184,7 @@ export function RuntimePreview({
           </>
         ) : (
           !error && (
-            <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+            <p className="rounded-2xl border border-dashed border-ink/20 bg-paper p-8 text-center text-sm text-ink-soft">
               Dán nội dung trò chơi hoặc chọn một mẫu phát triển để bắt đầu xem
               thử.
             </p>

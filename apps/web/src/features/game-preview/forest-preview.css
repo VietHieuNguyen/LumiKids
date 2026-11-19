@@ -1,0 +1,78 @@
+.forest-preview {
+  position: relative; isolation: isolate; min-height: max(760px, 100dvh); overflow: hidden;
+  display: flex; flex-direction: column; align-items: center;
+  background: #c6e9e5 url('/game-scenes/forest/background.png') center / cover no-repeat;
+  color: #345849; font-family: var(--font-lumi), sans-serif;
+  padding: 24px 24px 150px;
+}
+.forest-preview *, .forest-preview *::before, .forest-preview *::after { box-sizing: border-box; }
+.forest-preview .forest-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+.forest-toolbar { width: min(900px, 80%); display: flex; align-items: center; gap: 16px; position: relative; }
+.forest-icon-button { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border: 2px solid #fffaf0; border-radius: 17px; background: #fff9e9; color: #547764; box-shadow: 0 4px 0 #9ebf9d80, 0 5px 15px #3d6e5410; cursor: pointer; }
+.forest-icon-button:hover, .forest-sound:hover { background: #ffedb6; }
+.forest-preview button:focus-visible, .forest-preview a:focus-visible { outline: 3px solid #366c5b; outline-offset: 4px; }
+.forest-brand { display: flex; flex-direction: column; line-height: 1; }
+.forest-brand > span { font: 800 26px var(--font-lumi-display), sans-serif; letter-spacing: -1px; }
+.forest-brand > span > span { color: #be872d; }
+.forest-brand small { font-size: 8px; letter-spacing: 2px; font-weight: 700; }
+.forest-progress { flex: 1; display: flex; align-items: center; gap: 12px; border: 2px solid #fffdf0; background: #faffefc9; padding: 9px 16px; border-radius: 24px; box-shadow: 0 4px 0 #9ebf9d50; }
+.forest-progress > span { font-size: 26px; color: #d5a547; }
+.forest-progress progress { appearance: none; border: 0; border-radius: 10px; height: 12px; min-width: 0; width: 100%; overflow: hidden; background: #d8e7c9; }
+.forest-progress progress::-webkit-progress-bar { background: #d8e7c9; border-radius: 10px; }
+.forest-progress progress::-webkit-progress-value { background: #83bca1; border-radius: 10px; }
+.forest-progress progress::-moz-progress-bar { background: #83bca1; }
+.forest-progress b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.forest-heading { text-align: center; margin: 27px 0 4px; }
+.forest-heading > span { font-size: 10px; letter-spacing: 2.4px; font-weight: 700; color: #547e78; }
+.forest-heading h1 { font: 800 clamp(30px, 3.2vw, 46px)/1.2 var(--font-lumi-display), sans-serif; color: #365f51; margin: 5px 0 7px; text-shadow: 0 2px 0 #ffffff80; }
+.forest-heading p { font-size: 13px; font-weight: 500; margin: 0; }
+/* All overrides stay under this preview; the shared matching renderer and evaluator are unchanged. */
+.forest-preview .forest-game { --hanging-height: clamp(140px, 19vh, 182px); --picture-height: clamp(115px, 16vh, 155px); width: min(800px, 78%); border: 0; background: transparent; box-shadow: none; border-radius: 0; overflow: visible; font-family: inherit; margin-top: 4px; }
+.forest-preview .forest-game .play-board { height: auto; background: transparent; border: 0; padding: 0; }
+.forest-preview .forest-game .scene-play-area { position: relative; inset: auto; display: block; }
+.forest-preview .forest-game .matching-trays { gap: 10px; }
+.forest-preview .forest-game .matching-tray { background: transparent; border: 0; box-shadow: none; }
+.forest-preview .forest-game .matching-card-list { gap: 30px; padding: 38px 12px 16px; }
+.forest-preview .forest-game .matching-card-list > .matching-picture-card { flex: 0 0 clamp(130px, 15vw, 186px); height: var(--hanging-height); padding: 12px; border: 5px solid #edce88; border-radius: 24px; background: #fffaf0; box-shadow: inset 0 0 0 2px #fffef8, 0 5px 0 #c4a568, 0 12px 20px #36584718; }
+.forest-preview .forest-game .matching-card-list > .matching-target-card { background: #f6f1e6; }
+.forest-preview .forest-game .matching-card-list > .game-source-selected,
+.forest-preview .forest-game .matching-card-list > .is-hovered,
+.forest-preview .forest-game .matching-card-list > .is-matched { border-color: #83b99a; background: #f0f9ec; box-shadow: 0 5px 0 #5e9174, 0 0 0 3px #fffdf1; }
+.forest-preview .forest-game .matching-card-list > .is-incorrect { border-color: #d99581; background: #fff1e9; }
+.forest-preview .forest-game .matching-card-list > .matching-picture-card::before { top: -29px; height: 36px; width: 17px; border-radius: 5px; background-color: #b2cda4; }
+.forest-preview .forest-game .matching-card-list > :nth-child(even)::before { background-color: #d4b4c4; rotate: 8deg; }
+.forest-preview .forest-game .hanging-rail-rope path:first-child { stroke: #fff9e1; }
+.forest-preview .forest-game .hanging-rail-rope path:last-child { stroke: #b99f70; stroke-width: 2; }
+.forest-preview .forest-game .matching-rail-arrow { background: #fff9e9; color: #94764a; border-color: #fffdf3; box-shadow: 0 4px 0 #b6bd8e80; }
+.forest-preview .forest-game .matching-rail-range { display: none; }
+.forest-preview .forest-game .matching-card-note { color: #86a58d; background: transparent; }
+.forest-preview .forest-game .matching-picture { height: calc(var(--picture-height) - 24px); }
+.forest-preview .forest-game .matching-source-complete { height: calc(var(--hanging-height) + 54px); }
+.forest-footer { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column-reverse; align-items: center; gap: 12px; width: min(560px, 72%); }
+.forest-footer p { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 7px 18px; border-radius: 22px; background: #fffcf0e8; color: #516b51; font-size: 12px; text-align: center; box-shadow: 0 3px 12px #426a3a0d; }
+.forest-footer p > span { color: #bd933b; font-size: 18px; }
+.forest-sound { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 9px 17px; border: 2px solid #fff9df; border-radius: 25px; background: #fff7d9; color: #697d4c; font-size: 11px; font-weight: 600; box-shadow: 0 3px 0 #9aaf7250; cursor: pointer; }
+.forest-scene-note { position: absolute; bottom: 6px; right: 12px; font-size: 10px; color: #46644b; background: #ffffedcc; padding: 3px 8px; border-radius: 10px; }
+@media (min-height: 900px) { .forest-heading { margin-top: 50px; } .forest-preview .forest-game { margin-top: 24px; } .forest-preview .forest-game .matching-trays { gap: 24px; } }
+@media (max-width: 900px) { .forest-toolbar { width: 92%; gap: 10px; } .forest-preview .forest-game { width: 88%; } }
+@media (max-width: 600px) {
+  .forest-preview { min-height: max(900px, 100dvh); padding: 18px 10px 235px; }
+  .forest-toolbar { width: 96%; gap: 8px; flex-wrap: wrap; }
+  .forest-icon-button { flex-basis: 42px; height: 42px; border-radius: 15px; }
+  .forest-brand { margin-right: auto; } .forest-brand > span { font-size: 24px; }
+  .forest-progress { order: 5; flex-basis: 100%; margin: 9px 38px 0; padding: 4px 13px; }
+  .forest-expand { display: none; }
+  .forest-heading { margin-top: 24px; } .forest-heading > span { font-size: 8px; letter-spacing: 1.8px; }
+  .forest-heading p { max-width: 280px; margin: auto; line-height: 1.7; font-size: 12px; }
+  .forest-preview .forest-game { width: 100%; --hanging-height: 140px; --picture-height: 116px; margin-top: 8px; }
+  .forest-preview .forest-game .matching-card-list { gap: 14px; padding: 36px 7px 14px; }
+  .forest-preview .forest-game .matching-card-list > .matching-picture-card { flex-basis: calc((100% - 14px) / 2); border-radius: 19px; border-width: 4px; padding: 9px; }
+  .forest-preview .forest-game .matching-trays { gap: 5px; }
+  .forest-footer { bottom: 25px; width: 76%; gap: 10px; }
+  .forest-footer p { font-size: 10px; padding: 7px 12px; }
+  /* Keep the wide hint above the animals; only the small sound control occupies the middle of the lawn. */
+  .forest-footer { inset: 0; width: 100%; transform: none; display: block; pointer-events: none; }
+  .forest-footer p { position: absolute; bottom: 210px; left: 50%; transform: translateX(-50%); width: calc(100% - 48px); }
+  .forest-footer .forest-sound { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); pointer-events: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .forest-preview *, .forest-preview *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

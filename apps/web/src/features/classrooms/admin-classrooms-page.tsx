@@ -9,6 +9,7 @@ import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classr
 import { classroomStatusLabels, formatDateOnly } from "./format";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
+import { useRowLink } from "./use-row-link";
 
 export function AdminClassroomsPage() {
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
@@ -20,6 +21,7 @@ export function AdminClassroomsPage() {
 function AdminClassrooms({ api }: { api: ClassroomApi }) {
   const years = useResource((signal) => api.schoolYears(signal), "years");
   const ageGroups = useResource((signal) => api.ageGroups(signal), "age-groups");
+  const rowLink = useRowLink();
   const [picked, setPicked] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   // Default to the most recent school year (the API lists newest first).
@@ -35,7 +37,7 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
   return (
     <ClassroomShell title="Quản lý lớp học" eyebrow="Quản trị">
       {(years.error || ageGroups.error) && <ErrorBanner message={years.error || ageGroups.error} onRetry={() => { years.reload(); ageGroups.reload(); }} />}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <Panel
             title={year ? `Lớp năm học ${year.name}` : "Lớp học"}
@@ -75,7 +77,7 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
                   </thead>
                   <tbody className="divide-y divide-line">
                     {classrooms.data.map((item) => (
-                      <tr key={item.classId} className="hover:bg-cream">
+                      <tr key={item.classId} {...rowLink(`/admin/classrooms/${item.classId}`)} className="cursor-pointer hover:bg-cream">
                         <td className="px-4 py-3 sm:px-2">
                           <Link className="font-semibold text-leaf hover:underline" href={`/admin/classrooms/${item.classId}`}>{item.className}</Link>
                         </td>

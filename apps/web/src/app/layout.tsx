@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "@/features/game-runtime/environment/forest-gameplay.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { lumiFontVariables } from "@/lib/lumi-fonts";
 
@@ -10,6 +11,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 export const metadata: Metadata = {
   ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "LumiKids",
+  icons: { icon: { url: "/brand/lumikids-logo.png", type: "image/png" }, apple: "/brand/lumikids-logo.png" },
   description: "Đăng nhập hệ thống LumiKids",
 };
 

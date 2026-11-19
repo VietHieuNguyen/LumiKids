@@ -112,7 +112,7 @@ function ChildrenTab({
       {classroom.children.length === 0 ? (
         <p className="text-sm text-ink-soft">Lớp chưa có trẻ đang học.</p>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="teacher-children-list grid gap-2 sm:grid-cols-2">
           {classroom.children.map((child) => {
             const age = ageInYears(child.dob, today);
             return (

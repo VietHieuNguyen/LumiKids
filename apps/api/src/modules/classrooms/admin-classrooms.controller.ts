@@ -17,6 +17,7 @@ import {
   createChildSchema,
   createClassroomSchema,
   createSchoolYearSchema,
+  playHistoryQuerySchema,
   transferChildSchema,
   updateChildSchema,
   updateClassroomSchema,
@@ -124,6 +125,26 @@ export class AdminClassroomsController {
     @Param('userId', ParseUUIDPipe) userId: string,
   ) {
     return this.classrooms.removeTeacher(classId, userId);
+  }
+  /** Read-only: a child's results while in this class (codes and assignments stay with teachers). */
+  @Get('classrooms/:classId/children/:childId')
+  classChild(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Param('childId', ParseUUIDPipe) childId: string,
+  ) {
+    return this.classrooms.classChild(classId, childId);
+  }
+  @Get('classrooms/:classId/children/:childId/play-sessions')
+  classPlayHistory(
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Param('childId', ParseUUIDPipe) childId: string,
+    @Query() value: unknown,
+  ) {
+    return this.classrooms.classPlayHistory(
+      classId,
+      childId,
+      parse(playHistoryQuerySchema, value, 'Bộ lọc lịch sử chơi không hợp lệ.'),
+    );
   }
 
   @Get('children/unassigned')

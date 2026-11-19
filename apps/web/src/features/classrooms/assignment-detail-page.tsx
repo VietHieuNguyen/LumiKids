@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { AssignmentDetail, AssignmentRecipient } from "@lumikids/shared";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
 import { gameTypeLabels } from "../game-library/library-page";
 import { AssignmentApi, classroomError } from "./api";
-import type { ClassroomApi } from "./api";
+import type { ClassroomApi, ClassroomScope } from "./api";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
 import {
   addDays,
@@ -23,7 +24,15 @@ export function AssignmentDetailPage({ classId, assignmentId }: { classId: strin
   const { session, loading, api, allowed, canAssign } = useClassroomSession("READ_OWN_CLASSROOMS");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Tài khoản này không phụ trách lớp học.</Notice>;
-  return <Detail key={`${session.user.userId}:${assignmentId}`} api={api} classId={classId} assignmentId={assignmentId} canAssign={canAssign} />;
+  return <Detail key={`${session.user.userId}:${assignmentId}`} api={api} scope="teacher" classId={classId} assignmentId={assignmentId} canAssign={canAssign} />;
+}
+
+/** Admin, read-only: progress of an assignment a teacher gave to the class. */
+export function AdminAssignmentDetailPage({ classId, assignmentId }: { classId: string; assignmentId: string }) {
+  const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
+  if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
+  if (!allowed) return <Notice>Bạn chưa có quyền quản lý lớp học.</Notice>;
+  return <Detail key={`${session.user.userId}:${assignmentId}`} api={api} scope="admin" classId={classId} assignmentId={assignmentId} canAssign={false} />;
 }
 
 function useMutation() {
@@ -46,10 +55,22 @@ function useMutation() {
 
 const completionTones = { NOT_STARTED: "slate", IN_PROGRESS: "blue", COMPLETED: "green" } as const;
 
-function Detail({ api, classId, assignmentId, canAssign }: { api: ClassroomApi; classId: string; assignmentId: string; canAssign: boolean }) {
-  const assignments = useMemo(() => new AssignmentApi(api, classId), [api, classId]);
+function Detail({
+  api,
+  scope,
+  classId,
+  assignmentId,
+  canAssign,
+}: {
+  api: ClassroomApi;
+  scope: ClassroomScope;
+  classId: string;
+  assignmentId: string;
+  canAssign: boolean;
+}) {
+  const assignments = useMemo(() => new AssignmentApi(api, classId, scope), [api, classId, scope]);
   const detail = useResource((signal) => assignments.detail(assignmentId, signal), assignmentId);
-  const back = { href: `/teacher/classrooms/${classId}`, label: "Bài đã giao" };
+  const back = { href: `/${scope}/classrooms/${classId}`, label: scope === "admin" ? "Lớp học" : "Bài đã giao" };
   if (!detail.data)
     return (
       <ClassroomShell title="Bài giao" back={back}>
@@ -57,7 +78,7 @@ function Detail({ api, classId, assignmentId, canAssign }: { api: ClassroomApi; 
       </ClassroomShell>
     );
   const data = detail.data;
-  const editable = canAssign && data.state !== "CANCELLED";
+  const editable = scope === "teacher" && canAssign && data.state !== "CANCELLED";
   return (
     <ClassroomShell
       title={data.title}
@@ -66,10 +87,10 @@ function Detail({ api, classId, assignmentId, canAssign }: { api: ClassroomApi; 
       actions={<StatusPill tone={assignmentStateTones[data.state]}>{assignmentStateLabels[data.state]}</StatusPill>}
     >
       {detail.error && <ErrorBanner message={detail.error} onRetry={detail.reload} />}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <ReplayRequests api={assignments} detail={data} editable={editable} onChange={detail.replace} />
-          <Recipients api={assignments} detail={data} editable={editable} onChange={detail.replace} />
+          <Recipients api={assignments} classId={classId} detail={data} editable={editable} onChange={detail.replace} />
         </div>
         <aside className="space-y-6">
           <Summary detail={data} />
@@ -150,7 +171,19 @@ function ReplayRequests({ api, detail, editable, onChange }: { api: AssignmentAp
   );
 }
 
-function Recipients({ api, detail, editable, onChange }: { api: AssignmentApi; detail: AssignmentDetail; editable: boolean; onChange: (value: AssignmentDetail) => void }) {
+function Recipients({
+  api,
+  classId,
+  detail,
+  editable,
+  onChange,
+}: {
+  api: AssignmentApi;
+  classId: string;
+  detail: AssignmentDetail;
+  editable: boolean;
+  onChange: (value: AssignmentDetail) => void;
+}) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [until, setUntil] = useState(() => addDays(localToday(), 3));
   const mutation = useMutation();
@@ -180,7 +213,9 @@ function Recipients({ api, detail, editable, onChange }: { api: AssignmentApi; d
                 <input type="checkbox" className="h-5 w-5 accent-[#2f8a4d]" checked={picked.has(recipient.childId)} onChange={() => toggle(recipient)} aria-label={`Chọn ${recipient.fullName}`} disabled={!recipient.inClass} />
               )}
               <span className="min-w-0 flex-1">
-                <span className="block break-words font-semibold">{recipient.fullName}</span>
+                <Link className="block break-words font-semibold hover:text-leaf hover:underline" href={`/${api.scope}/classrooms/${classId}/children/${recipient.childId}`}>
+                  {recipient.fullName}
+                </Link>
                 <span className="block text-xs text-ink-soft">
                   {!recipient.inClass ? "Đã chuyển lớp" : recipient.extendedUntil ? `Được chơi đến ${formatDateTime(recipient.extendedUntil)}` : " "}
                 </span>

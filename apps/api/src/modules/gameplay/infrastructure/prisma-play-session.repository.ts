@@ -105,9 +105,11 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
     return rows.map((row) => row.eventId);
   }
   async commitAppend(commit: AppendCommit) {
-    const now = new Date();
+    const completion = commit.completion;
+    const now = completion?.completedAt ?? new Date();
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // The IN_PROGRESS + eventCount guard lets exactly one request complete the session.
         const updated = await tx.playSession.updateMany({
           where: {
             sessionId: commit.sessionId,
@@ -117,7 +119,13 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
           data: {
             eventCount: commit.expectedEventCount + commit.accepted.length,
             lastEventAt: now,
-            ...(commit.completed ? { status: 'COMPLETED', endedAt: now } : {}),
+            ...(completion
+              ? {
+                  status: 'COMPLETED',
+                  endedAt: now,
+                  performance: completion.performance,
+                }
+              : {}),
           },
         });
         if (updated.count === 0) return false;
@@ -126,6 +134,11 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
             toEventData(commit.sessionId, event),
           ),
         });
+        if (completion?.evaluation)
+          // sessionId is unique: a second evaluation for the session fails the whole commit.
+          await tx.criterionEvaluation.create({
+            data: { sessionId: commit.sessionId, ...completion.evaluation },
+          });
         return true;
       });
     } catch (error) {
@@ -139,6 +152,14 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
         return false;
       throw error;
     }
+  }
+  async primaryCriterionCode(versionId: string) {
+    const row = await this.prisma.activityVersionCriterion.findFirst({
+      where: { versionId },
+      orderBy: { criterionCode: 'asc' },
+      select: { criterionCode: true },
+    });
+    return row?.criterionCode ?? null;
   }
   async abandon(sessionId: string) {
     await this.prisma.playSession.updateMany({

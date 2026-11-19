@@ -27,7 +27,7 @@ describe('Saved game library (offline)', () => {
     name: 'Bé đếm hình',
     description: '',
     difficulty: 'EASY',
-    criterionCodes: ['42', '43'],
+    criterionCodes: ['42'],
     reviewConfirmed: true,
     previewToken: 'signed-fixture',
     content: {
@@ -241,6 +241,8 @@ describe('Saved game library (offline)', () => {
       { difficulty: null },
       { criterionCodes: [] },
       { criterionCodes: ['51', '51'] },
+      // One ActivityVersion is assessed for exactly one criterion.
+      { criterionCodes: ['42', '43'] },
     ])
       expect(saveGameSchema.safeParse({ ...input, ...patch }).success).toBe(
         false,

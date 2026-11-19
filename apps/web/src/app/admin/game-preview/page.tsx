@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { StaffPage } from "@/components/staff-shell";
+import { Notice } from "@/features/classrooms/classroom-shell";
 import { GameAssetsApi } from "@/features/game-assets/api";
 import { RuntimePreview } from "@/features/game-runtime/components/runtime-preview";
 
@@ -20,26 +22,24 @@ export default function GamePreviewPage() {
   }, [loading, session, router]);
   if (loading || !session || !client)
     return (
-      <main className="p-8">
-        <p role="status">Đang kiểm tra phiên đăng nhập…</p>
-      </main>
+      <Notice>Đang kiểm tra phiên đăng nhập…</Notice>
     );
   if (!session.user.permissions.includes("READ_GAME_ASSETS"))
     return (
-      <main className="p-8">
+      <Notice>
         <h1 className="mb-4 text-xl font-semibold">
           Bạn chưa có quyền xem thử bằng ảnh thư viện.
         </h1>
         <Link href="/account" className="asset-button-secondary">
           Về tài khoản
         </Link>
-      </main>
+      </Notice>
     );
   return (
-    <RuntimePreview
+    <StaffPage><RuntimePreview
       key={session.user.userId}
       client={client}
       canManageAssets={session.user.permissions.includes("MANAGE_GAME_ASSETS")}
-    />
+    /></StaffPage>
   );
 }

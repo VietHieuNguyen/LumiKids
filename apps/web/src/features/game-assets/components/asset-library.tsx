@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { StaffPage } from "@/components/staff-shell";
 import { GameAssetApiError, assetErrorMessage } from "../api";
 import type { GameAssetsApi } from "../api";
 import {
@@ -13,13 +14,13 @@ import type {
   AssetFilters as Filters,
   AssetPage,
   GameAsset,
-  AssetStatus,
 } from "../types";
 import { AssetCard } from "./asset-card";
 import { AssetDetail } from "./asset-detail";
 import { AssetFilters } from "./asset-filters";
 import { AssetForm } from "./asset-form";
 import { AssetStatusDialog } from "./asset-status-dialog";
+import { AssetIcon as Icon } from "./asset-icon";
 
 type Overlay =
   | { kind: "upload" }
@@ -30,11 +31,9 @@ type Overlay =
 
 export function AssetLibrary({
   client,
-  fullName,
   onSignIn,
 }: {
   client: GameAssetsApi;
-  fullName: string;
   onSignIn: () => void;
 }) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -97,11 +96,6 @@ export function AssetLibrary({
     setFilters(next);
     setHighlightedId("");
   }
-  function changeStatusFilter(status: AssetStatus) {
-    if (status === filters.status) return;
-    apply({ ...filters, status, page: 1 });
-    setFilterKey((value) => value + 1);
-  }
   function saved(asset: GameAsset, uploaded: boolean) {
     setNotice(
       uploaded
@@ -125,73 +119,34 @@ export function AssetLibrary({
   const pagination = result?.pagination;
 
   return (
-    <div className="min-h-dvh bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link
-            href="/account"
-            className="flex items-center gap-2 text-xl font-bold tracking-tight text-blue-700"
-          >
-            <span
-              aria-hidden="true"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-700 text-base text-white"
-            >
-              L
-            </span>
-            LumiKids
-            <span
-              aria-hidden="true"
-              className="mb-3 h-1.5 w-1.5 rounded-full bg-amber-400"
-            />
-          </Link>
-          <Link
-            href="/account"
-            className="flex min-w-0 items-center gap-2 text-sm text-slate-600"
-          >
-            <span
-              aria-hidden="true"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 font-semibold text-blue-700"
-            >
-              {fullName.charAt(0).toUpperCase()}
-            </span>
-            <span className="hidden max-w-52 truncate sm:block">
-              {fullName}
-            </span>
-            <span className="sr-only">Tài khoản</span>
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
-        <div className="mb-7 flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.16em] text-blue-600">
-              KHÔNG GIAN QUẢN TRỊ
+    <StaffPage>
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-7 sm:px-6 sm:pt-9">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">
+              Quản trị · Học liệu dùng chung
             </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-              Game Asset Library
+            <h1 className="font-display text-4xl font-extrabold leading-tight text-ink">
+              Thư viện hình ảnh
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-              Thư viện hình ảnh dùng chung cho trò đếm, ghép cặp và phân loại.
-              Thêm tên gọi và đặc điểm để tìm đúng học liệu từ mô tả của giáo
-              viên.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-soft">
+              Quản lý hình ảnh cho trò đếm, ghép cặp và phân loại của bé.
             </p>
           </div>
           {!accessStatus && (
             <button
               type="button"
-              className="asset-button-primary shadow-sm"
+              className="lumi-button-sun"
               onClick={() => setOverlay({ kind: "upload" })}
             >
-              <span aria-hidden="true" className="text-lg leading-none">
-                ＋
-              </span>{" "}
+              <Icon name="plus" />
               Thêm hình ảnh
             </button>
           )}
-        </div>
+        </header>
         {accessStatus ? (
           <section
-            className="rounded-2xl border border-slate-200 bg-white p-8"
+            className="rounded-2xl border border-line bg-paper p-8"
             aria-labelledby="asset-access-heading"
           >
             <h2 id="asset-access-heading" className="text-lg font-semibold">
@@ -199,7 +154,7 @@ export function AssetLibrary({
                 ? "Vui lòng đăng nhập lại"
                 : "Bạn chưa có quyền quản lý thư viện"}
             </h2>
-            <p role="alert" className="mt-3 text-sm leading-6 text-slate-600">
+            <p role="alert" className="mt-3 text-sm leading-6 text-ink-soft">
               {accessStatus === 401
                 ? "Phiên hiện tại không được hệ thống chấp nhận. Hãy đăng nhập lại để tiếp tục."
                 : "Quyền tài khoản có thể đã thay đổi. Hãy liên hệ quản trị viên để được cấp quyền phù hợp."}
@@ -221,10 +176,17 @@ export function AssetLibrary({
           </section>
         ) : (
           <>
+            <aside className="mb-6 flex items-center gap-3 rounded-2xl border border-leaf/15 bg-leaf-soft/60 px-5 py-4" aria-label="Thông tin thư viện hình ảnh">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-paper text-leaf"><Icon name="image" className="h-6 w-6" /></span>
+              <div>
+                <p className="font-display text-lg font-bold">Học liệu nhỏ, khám phá lớn</p>
+                <p className="mt-0.5 text-xs leading-5 text-ink-soft">Thêm tên gọi, từ khóa và đặc điểm để giáo viên dễ tìm hình ảnh phù hợp.</p>
+              </div>
+            </aside>
             {notice && (
               <div
                 role="status"
-                className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800"
+                className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-leaf/20 bg-leaf-soft px-4 py-3 text-sm leading-6 text-ink"
               >
                 <span>{notice}</span>
                 <button
@@ -238,46 +200,13 @@ export function AssetLibrary({
               </div>
             )}
             <AssetFilters key={filterKey} filters={filters} onApply={apply} />
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
-              <div
-                role="group"
-                aria-label="Lọc theo trạng thái học liệu"
-                className="grid gap-2 sm:grid-cols-2"
-              >
-                {(
-                  [
-                    ["ACTIVE", "Đang sử dụng", "Được chọn để tạo trò chơi mới"],
-                    [
-                      "INACTIVE",
-                      "Ngừng sử dụng",
-                      "Giữ lại học liệu, có thể kích hoạt lại",
-                    ],
-                  ] satisfies [AssetStatus, string, string][]
-                ).map(([status, label, description]) => (
-                  <button
-                    key={status}
-                    type="button"
-                    aria-pressed={filters.status === status}
-                    className={`min-h-16 rounded-xl border-2 px-4 py-3 text-left ${filters.status === status ? (status === "ACTIVE" ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-slate-500 bg-slate-100 text-slate-900") : "border-transparent bg-slate-50 text-slate-600 hover:border-slate-200"}`}
-                    onClick={() => changeStatusFilter(status)}
-                  >
-                    <span className="block text-sm font-semibold">
-                      {status} · {label}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5">
-                      {description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="mb-4 mt-7 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-slate-700">
+              <h2 className="font-display text-2xl font-bold">
                 {filters.status === "ACTIVE"
                   ? "Học liệu đang sử dụng"
                   : "Học liệu ngừng sử dụng"}
                 {!loading && !error && pagination && (
-                  <span className="ml-2 rounded-full bg-slate-200/70 px-2 py-0.5 text-xs text-slate-600">
+                  <span className="ml-2 rounded-full bg-leaf-soft px-2.5 py-1 font-sans text-sm text-leaf">
                     {pagination.total}
                   </span>
                 )}
@@ -285,13 +214,13 @@ export function AssetLibrary({
               <button
                 type="button"
                 disabled={loading}
-                className="asset-text-button"
+                className="asset-button-secondary"
                 onClick={() => {
                   setLoading(true);
                   setRevision((value) => value + 1);
                 }}
               >
-                ↻ Tải lại
+                <Icon name="refresh" className="h-4 w-4" />Tải lại
               </button>
             </div>
             {loading ? (
@@ -304,20 +233,20 @@ export function AssetLibrary({
                   <div
                     key={index}
                     aria-hidden="true"
-                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                    className="overflow-hidden rounded-2xl border border-line bg-paper"
                   >
-                    <div className="aspect-[4/3] animate-pulse bg-slate-200/70" />
+                    <div className="aspect-[4/3] animate-pulse bg-ink/10" />
                     <div className="space-y-3 p-4">
-                      <div className="h-3 w-1/3 rounded bg-slate-100" />
-                      <div className="h-4 w-3/4 rounded bg-slate-100" />
-                      <div className="h-9 rounded bg-slate-100" />
+                      <div className="h-3 w-1/3 rounded bg-ink/5" />
+                      <div className="h-4 w-3/4 rounded bg-ink/5" />
+                      <div className="h-9 rounded bg-ink/5" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : error ? (
-              <div className="rounded-2xl border border-red-100 bg-white p-8 text-center">
-                <p role="alert" className="text-sm text-red-700">
+              <div className="rounded-2xl border border-berry/20 bg-paper p-8 text-center">
+                <p role="alert" className="text-sm text-berry">
                   {error}
                 </p>
                 <button
@@ -357,9 +286,9 @@ export function AssetLibrary({
                 {pagination && (
                   <nav
                     aria-label="Phân trang thư viện hình ảnh"
-                    className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 pt-5"
+                    className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5"
                   >
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-ink-soft">
                       {(pagination.page - 1) * pagination.pageSize + 1}–
                       {(pagination.page - 1) * pagination.pageSize +
                         result.items.length}{" "}
@@ -378,7 +307,7 @@ export function AssetLibrary({
                       </button>
                       <span
                         aria-live="polite"
-                        className="text-sm text-slate-600"
+                        className="text-sm text-ink-soft"
                       >
                         Trang {pagination.page} / {pagination.totalPages}
                       </span>
@@ -400,12 +329,12 @@ export function AssetLibrary({
                 )}
               </>
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+              <div className="rounded-2xl border border-dashed border-ink/20 bg-paper px-6 py-16 text-center">
                 <span
                   aria-hidden="true"
-                  className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-3xl text-blue-500"
+                  className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-leaf-soft text-3xl text-leaf"
                 >
-                  ▧
+                  <Icon name="image" className="h-7 w-7" />
                 </span>
                 <h2 className="mt-5 text-lg font-semibold">
                   {filtered
@@ -414,7 +343,7 @@ export function AssetLibrary({
                       ? "Chưa có hình ảnh ngừng sử dụng"
                       : "Thư viện đang chờ hình ảnh đầu tiên"}
                 </h2>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-soft">
                   {filtered
                     ? "Thử đổi từ khóa, loại đối tượng hoặc tags để tìm lại."
                     : "Thêm hình ảnh và mô tả để chuẩn bị học liệu cho các trò chơi."}
@@ -433,10 +362,10 @@ export function AssetLibrary({
                 ) : (
                   <button
                     type="button"
-                    className="asset-button-primary mt-6"
+                    className="lumi-button-sun mt-6"
                     onClick={() => setOverlay({ kind: "upload" })}
                   >
-                    ＋ Thêm hình ảnh
+                    <Icon name="plus" className="h-4 w-4" />Thêm hình ảnh
                   </button>
                 )}
               </div>
@@ -489,8 +418,8 @@ export function AssetLibrary({
                 onSaved={(asset) => {
                   setNotice(
                     asset.status === "ACTIVE"
-                      ? `Đã chuyển “${asset.name}” sang ACTIVE. Học liệu có thể được chọn để tạo trò chơi.`
-                      : `Đã chuyển “${asset.name}” sang INACTIVE. Học liệu nằm trong danh sách ngừng sử dụng và có thể kích hoạt lại.`,
+                      ? `Đã kích hoạt lại “${asset.name}”. Hình ảnh có thể được chọn để tạo trò chơi.`
+                      : `Đã ngừng sử dụng “${asset.name}”. Bạn có thể kích hoạt lại hình ảnh bất cứ lúc nào.`,
                   );
                   setHighlightedId(asset.id);
                   setOverlay(
@@ -506,6 +435,6 @@ export function AssetLibrary({
           </>
         )}
       </main>
-    </div>
+    </StaffPage>
   );
 }

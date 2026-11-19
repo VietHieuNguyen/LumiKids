@@ -31,7 +31,7 @@ function TeacherClassrooms({ api }: { api: ClassroomApi }) {
           <li key={item.classId}>
             <Link
               href={`/teacher/classrooms/${item.classId}`}
-              className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-sm hover:border-leaf/50"
+              className="teacher-classroom-card flex h-full flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-sm hover:border-leaf/50"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="break-words text-lg font-bold">{item.className}</span>

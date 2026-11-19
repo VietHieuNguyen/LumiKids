@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { LumiLogo } from "@/components/lumi-logo";
+import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
 
 /** Valley sky, clouds and hills behind the children's screens (decorative only). */
 function Valley() {
@@ -37,7 +37,7 @@ export function ChildFrame({
       <header className="ck-top">
         <span className="ck-brand">
           <LumiLogo size={34} />
-          LumiKids
+          <LumiWordmark />
         </span>
         {childName && (
           <div className="ck-me">

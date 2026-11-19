@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { Notice } from "@/features/classrooms/classroom-shell";
 import { GameAssetsApi } from "@/features/game-assets/api";
 import { AssetLibrary } from "@/features/game-assets/components/asset-library";
 
@@ -21,24 +22,19 @@ export default function GameAssetsPage() {
 
   if (loading || !session || !client)
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-5">
-        <p role="status" className="text-sm text-slate-500">
-          Đang kiểm tra phiên đăng nhập…
-        </p>
-      </main>
+      <Notice>Đang kiểm tra phiên đăng nhập…</Notice>
     );
   const allowed = ["MANAGE_GAME_ASSETS", "READ_GAME_ASSETS"].every(
     (permission) => session.user.permissions.includes(permission),
   );
   if (!allowed)
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-5">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8">
-          <p className="text-xl font-bold text-blue-700">LumiKids</p>
-          <h1 className="mt-6 text-2xl font-semibold">
+      <Notice>
+        <section className="w-full max-w-lg rounded-3xl border border-line bg-paper p-8">
+          <h1 className="font-display text-2xl font-bold text-ink">
             Bạn chưa có quyền quản lý thư viện
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-sm leading-6 text-ink-soft">
             Trang này dành cho tài khoản được cấp quyền đọc và quản lý học liệu.
             Vui lòng liên hệ quản trị viên nếu bạn cần truy cập.
           </p>
@@ -46,13 +42,12 @@ export default function GameAssetsPage() {
             Về tài khoản
           </Link>
         </section>
-      </main>
+      </Notice>
     );
   return (
     <AssetLibrary
       key={session.user.userId}
       client={client}
-      fullName={session.user.fullName}
       onSignIn={() => {
         invalidateSession();
         router.replace("/login");
