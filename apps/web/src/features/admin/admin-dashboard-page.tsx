@@ -55,7 +55,7 @@ function Dashboard({ api }: { api: ClassroomApi }) {
 
 export function DashboardBody({ data }: { data: AdminOverview }) {
   return (
-    <div className="space-y-6">
+    <div className="admin-dashboard">
       <Attention items={attentionItems(data)} />
       <Kpis data={data} />
       <Activity data={data} />
@@ -100,7 +100,7 @@ function ToneIcon({ tone }: { tone: AttentionItem["tone"] }) {
 function Attention({ items }: { items: AttentionItem[] }) {
   if (!items.length)
     return (
-      <section aria-labelledby="attention-heading" className="flex items-center gap-4 rounded-3xl border border-leaf/25 bg-leaf-soft p-5">
+      <section aria-labelledby="attention-heading" className="admin-ready flex items-center gap-4 rounded-3xl border border-leaf/25 bg-leaf-soft p-5">
         <span aria-hidden="true" className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-leaf text-white">
           <svg width="24" height="24" viewBox="0 0 24 24"><path d="M5.5 12.5l4 4 9-9" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
@@ -165,7 +165,7 @@ function Kpis({ data }: { data: AdminOverview }) {
         const body = (
           <>
             <span className="text-sm font-semibold text-ink-soft">{tile.label}</span>
-            <span className="mt-1 flex items-baseline gap-2 font-display text-4xl font-extrabold leading-none tabular-nums">
+            <span className="admin-kpi-value mt-1 flex items-baseline gap-2 font-display text-4xl font-extrabold leading-none tabular-nums">
               {tile.value}
               {tile.direction && tile.direction !== "flat" && (
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className={tile.direction === "up" ? "text-leaf" : "rotate-180 text-berry"}>
@@ -176,9 +176,9 @@ function Kpis({ data }: { data: AdminOverview }) {
             <span className="mt-2 text-xs leading-snug text-ink-soft">{tile.note}</span>
           </>
         );
-        const style = "flex flex-col rounded-3xl border border-line bg-paper p-4 sm:p-5";
+        const style = "admin-kpi flex flex-col rounded-lg border border-line bg-paper";
         return tile.href ? (
-          <Link key={tile.label} href={tile.href} className={`${style} transition hover:-translate-y-0.5 hover:border-leaf/40`}>
+          <Link key={tile.label} href={tile.href} className={`${style} hover:border-leaf/40`}>
             {body}
           </Link>
         ) : (
@@ -205,21 +205,21 @@ function Activity({ data }: { data: AdminOverview }) {
         </p>
       ) : (
         <>
-          <div className="relative flex h-48 items-end gap-[2px] border-b border-line pt-6" aria-hidden="true">
+          <div className="admin-chart relative flex items-end gap-[2px] border-b border-line pt-6">
             {data.days.map((day, index) => {
               const height = day.sessions ? Math.max(4, (day.sessions / max) * 100) : 0;
               return (
-                <div key={day.date} className="group relative flex h-full flex-1 items-end justify-center">
+                <div key={day.date} tabIndex={0} role="img" aria-label={`${shortDay(day.date)}: ${day.sessions} lượt chơi, ${day.completed} chơi hết, ${day.children} trẻ`} className="group relative flex h-full flex-1 items-end justify-center">
                   {(index === last || day.sessions === max) && day.sessions > 0 && (
                     <span className="absolute text-xs font-semibold tabular-nums text-ink" style={{ bottom: `calc(${height}% + 4px)` }}>
                       {day.sessions}
                     </span>
                   )}
                   <div
-                    className={`w-full max-w-9 rounded-t-[4px] transition-colors ${index === last ? "bg-leaf" : "bg-leaf/55 group-hover:bg-leaf"}`}
+                    className={`admin-chart-bar w-full max-w-9 rounded-t-[4px] ${index === last ? "is-today" : ""}`}
                     style={{ height: `${height}%` }}
                   />
-                  <div className="pointer-events-none absolute bottom-full z-10 mb-1 hidden w-max rounded-xl bg-ink px-3 py-2 text-xs text-white shadow-lg group-hover:block">
+                  <div aria-hidden="true" className="pointer-events-none absolute bottom-full z-10 mb-1 hidden w-max rounded-md bg-ink px-3 py-2 text-xs text-white group-hover:block group-focus:block">
                     <p className="font-semibold">{shortDay(day.date)}</p>
                     <p>{day.sessions} lượt · {day.completed} chơi hết</p>
                     <p>{day.children} trẻ</p>

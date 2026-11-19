@@ -37,7 +37,7 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
   return (
     <ClassroomShell title="Quản lý lớp học" eyebrow="Quản trị">
       {(years.error || ageGroups.error) && <ErrorBanner message={years.error || ageGroups.error} onRetry={() => { years.reload(); ageGroups.reload(); }} />}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <Panel
             title={year ? `Lớp năm học ${year.name}` : "Lớp học"}

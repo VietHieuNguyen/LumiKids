@@ -33,15 +33,15 @@ export function Modal({
         if (!busy) onClose();
       }}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-7">
-        <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-line bg-paper px-5 py-4 sm:px-7">
+        <h2 id={titleId} className="font-display text-2xl font-bold text-ink">
           {title}
         </h2>
         <button
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="asset-icon-button"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-ink-soft hover:bg-cream disabled:opacity-40"
           aria-label="Đóng hộp thoại"
         >
           ✕

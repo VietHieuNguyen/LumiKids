@@ -44,15 +44,15 @@ export function AssetStatusDialog({
     <Modal
       title={
         deactivate
-          ? "Chuyển học liệu sang INACTIVE?"
-          : "Chuyển học liệu sang ACTIVE?"
+          ? "Ngừng sử dụng hình ảnh?"
+          : "Kích hoạt lại hình ảnh?"
       }
       onClose={onClose}
       busy={busy}
     >
       <div className="space-y-5 p-5 sm:p-7" aria-busy={busy}>
-        <p className="text-sm leading-7 text-slate-600">
-          <strong className="break-words text-slate-900">{asset.name}</strong>
+        <p className="text-sm leading-7 text-ink-soft">
+          <strong className="break-words text-ink">{asset.name}</strong>
           {deactivate
             ? " sẽ không được chọn để tạo trò chơi mới và không được cấp URL ảnh mới cho bản chơi thử. File ảnh và metadata vẫn được giữ lại; bạn có thể kích hoạt lại bất cứ lúc nào."
             : " sẽ được đưa lại vào danh sách ACTIVE và có thể được chọn để tạo trò chơi mới. File ảnh và metadata được giữ nguyên."}
@@ -83,8 +83,8 @@ export function AssetStatusDialog({
             {busy
               ? "Đang cập nhật…"
               : deactivate
-                ? "Chuyển sang INACTIVE"
-                : "Chuyển sang ACTIVE"}
+                ? "Ngừng sử dụng"
+                : "Kích hoạt lại"}
           </button>
         </div>
       </div>

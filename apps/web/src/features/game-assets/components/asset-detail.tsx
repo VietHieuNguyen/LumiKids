@@ -70,7 +70,7 @@ export function AssetDetail({
     <Modal title="Chi tiết hình ảnh" onClose={onClose} wide>
       <div className="p-5 sm:p-7">
         {loading ? (
-          <p role="status" className="py-16 text-center text-sm text-slate-500">
+          <p role="status" className="py-16 text-center text-sm text-ink-soft">
             Đang tải thông tin hình ảnh…
           </p>
         ) : error ? (
@@ -90,7 +90,7 @@ export function AssetDetail({
           asset && (
             <>
               <div className="grid items-start gap-7 md:grid-cols-2">
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="overflow-hidden rounded-2xl border border-line">
                   <AssetImage
                     client={client}
                     id={asset.id}
@@ -101,10 +101,10 @@ export function AssetDetail({
                 </div>
                 <div className="min-w-0">
                   <AssetStatusBadge status={asset.status} />
-                  <h3 className="mt-3 break-words text-2xl font-semibold text-slate-900">
+                  <h3 className="mt-3 break-words font-display text-3xl font-bold text-ink">
                     {asset.name}
                   </h3>
-                  <p className="mt-2 text-sm font-medium text-slate-500">
+                  <p className="mt-2 text-sm font-medium text-ink-soft">
                     {asset.objectType}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -112,44 +112,44 @@ export function AssetDetail({
                       asset.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="max-w-full break-words rounded-lg bg-blue-50 px-2.5 py-1 text-xs text-blue-700"
+                          className="max-w-full break-words rounded-lg bg-leaf-soft px-2.5 py-1 text-xs text-leaf"
                         >
                           #{tag}
                         </span>
                       ))
                     ) : (
-                      <p className="text-sm text-slate-400">Chưa có tags</p>
+                      <p className="text-sm text-ink-soft/70">Chưa có tags</p>
                     )}
                   </div>
-                  <dl className="mt-6 space-y-3 border-y border-slate-100 py-5 text-sm">
+                  <dl className="mt-6 space-y-3 border-y border-line py-5 text-sm">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-slate-500">Định dạng</dt>
-                      <dd className="font-medium text-slate-700">
+                      <dt className="text-ink-soft">Định dạng</dt>
+                      <dd className="font-medium text-ink">
                         {asset.mimeType}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-slate-500">Dung lượng</dt>
-                      <dd className="font-medium text-slate-700">
+                      <dt className="text-ink-soft">Dung lượng</dt>
+                      <dd className="font-medium text-ink">
                         {formatBytes(asset.sizeBytes)}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="shrink-0 text-slate-500">Ngày tạo</dt>
-                      <dd className="text-right text-slate-700">
+                      <dt className="shrink-0 text-ink-soft">Ngày tạo</dt>
+                      <dd className="text-right text-ink">
                         {formatDate(asset.createdAt)}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="shrink-0 text-slate-500">Cập nhật</dt>
-                      <dd className="text-right text-slate-700">
+                      <dt className="shrink-0 text-ink-soft">Cập nhật</dt>
+                      <dd className="text-right text-ink">
                         {formatDate(asset.updatedAt)}
                       </dd>
                     </div>
                   </dl>
                   <div className="mt-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-slate-500">
+                      <span className="text-xs font-medium text-ink-soft">
                         Mã asset
                       </span>
                       <button
@@ -160,10 +160,10 @@ export function AssetDetail({
                         Sao chép
                       </button>
                     </div>
-                    <p className="mt-2 select-all break-all font-mono text-xs leading-5 text-slate-600">
+                    <p className="mt-2 select-all break-all font-mono text-xs leading-5 text-ink-soft">
                       {asset.id}
                     </p>
-                    <p role="status" className="mt-1 text-xs text-slate-500">
+                    <p role="status" className="mt-1 text-xs text-ink-soft">
                       {copyMessage}
                     </p>
                   </div>
@@ -177,16 +177,16 @@ export function AssetDetail({
                   Thuộc tính
                 </h3>
                 {Object.entries(asset.attributes).length ? (
-                  <dl className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                  <dl className="mt-3 divide-y divide-line rounded-xl border border-line">
                     {Object.entries(asset.attributes).map(([key, value]) => (
                       <div
                         key={key}
                         className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[10rem_1fr]"
                       >
-                        <dt className="break-words font-medium text-slate-600">
+                        <dt className="break-words font-medium text-ink-soft">
                           {key}
                         </dt>
-                        <dd className="whitespace-pre-wrap break-all text-slate-800">
+                        <dd className="whitespace-pre-wrap break-all text-ink">
                           {typeof value === "string"
                             ? value
                             : JSON.stringify(value, null, 2)}
@@ -195,27 +195,27 @@ export function AssetDetail({
                     ))}
                   </dl>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 text-sm text-ink-soft/70">
                     Chưa có thuộc tính.
                   </p>
                 )}
               </section>
-              <div className="mt-7 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5">
+              <div className="mt-7 flex flex-wrap justify-end gap-3 border-t border-line pt-5">
                 <button
                   type="button"
                   className="asset-button-secondary"
                   onClick={() => onStatus(asset)}
                 >
                   {asset.status === "ACTIVE"
-                    ? "Chuyển INACTIVE · Ngừng sử dụng"
-                    : "Chuyển ACTIVE · Kích hoạt lại"}
+                    ? "Ngừng sử dụng"
+                    : "Kích hoạt lại"}
                 </button>
                 <button
                   type="button"
                   className="asset-button-primary"
                   onClick={() => onEdit(asset)}
                 >
-                  Chỉnh sửa metadata
+                  Chỉnh sửa thông tin
                 </button>
               </div>
             </>

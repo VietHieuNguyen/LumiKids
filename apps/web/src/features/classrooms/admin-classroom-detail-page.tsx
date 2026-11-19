@@ -71,7 +71,7 @@ function AdminClassroom({ api, classId, tab }: { api: ClassroomApi; classId: str
       {tab === "assignments" ? (
         <AssignmentsPanel api={assignments} classId={classId} canAssign={false} />
       ) : (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <ChildrenPanel api={api} classroom={data} onChange={classroom.replace} reload={classroom.reload} />
         </div>

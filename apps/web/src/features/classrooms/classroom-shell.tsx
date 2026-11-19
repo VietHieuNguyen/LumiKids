@@ -41,7 +41,7 @@ export function ClassroomShell({
 
 export function Panel({ title, description, actions, children }: { title: string; description?: string; actions?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-3xl border border-line bg-paper p-4 shadow-[0_1px_0_rgb(24_56_41/4%),0_12px_32px_-20px_rgb(24_56_41/25%)] sm:p-6">
+    <section className="admin-panel rounded-3xl border border-line bg-paper p-4 shadow-[0_1px_0_rgb(24_56_41/4%),0_12px_32px_-20px_rgb(24_56_41/25%)] sm:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-display text-xl font-bold">{title}</h2>

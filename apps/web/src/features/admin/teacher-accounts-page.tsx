@@ -90,7 +90,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
           <p className="mt-1 text-sm text-ink-soft">{all.length ? "Thử bỏ lọc hoặc tìm tên khác." : "Thêm tài khoản để phân công giáo viên vào lớp."}</p>
         </div>
       )}
-      <ul className="grid gap-3 md:grid-cols-2">
+      <ul className="admin-teacher-list grid gap-3 md:grid-cols-2">
         {shown.map((account) => (
           <TeacherCard
             key={account.userId}
@@ -166,8 +166,8 @@ function TeacherCard({
     }
   }
   return (
-    <li className={`flex flex-col rounded-3xl border border-line bg-paper p-5 ${active ? "" : "opacity-75"}`}>
-      <div className="flex items-start gap-3">
+    <li className={`admin-teacher-row flex flex-col rounded-3xl border border-line bg-paper p-5 ${active ? "" : "opacity-75"}`}>
+      <div className="admin-teacher-identity flex items-start gap-3">
         <span aria-hidden="true" className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-display text-xl font-bold ring-1 ${active ? "bg-sun-soft ring-sun-edge/40" : "bg-ink/5 ring-line"}`}>
           {account.fullName.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
         </span>
@@ -178,7 +178,7 @@ function TeacherCard({
         </div>
         <StatusPill tone={active ? "green" : "slate"}>{active ? "Hoạt động" : "Đã khóa"}</StatusPill>
       </div>
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+      <dl className="admin-teacher-stats mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
           <dt className="text-xs font-semibold text-ink-soft">Đăng nhập gần nhất</dt>
           <dd className="font-semibold">{lastSeenLabel(account.lastLoginAt, now)}</dd>
@@ -189,7 +189,7 @@ function TeacherCard({
         </div>
       </dl>
       {activeClasses.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5">
+        <ul className="admin-teacher-classes mt-3 flex flex-wrap gap-1.5">
           {activeClasses.map((item) => (
             <li key={item.classId}>
               <Link href={`/admin/classrooms/${item.classId}`} className="inline-flex min-h-8 items-center rounded-full bg-leaf-soft px-3 text-xs font-semibold text-leaf hover:bg-leaf hover:text-white">
@@ -199,7 +199,7 @@ function TeacherCard({
           ))}
         </ul>
       )}
-      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+      <div className="admin-teacher-actions mt-auto flex flex-wrap gap-2 pt-4">
         <button type="button" className="asset-button-secondary" onClick={onEdit} disabled={busy}>Sửa</button>
         {active && (
           <button
