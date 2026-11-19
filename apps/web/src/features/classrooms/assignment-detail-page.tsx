@@ -87,7 +87,7 @@ function Detail({
       actions={<StatusPill tone={assignmentStateTones[data.state]}>{assignmentStateLabels[data.state]}</StatusPill>}
     >
       {detail.error && <ErrorBanner message={detail.error} onRetry={detail.reload} />}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-6">
           <ReplayRequests api={assignments} detail={data} editable={editable} onChange={detail.replace} />
           <Recipients api={assignments} classId={classId} detail={data} editable={editable} onChange={detail.replace} />

@@ -93,18 +93,18 @@ export function SaveGamePanel({
   }
   return (
     <section
-      className="rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-7"
+      className="rounded-3xl border border-line bg-paper p-5 shadow-sm sm:p-7"
       aria-label="Lưu trò chơi vào kho"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+          <p className="text-xs font-bold uppercase tracking-widest text-leaf">
             Kho trò chơi chung
           </p>
-          <h2 className="mt-2 text-xl font-bold text-slate-900">
+          <h2 className="mt-2 font-display text-2xl font-bold text-ink">
             Lưu trò chơi đã duyệt
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-ink-soft">
             Chọn một chỉ số mà trò chơi này đánh giá. Mọi giáo viên có thể mở
             và dùng lại trò đã lưu.
           </p>
@@ -116,7 +116,7 @@ export function SaveGamePanel({
       {saved ? (
         <div
           role="status"
-          className="mt-5 rounded-2xl bg-emerald-50 p-5 text-emerald-900"
+          className="mt-5 rounded-2xl bg-leaf-soft p-5 text-ink"
         >
           <strong>Đã lưu “{saved.name}” vào kho.</strong>
           <p className="mt-2 text-sm">
@@ -133,7 +133,7 @@ export function SaveGamePanel({
         <>
           <fieldset disabled={busy || disabled} className="mt-6 space-y-5">
             <label className="block text-sm font-semibold">
-              Tên trò chơi <span className="text-red-600">*</span>
+              Tên trò chơi <span className="text-berry">*</span>
               <input
                 className="asset-input mt-2"
                 value={name}
@@ -144,7 +144,7 @@ export function SaveGamePanel({
             </label>
             <label className="block text-sm font-semibold">
               Ghi chú cho giáo viên{" "}
-              <span className="font-normal text-slate-400">· tùy chọn</span>
+              <span className="font-normal text-ink-soft/70">· tùy chọn</span>
               <textarea
                 className="asset-input mt-2"
                 rows={2}
@@ -156,9 +156,9 @@ export function SaveGamePanel({
             </label>
             <div>
               <h3 className="text-sm font-bold">
-                Chỉ số đánh giá <span className="text-red-600">*</span>
+                Chỉ số đánh giá <span className="text-berry">*</span>
               </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
+              <p className="mt-1 text-xs leading-5 text-ink-soft">
                 Mỗi trò chơi đánh giá đúng một chỉ số. Khi trẻ chơi xong, hệ thống
                 tính điểm của lượt chơi cho chỉ số này.
               </p>
@@ -184,24 +184,24 @@ export function SaveGamePanel({
                   <details
                     key={skill.skillCode}
                     open
-                    className="rounded-2xl border border-slate-200 p-4"
+                    className="rounded-2xl border border-line p-4"
                   >
-                    <summary className="cursor-pointer text-sm font-bold text-indigo-900">
+                    <summary className="cursor-pointer text-sm font-bold text-ink">
                       Chuẩn {skill.skillCode} · {skill.name}
                     </summary>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-ink-soft">
                       {skill.description}
                     </p>
                     <div className="mt-3 space-y-2">
                       {skill.criterions.map((c) => (
                         <label
                           key={c.criterionCode}
-                          className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm leading-6 ${codes.includes(c.criterionCode) ? "border-indigo-300 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}
+                          className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm leading-6 ${codes.includes(c.criterionCode) ? "border-leaf bg-leaf-soft" : "border-line hover:bg-cream"}`}
                         >
                           <input
                             type="radio"
                             name="criterion"
-                            className="mt-1 h-4 w-4 shrink-0 accent-indigo-600"
+                            className="mt-1 h-4 w-4 shrink-0 accent-leaf"
                             checked={codes.includes(c.criterionCode)}
                             onChange={() => setCodes([c.criterionCode])}
                           />
@@ -215,18 +215,18 @@ export function SaveGamePanel({
                   </details>
                 ))}
               </div>
-              <p className="mt-3 text-sm font-medium text-indigo-700">
+              <p className="mt-3 text-sm font-medium text-leaf">
                 {codes.length
                   ? `Đã chọn chỉ số ${codes.join(", ")}.`
                   : "Chưa chọn chỉ số."}
               </p>
             </div>
-            <label className="flex cursor-pointer gap-3 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            <label className="flex cursor-pointer gap-3 rounded-xl bg-sun-soft p-4 text-sm leading-6 text-[#805b13]">
               <input
                 type="checkbox"
                 checked={review}
                 onChange={(e) => setReview(e.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0 accent-amber-700"
+                className="mt-1 h-4 w-4 shrink-0 accent-leaf"
               />
               <span>
                 Tôi đã kiểm tra hình ảnh, hướng dẫn, đáp án và sự phù hợp với
@@ -235,7 +235,7 @@ export function SaveGamePanel({
             </label>
           </fieldset>
           {!difficulty && (
-            <p className="mt-4 text-sm text-amber-800">
+            <p className="mt-4 text-sm text-[#805b13]">
               Chọn độ khó Dễ, Trung bình hoặc Khó ở phía trên trước khi lưu.
             </p>
           )}
@@ -246,7 +246,7 @@ export function SaveGamePanel({
           )}
           <button
             type="button"
-            className="asset-button-primary mt-5"
+            className="lumi-button-sun mt-5"
             disabled={
               busy ||
               disabled ||
@@ -261,7 +261,7 @@ export function SaveGamePanel({
           >
             {busy ? "Đang lưu…" : "Lưu vào kho trò chơi"}
           </button>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-ink-soft">
             Lưu không gọi lại AI và không thay đổi lượt chơi hiện tại.
           </p>
         </>
