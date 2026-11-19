@@ -66,6 +66,8 @@ async def handle_failure(_request: Request, error: AiFailure) -> JSONResponse:
     body: dict = {'code': error.code, 'retryable': error.retryable}
     if error.diagnostic is not None:
         body['diagnostic'] = error.diagnostic
+    if error.usage is not None:
+        body['usage'] = error.usage
     return JSONResponse({'error': body}, status_code=error.status)
 
 
@@ -84,16 +86,20 @@ async def health() -> dict[str, str]:
 async def generate_game(request: GenerationRequest, settings: Annotated[Settings, Depends(authorize)]) -> dict:
     started = time.monotonic()
     status = 'OK'
+    usage: dict = {}
     try:
-        result = await generate(request, settings)
-        return {'requestId': str(request.request_id), 'gameContent': result, 'model': settings.gemini_model}
+        result = await generate(request, settings, usage)
+        return {'requestId': str(request.request_id), 'gameContent': result, 'model': settings.gemini_model, 'usage': usage or None}
     except AiFailure as error:
         status = error.code
+        error.usage = usage or None
         raise
     except Exception:
         status = 'AI_PROVIDER_ERROR'
         # No raw SDK exception/trace logging: provider payloads can contain credentials.
-        raise AiFailure('AI_PROVIDER_ERROR') from None
+        failure = AiFailure('AI_PROVIDER_ERROR')
+        failure.usage = usage or None
+        raise failure from None
     finally:
         logger.info('requestId=%s gameType=%s durationMs=%d status=%s attempt=%d', request.request_id,
                     request.game_type, (time.monotonic() - started) * 1000, status, request.attempt)

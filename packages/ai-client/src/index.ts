@@ -50,10 +50,19 @@ export const aiErrorCodes = [
   "AI_CONTRACT_INVALID",
 ] as const;
 export type AiErrorCode = (typeof aiErrorCodes)[number];
+export const tokenUsageSchema = z.strictObject({
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  thoughtTokens: z.number().int().nonnegative(),
+  cachedTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+});
+export type TokenUsage = z.infer<typeof tokenUsageSchema>;
 const successSchema = z.strictObject({
   requestId: z.uuid(),
   gameContent: z.record(z.string(), z.unknown()),
   model: z.string().min(1).max(100),
+  usage: tokenUsageSchema.nullable().optional(),
 });
 const diagnosticSchema = z.strictObject({
   providerStatus: z.number().int().min(100).max(599),
@@ -75,6 +84,7 @@ const errorSchema = z.strictObject({
     code: z.enum(aiErrorCodes),
     retryable: z.boolean(),
     diagnostic: diagnosticSchema.optional(),
+    usage: tokenUsageSchema.nullable().optional(),
   }),
 });
 export type AiGenerationResponse = z.infer<typeof successSchema>;
@@ -126,6 +136,7 @@ export class AiClientError extends Error {
     public readonly code: AiErrorCode,
     retryable: boolean,
     public readonly diagnostic?: AiDiagnostic,
+    public readonly usage?: TokenUsage | null,
   ) {
     super(code);
     this.name = "AiClientError";
@@ -206,6 +217,7 @@ export class AiClient {
             failure.data.error.code,
             failure.data.error.retryable,
             failure.data.error.diagnostic,
+            failure.data.error.usage,
           );
         throw new AiClientError(
           "AI_SERVICE_UNAVAILABLE",

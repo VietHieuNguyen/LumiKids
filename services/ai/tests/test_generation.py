@@ -52,7 +52,7 @@ def payload() -> dict:
 
 
 def content() -> dict:
-    return {'schemaVersion': 1, 'gameType': 'COUNTING', 'instruction': 'Đếm bóng',
+    return {'schemaVersion': 2, 'gameType': 'COUNTING', 'instruction': 'Đếm bóng', 'countingRule': {'type': 'ALL'}, 'countedItemIds': ['ball1'],
             'items': [{'id': 'ball1', 'assetId': '61aa17ec-2380-4f39-9229-045322b692d7'}],
             'choices': [{'id': 'one', 'value': 1}, {'id': 'two', 'value': 2}],
             'correctChoiceId': 'one', 'completionRule': 'CORRECT_CHOICE'}
@@ -64,6 +64,23 @@ def mock_client(response: object = None, error: Exception | None = None) -> tupl
     client.aio.__aenter__ = AsyncMock(return_value=SimpleNamespace(models=SimpleNamespace(generate_content=call)))
     client.aio.__aexit__ = AsyncMock(return_value=False)
     return client, call
+
+
+@pytest.mark.parametrize('invalid', [False, True])
+def test_provider_usage_survives_invalid_generated_output(payload: dict, settings: Settings, invalid: bool) -> None:
+    response = types.GenerateContentResponse(
+        usage_metadata=types.GenerateContentResponseUsageMetadata(prompt_token_count=100, candidates_token_count=20, thoughts_token_count=5, cached_content_token_count=10, total_token_count=125),
+        candidates=[types.Candidate(finish_reason='STOP', content=types.Content(parts=[types.Part(text='bad json' if invalid else json.dumps(content()))]))],
+    )
+    client, _ = mock_client(response)
+    usage = {}
+    with patch('app.gateway.genai.Client', return_value=client):
+        if invalid:
+            with pytest.raises(AiFailure, match='AI_OUTPUT_INVALID'):
+                asyncio.run(generate(GenerationRequest.model_validate(payload), settings, usage))
+        else:
+            asyncio.run(generate(GenerationRequest.model_validate(payload), settings, usage))
+    assert usage == {'inputTokens': 100, 'outputTokens': 20, 'thoughtTokens': 5, 'cachedTokens': 10, 'totalTokens': 125}
 
 
 def test_prompt_treats_teacher_and_metadata_as_data(payload: dict) -> None:
@@ -138,6 +155,12 @@ def test_missing_key_never_creates_sdk_client(payload: dict) -> None:
 def test_structured_schemas_accept_real_shared_examples(game_type: str) -> None:
     example_path = ROOT / 'packages' / 'shared' / 'examples' / 'game-content' / f'{game_type.lower()}.v1.json'
     example = json.loads(example_path.read_text(encoding='utf-8'))
+    if game_type == 'COUNTING':
+        example.update(schemaVersion=2, countingRule={'type': 'ALL'}, countedItemIds=[item['id'] for item in example['items']])
+    elif game_type == 'CLASSIFICATION':
+        example['schemaVersion'] = 2
+        for item in example['items']:
+            item['correctGroupIds'] = [item.pop('correctGroupId')]
     script = '''import {gameResponseSchema} from './packages/ai-client/dist/index.js';
     import {getGameContentAssetIds} from './packages/shared/dist/index.js';
     import fs from 'node:fs';

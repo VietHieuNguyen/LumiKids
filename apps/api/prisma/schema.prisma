@@ -63,6 +63,28 @@ model User {
   classGroups     ClassGroup[]
   assignments     ActivityAssignment[]
   replayDecisions ReplayRequest[]
+  aiTokenUsage    AiTokenUsage[]
+}
+
+model AiTokenUsage {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  user         User     @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  requestId    String   @db.Uuid
+  attempt      Int
+  gameType     String   @db.VarChar(30)
+  model        String?  @db.VarChar(100)
+  status       String   @db.VarChar(60)
+  inputTokens  Int?
+  outputTokens Int?
+  thoughtTokens Int?
+  cachedTokens Int?
+  totalTokens  Int?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([requestId, attempt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 enum Gender {

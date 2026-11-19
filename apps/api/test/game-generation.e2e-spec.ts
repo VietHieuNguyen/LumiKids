@@ -23,6 +23,11 @@ describe('Game generation HTTP (offline)', () => {
   let token: string;
   const secret = randomBytes(48).toString('base64url');
   const ai = { generate: vi.fn() };
+  const usageDb = {
+    user: { findMany: vi.fn() },
+    aiTokenUsage: { create: vi.fn(), groupBy: vi.fn(), findMany: vi.fn(), count: vi.fn() },
+    $transaction: vi.fn(),
+  };
   const assets = {
     searchForGeneration: vi.fn(),
     findForGeneration: vi.fn(),
@@ -32,6 +37,9 @@ describe('Game generation HTTP (offline)', () => {
   const base = '/api/v1/game-generation/generate';
   beforeEach(async () => {
     vi.resetAllMocks();
+    usageDb.aiTokenUsage.create.mockResolvedValue({});
+    usageDb.user.findMany.mockResolvedValue([]);
+    usageDb.$transaction.mockResolvedValue([[], [], 0]);
     stubStorageEnvironment();
     vi.stubEnv('JWT_ACCESS_SECRET', secret);
     vi.stubEnv('JWT_ISSUER', 'lumikids-api');
@@ -71,7 +79,7 @@ describe('Game generation HTTP (offline)', () => {
     }));
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
-      .useValue({})
+      .useValue(usageDb)
       .overrideProvider(UsersService)
       .useValue({ requireActivePrincipal: () => Promise.resolve(actor) })
       .overrideProvider(GameAssetRepository)
@@ -100,6 +108,18 @@ describe('Game generation HTTP (offline)', () => {
   afterEach(async () => {
     await app?.close();
     vi.unstubAllEnvs();
+  });
+  it('protects token reports over HTTP and never accepts another teacher ID for own data', async () => {
+    const query = { from: '2026-11-01', to: '2026-11-20', userId: randomUUID() };
+    const base = '/api/v1/token-usage';
+    await request(app.getHttpServer()).get(`${base}/me`).query(query).expect(401);
+    actor = { ...actor, roles: ['ROLE_TEACHER'], permissions: ['READ_OWN_ACCOUNT'] };
+    await request(app.getHttpServer()).get(`${base}/me`).auth(token, { type: 'bearer' }).query(query).expect(200);
+    expect(usageDb.user.findMany.mock.calls.at(-1)?.[0].where.userId).toBe(actor.userId);
+    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query(query).expect(403);
+    actor = { ...actor, roles: ['ROLE_ADMIN'], permissions: ['MANAGE_USERS', 'READ_OWN_ACCOUNT'] };
+    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query(query).expect(200);
+    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query({ ...query, to: 'bad-date' }).expect(400);
   });
   const post = () =>
     request(app.getHttpServer()).post(base).auth(token, { type: 'bearer' });
