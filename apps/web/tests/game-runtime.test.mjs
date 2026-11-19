@@ -10,6 +10,113 @@ import {
   getGameProgress,
 } from "@lumikids/shared";
 import { createGameController } from "../src/features/game-runtime/model/controller.ts";
+import { driftAcross, duckSwim, frogHop, birdFlight, FROG_HOP_DURATION } from "../src/features/game-runtime/environment/scenery-motion.ts";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { createDrinker, solveDrinkingPose, restoreDrinkingPose, drinkingTipPosition } from "../src/features/game-runtime/environment/animal-drinking.ts";
+
+for (const kind of ["deer", "elephant"]) {
+  test(`${kind}: actual GLB drinking pose reaches water without moving the feet`, async () => {
+    const bytes = readFileSync(new URL(`../public/models/landing/${kind}.glb`, import.meta.url));
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), "");
+    const mixer = new THREE.AnimationMixer(gltf.scene);
+    let action = mixer.clipAction(gltf.animations.find((c) => c.name === "Idle") ?? gltf.animations[0]).play();
+    mixer.update(0);
+    const box = new THREE.Box3().setFromObject(gltf.scene), center = box.getCenter(new THREE.Vector3());
+    const normalized = new THREE.Group(), body = new THREE.Group(), root = new THREE.Group();
+    gltf.scene.position.sub(new THREE.Vector3(center.x, box.min.y, center.z));
+    normalized.add(gltf.scene); normalized.scale.setScalar(1 / (box.max.y - box.min.y));
+    body.add(normalized); body.rotation.y = kind === "deer" ? 0.5 : -Math.PI / 2 - 0.25; root.add(body);
+    if (kind === "deer") { action.stop(); action = mixer.clipAction(gltf.animations.find((c) => c.name === "Eating")).play(); action.time = 1.6; mixer.update(0); }
+    root.updateMatrixWorld(true);
+    const names = kind === "deer" ? ["FFL", "FFR", "FFBL", "FFBR"] : ["Bone001_Armature", "Bone003_Armature", "Bone005_Armature", "Bone007_Armature"];
+    const feet = names.map((name) => gltf.scene.getObjectByName(name));
+    const before = feet.map((foot) => foot.getWorldPosition(new THREE.Vector3()));
+    const drinker = createDrinker(gltf.scene, root, kind);
+    assert.ok(drinker, "the model must expose a supported muzzle/trunk chain");
+    const resting = drinkingTipPosition(drinker, new THREE.Vector3()).clone();
+    const target = root.localToWorld(drinker.target.clone());
+    solveDrinkingPose(drinker, target, 1);
+    const tip = drinkingTipPosition(drinker, new THREE.Vector3());
+    assert.ok(tip.y >= -0.01 && tip.y < 0.015, `tip must touch the water plane: ${tip.y}`);
+    assert.ok(tip.distanceTo(target) < 0.02);
+    feet.forEach((foot, i) => assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(before[i]) < 1e-8));
+    restoreDrinkingPose(drinker);
+    assert.ok(drinkingTipPosition(drinker, new THREE.Vector3()).distanceTo(resting) < 1e-8, "drinking can release back to the animated pose");
+    // ResizeObserver changes the stage scale before the next renderer traversal.
+    // Solve against the skin that will actually be rendered, including its updated bind inverse.
+    for (const scale of [170, 85, 200]) {
+      restoreDrinkingPose(drinker);
+      root.scale.setScalar(scale); root.position.set(scale * 0.4, 0, scale * 5);
+      const scaledFeet = feet.map((foot) => foot.getWorldPosition(new THREE.Vector3()));
+      const scaledTarget = root.localToWorld(drinker.target.clone());
+      solveDrinkingPose(drinker, scaledTarget, 1);
+      root.updateMatrixWorld(true);
+      const renderedTip = drinkingTipPosition(drinker, new THREE.Vector3());
+      assert.ok(renderedTip.y >= -0.01 * scale && renderedTip.y < 0.015 * scale, `resized tip must touch water: ${renderedTip.y / scale}`);
+      assert.ok(renderedTip.distanceTo(scaledTarget) < 0.02 * scale);
+      feet.forEach((foot, i) => assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(scaledFeet[i]) < 1e-8));
+    }
+    mixer.stopAllAction(); mixer.uncacheRoot(gltf.scene);
+  });
+}
+
+test("decorative ducks swim in a bounded lane, reverse heading and turn continuously", () => {
+  for (const phase of [0, 0.6]) {
+    for (let t = 0; t < 120; t += 0.1) {
+      const pose = duckSwim(t, phase);
+      assert.ok(Math.abs(pose.offsetX) <= 0.075 + 1e-9);
+      assert.ok(Math.abs(pose.offsetY) <= 0.005 + 1e-9);
+      assert.ok(Math.abs(pose.heading - duckSwim(t + 0.001, phase).heading) < 0.002);
+    }
+  }
+  assert.ok(duckSwim(0, 0).heading > 0);
+  assert.ok(duckSwim(Math.PI / 0.19, 0).heading < 0);
+  assert.ok(Math.abs(duckSwim(5, 0).offsetX - duckSwim(15, 0).offsetX) > 0.02);
+});
+
+test("frog rests between hops, travels a raised arc and lands continuously on alternating pads", () => {
+  assert.equal(frogHop(8.99).active, false);
+  assert.equal(frogHop(9).active, true);
+  const apex = frogHop(9 + FROG_HOP_DURATION / 2);
+  assert.ok(apex.arc > 0.99 && Math.abs(apex.travel - 0.5) < 1e-9);
+  for (let cycle = 0; cycle < 8; cycle++) {
+    const end = frogHop(cycle * 15 + 9 + FROG_HOP_DURATION);
+    const next = frogHop((cycle + 1) * 15);
+    assert.equal(end.active, false);
+    assert.equal(end.travel, 1);
+    assert.ok(Math.abs(end.arc) < 1e-9);
+    assert.equal(end.to, next.from);
+    assert.equal(next.travel, 0);
+    assert.equal(frogHop((cycle + 1) * 15 + 8).active, false);
+  }
+});
+
+test("clouds and floating leaves cross the screen slowly and wrap only outside the viewport", () => {
+  for (const period of [95, 110, 140]) {
+    assert.ok(Math.abs(driftAcross(0, 0.4, period) - 0.4) < 1e-9);
+    for (let t = 0; t < 400; t += 0.5) {
+      const a = driftAcross(t, 0.4, period), b = driftAcross(t + 0.5, 0.4, period);
+      assert.ok(a >= -0.28 && a <= 1.28);
+      if (b < a) assert.ok(a > 1.2 && b < -0.2);
+      else assert.ok(b - a < 0.01);
+    }
+  }
+});
+
+test("bird flock flies left to right in the sky and leaves a quiet interval between passes", () => {
+  assert.equal(birdFlight(3, 0).visible, false);
+  assert.equal(birdFlight(5, 0).visible, true);
+  assert.ok(birdFlight(10, 0).x > birdFlight(5, 0).x);
+  assert.equal(birdFlight(22, 0).visible, false);
+  assert.equal(birdFlight(39, 0).visible, true);
+  for (let i = 0; i < 3; i++) for (let t = 0; t < 80; t++) {
+    const pose = birdFlight(t, i);
+    assert.ok(pose.y > 0.05 && pose.y < 0.15);
+    if (pose.visible) assert.ok(pose.x >= -0.18 && pose.x <= 1.18);
+  }
+});
 
 const load = (name) =>
   gameContentSchema.parse(

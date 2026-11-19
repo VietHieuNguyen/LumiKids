@@ -20,8 +20,9 @@ import type {
 import { gameRegistry } from "./registry";
 import { readableGameText } from "./components/display-text";
 import type { CSSProperties } from "react";
-import { gameBackground } from "./model/backgrounds";
+import { gameSceneTheme, SCENE_BACKGROUNDS } from "./model/backgrounds";
 import { GameSymbol } from "./components/game-symbol";
+import { GameBackdrop } from "./environment/game-backdrop";
 
 export interface GameRuntimeProps extends RuntimeCallbacks {
   content: GameContent;
@@ -107,6 +108,7 @@ function GameRun({
   }, [content.gameType]);
   const progress = getGameProgress(content, state);
   const registration = gameRegistry[content.gameType];
+  const theme = gameSceneTheme(content.gameType);
   function act(action: GameAction) {
     if (paused) return;
     // Commit synchronously in controller, publish UI outside a React state updater.
@@ -131,7 +133,7 @@ function GameRun({
       data-game-design="hanging-cards-v1"
       style={
         {
-          "--game-scene": `url("${gameBackground}")`,
+          "--game-scene": `url("${SCENE_BACKGROUNDS[theme]}")`,
         } as CSSProperties
       }
       className={`game-picture-only overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${fullscreenActive ? "is-expanded" : ""} ${content.gameType === "CLASSIFICATION" ? "game-runtime-classification" : `game-runtime-playful game-runtime-${content.gameType.toLowerCase()}`}`}
@@ -213,22 +215,25 @@ function GameRun({
           </span>
         </div>
       </header>
-      <fieldset
-        disabled={paused}
-        aria-label="Thao tác trò chơi"
-        className="min-w-0 px-5 py-6 sm:px-8 disabled:opacity-60"
-        key={`${round}:${paused}`}
-      >
-        {registration.render({
-          presentationSeed,
-          content,
-          state,
-          assetUrls,
-          assetRevisions,
-          onAction: act,
-          onAssetError,
-        })}
-      </fieldset>
+      <div className="game-forest-scene" data-scene-theme={theme}>
+        <GameBackdrop theme={theme} className="game-forest-canvas" />
+        <fieldset
+          disabled={paused}
+          aria-label="Thao tác trò chơi"
+          className="min-w-0 px-5 py-6 sm:px-8 disabled:opacity-60"
+          key={`${round}:${paused}`}
+        >
+          {registration.render({
+            presentationSeed,
+            content,
+            state,
+            assetUrls,
+            assetRevisions,
+            onAction: act,
+            onAssetError,
+          })}
+        </fieldset>
+      </div>
       <div
         role="status"
         data-feedback={
