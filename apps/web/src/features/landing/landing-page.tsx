@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
 import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
 import { ValleyAudio, audioSupported } from "./landing-audio";
@@ -110,16 +111,6 @@ function rememberFallback(): void {
   } catch {
     // Storage blocked (private mode): the next visit simply tries 3D again.
   }
-}
-
-function LogoMark() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-      <circle cx="16" cy="16" r="14" fill="#183829" />
-      <path d="M16 7.5c1.2 3.6 3.4 5.8 7 7-3.6 1.2-5.8 3.4-7 7-1.2-3.6-3.4-5.8-7-7 3.6-1.2 5.8-3.4 7-7z" fill="#F2C868" />
-      <circle cx="23.5" cy="8.5" r="1.6" fill="#BFE3D0" />
-    </svg>
-  );
 }
 
 function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
@@ -645,8 +636,8 @@ export function LandingPage() {
 
       <header ref={navRef} className="lk-nav" data-solid="false" data-story="true" data-menu={menuOpen}>
         <a className="lk-brand" href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label="LumiKids — về đầu trang">
-          <LogoMark />
-          <span>LumiKids</span>
+          <LumiLogo size={28} />
+          <LumiWordmark />
         </a>
         <nav className="lk-navLinks" aria-label="Điều hướng chính">
           {LANDING_COPY.nav.links.map((link) => (
@@ -862,7 +853,7 @@ export function LandingPage() {
 
           <footer className="lk-footer">
             <div className="lk-footerBrand">
-              <span className="lk-brand"><LogoMark /><span>LumiKids</span></span>
+              <span className="lk-brand"><LumiLogo size={28} /><LumiWordmark /></span>
               <p>{LANDING_COPY.footer.tagline}</p>
             </div>
             <nav aria-label="Liên kết cuối trang" className="lk-footerLinks">

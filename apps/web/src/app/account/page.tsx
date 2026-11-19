@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { StaffPage } from "@/components/staff-shell";
+import { Notice } from "@/features/classrooms/classroom-shell";
 import { ChangePasswordPanel } from "@/features/account/change-password-panel";
 
 const roleLabels: Record<string, string> = {
@@ -42,11 +43,7 @@ export default function AccountPage() {
 
   if (loading || !session)
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-cream px-4">
-        <p role="status" className="text-sm text-ink-soft">
-          Đang kiểm tra phiên đăng nhập…
-        </p>
-      </main>
+      <Notice>Đang kiểm tra phiên đăng nhập…</Notice>
     );
 
   const user = session.user;
