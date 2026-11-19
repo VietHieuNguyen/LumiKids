@@ -140,15 +140,9 @@ export function GameCreator({
         </Link>
         <header className="creator-toolbar">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-leaf">Học liệu · Sáng tạo cùng LumiKids</p>
             <h1 className="font-display text-4xl font-extrabold leading-tight">
               Tạo trò chơi
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-ink-soft">
-              {busy
-                ? "LumiKids đang chuẩn bị trò chơi từ ý tưởng của bạn…"
-                : "Từ một ý tưởng nhỏ, tạo nên giờ học đầy khám phá cho bé."}
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -179,12 +173,12 @@ export function GameCreator({
             ["Chọn loại & mô tả", "Kể ý tưởng của bạn"],
             ["Chơi thử & kiểm tra", "Trải nghiệm như bé"],
             ["Hoàn thiện học liệu", libraryApi ? "Chọn độ khó, duyệt và lưu" : "Chọn độ khó phù hợp"],
-          ].map(([title, description], index) => {
+          ].map(([title], index) => {
             const active = index === (!draft ? 0 : !draft.difficulty ? 1 : 2);
             const done = !!draft && (index === 0 || (index === 1 && !!draft.difficulty));
             return <li key={title} className={`creator-step ${active ? "is-current" : ""} ${done ? "is-done" : ""}`} aria-current={active ? "step" : undefined}>
               <span className="creator-step-number" aria-hidden="true">{done ? "✓" : index + 1}</span>
-              <div><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-xs leading-5 text-ink-soft">{description}</p></div>
+              <div><p className="text-sm font-semibold">{title}</p></div>
             </li>;
           })}
         </ol>
@@ -516,14 +510,13 @@ export function GameCreator({
                   <div className="creator-welcome-copy">
                     <span className="creator-ai-label"><span aria-hidden="true">✦</span> Trợ lý sáng tạo của giáo viên</span>
                     <h2 className="font-display text-3xl font-extrabold leading-tight sm:text-4xl">{busy ? "Ý tưởng đang thành trò chơi…" : <>Bạn có ý tưởng.<br />LumiKids giúp bạn tạo trò chơi.</>}</h2>
-                    <p className="mt-4 max-w-md text-sm leading-7 text-ink-soft">{busy ? "Nội dung và học liệu đang được chuẩn bị. Bản chơi thử sẽ xuất hiện tại đây khi sẵn sàng." : "Chọn một cách chơi, mô tả điều bé sẽ khám phá. Bạn có thể chơi thử và điều chỉnh trước khi đưa vào giờ học."}</p>
                     <button type="button" className="asset-button-primary mt-5" onClick={() => openPrompt()}>{busy ? "Xem tiến trình tạo" : "Viết ý tưởng của bạn"}<span aria-hidden="true">→</span></button>
                     {busy && <p role="status" className="mt-4 text-sm font-semibold text-leaf">Đang chuẩn bị nội dung trò chơi…</p>}
                   </div>
                   <CreatorIllustration />
                 </div>
                 <div className="creator-start-options">
-                  <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-display text-xl font-bold">Hôm nay bé sẽ khám phá điều gì?</h3><p className="text-xs text-ink-soft">Chọn một loại để bắt đầu</p></div>
+                  <div className="mb-4"><h3 className="font-display text-xl font-bold">Hôm nay bé sẽ khám phá điều gì?</h3></div>
                   <div className="creator-starter-grid">
                     {gameCreationOptions.map((option) => <button key={option.type} type="button" disabled={busy} onClick={() => openPrompt(option.type)} className="creator-starter-card" data-type={option.type}>
                       <span className="creator-starter-icon"><GameSymbol type={option.type} /></span>
@@ -531,7 +524,6 @@ export function GameCreator({
                       <span className="creator-starter-arrow" aria-hidden="true">↗</span>
                     </button>)}
                   </div>
-                  <p className="mt-5 text-xs leading-5 text-ink-soft">Bạn luôn có thể đổi mô tả và tạo lại. Trò chơi chỉ được lưu vào kho sau khi bạn kiểm tra và xác nhận.</p>
                 </div>
               </div>
             )}

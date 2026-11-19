@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useCallback,
   useId,
   useLayoutEffect,
   useMemo,
@@ -23,6 +24,8 @@ import type { CSSProperties } from "react";
 import { gameSceneTheme, SCENE_BACKGROUNDS } from "./model/backgrounds";
 import { GameSymbol } from "./components/game-symbol";
 import { GameBackdrop } from "./environment/game-backdrop";
+import { GameMusic } from "./components/game-music";
+import { CorrectAnswerMascot } from "./components/correct-answer-mascot";
 
 export interface GameRuntimeProps extends RuntimeCallbacks {
   content: GameContent;
@@ -91,9 +94,41 @@ function GameRun({
     toggle: toggleFullscreen,
   } = useGameFullscreen(defaultExpanded);
   const [controller] = useState(() => createGameController(content));
+  const [mascotEvent, setMascotEvent] = useState<{ id: string; result: "CORRECT" | "INCORRECT" } | null>(null);
+  const effectAudio = useRef<HTMLAudioElement | null>(null);
+  const mascotResult = useRef<"CORRECT" | "INCORRECT" | null>(null);
+  const mascotBusy = useRef(false);
+  const dismissMascot = useCallback(() => {
+    mascotBusy.current = false;
+    effectAudio.current?.pause();
+    setMascotEvent(null);
+  }, []);
   useLayoutEffect(() => {
-    controller.setCallbacks({ onInteraction, onComplete });
-  }, [controller, onInteraction, onComplete]);
+    controller.setCallbacks({ onInteraction: (event) => {
+      if (mode === "PLAY" && (!mascotBusy.current || mascotResult.current !== event.result)) {
+        mascotBusy.current = true;
+        mascotResult.current = event.result;
+        setMascotEvent({ id: event.eventId, result: event.result });
+        effectAudio.current?.pause();
+        const sound = new Audio(`/audio/effect/${event.result === "CORRECT" ? "correct" : "incorrect"}.mp3`);
+        sound.volume = event.result === "CORRECT" ? 0.55 : 0.4;
+        effectAudio.current = sound;
+        void sound.play().catch(() => {});
+      }
+      onInteraction?.(event);
+    }, onComplete });
+  }, [controller, mode, onInteraction, onComplete]);
+  useEffect(() => {
+    const stop = () => effectAudio.current?.pause();
+    const visibility = () => { if (document.hidden) stop(); };
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", stop);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, []);
   const [state, setState] = useState(controller.getState);
   const [round, setRound] = useState(0);
   const headingId = useId();
@@ -119,6 +154,7 @@ function GameRun({
     }
   }
   function reset() {
+    dismissMascot();
     if (content.gameType === "MATCHING")
       setPresentationSeed(crypto.randomUUID());
     setState(controller.reset());
@@ -138,12 +174,14 @@ function GameRun({
       }
       className={`game-picture-only overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${fullscreenActive ? "is-expanded" : ""} ${content.gameType === "CLASSIFICATION" ? "game-runtime-classification" : `game-runtime-playful game-runtime-${content.gameType.toLowerCase()}`}`}
     >
+      {mascotEvent && <CorrectAnswerMascot key={mascotEvent.id} result={mascotEvent.result} onDone={dismissMascot} />}
       <header className="border-b border-slate-100 px-5 py-6 sm:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
             {mode === "PREVIEW" ? "Chơi thử" : "Trò chơi"} ·{" "}
             {registration.label}
           </span>
+          {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused || state.completed} target={fullscreenTarget} />}
           <button
             type="button"
             className="asset-button-secondary"
