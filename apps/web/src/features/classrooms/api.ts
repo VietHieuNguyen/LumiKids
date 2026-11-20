@@ -3,6 +3,11 @@ import {
   assignmentSummaryListSchema,
   classGroupListSchema,
   classGroupSchema,
+  classInviteListSchema,
+  classInviteSchema,
+  classJoinRequestListSchema,
+  classJoinRequestSchema,
+  issuedClassInviteSchema,
   createAssignmentSchema,
   ageGroupListSchema,
   childProfileListSchema,
@@ -25,7 +30,9 @@ import type {
   UpdateClassGroupInput,
   CreateChildInput,
   CreateClassroomInput,
+  CreateClassInviteInput,
   CreateSchoolYearInput,
+  UpdateSchoolYearInput,
   UpdateChildInput,
   UpdateClassroomInput,
 } from "@lumikids/shared";
@@ -131,6 +138,9 @@ export class ClassroomApi {
   async createSchoolYear(input: CreateSchoolYearInput) {
     return schoolYearSchema.parse(await this.send("/admin/school-years", "POST", input));
   }
+  async updateSchoolYear(schoolYearId: string, input: UpdateSchoolYearInput) {
+    return schoolYearSchema.parse(await this.send(`/admin/school-years/${ClassroomApi.id(schoolYearId)}`, "PATCH", input));
+  }
   async teachers(signal?: AbortSignal) {
     return classroomTeacherListSchema.parse(await this.request("/admin/teachers", { signal }));
   }
@@ -187,6 +197,27 @@ export class ClassroomApi {
       ),
     );
   }
+  // ---------- Teacher: invitations and join requests ----------
+  async invites(classId: string, signal?: AbortSignal) {
+    return classInviteListSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/invites`, { signal }));
+  }
+  async createInvite(classId: string, input: CreateClassInviteInput) {
+    return issuedClassInviteSchema.parse(await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/invites`, "POST", input));
+  }
+  async revokeInvite(classId: string, inviteId: string) {
+    return classInviteSchema.parse(
+      await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/invites/${ClassroomApi.id(inviteId)}/revoke`, "POST"),
+    );
+  }
+  async joinRequests(classId: string, signal?: AbortSignal) {
+    return classJoinRequestListSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/join-requests`, { signal }));
+  }
+  async decideJoinRequest(classId: string, requestId: string, approve: boolean) {
+    return classJoinRequestSchema.parse(
+      await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/join-requests/${ClassroomApi.id(requestId)}/decision`, "POST", { approve }),
+    );
+  }
+
   async issueLoginCode(classId: string, childId: string) {
     return issuedLoginCodeSchema.parse(
       await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/login-code`, "POST"),

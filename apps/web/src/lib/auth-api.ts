@@ -13,10 +13,18 @@ export interface Session {
 }
 
 export class AuthError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(message: string, public readonly status: number, public readonly code?: string) {
     super(message);
   }
 }
+
+/** API problem codes whose own Vietnamese message is shown as-is (registration and verification). */
+const ownMessageCodes = new Set([
+  "ACCOUNT_NOT_VERIFIED",
+  "VERIFICATION_INVALID",
+  "VERIFICATION_LOCKED",
+  "VERIFICATION_TOO_SOON",
+]);
 
 const messages: Record<number, string> = {
   400: "Vui lòng kiểm tra lại thông tin đã nhập.",
@@ -40,7 +48,21 @@ async function authRequest(path: string, body?: object): Promise<unknown> {
   } catch {
     throw new AuthError("Không kết nối được hệ thống. Vui lòng kiểm tra backend và thử lại.", 0);
   }
-  if (!response.ok) throw new AuthError(messages[response.status] ?? "Hệ thống đang gặp lỗi. Vui lòng thử lại sau.", response.status);
+  if (!response.ok) {
+    let code: string | undefined;
+    let ownMessage: string | undefined;
+    try {
+      const envelope: unknown = await response.json();
+      if (typeof envelope === "object" && envelope !== null) {
+        const problem = envelope as { code?: unknown; message?: unknown };
+        if (typeof problem.code === "string") code = problem.code;
+        if (code && ownMessageCodes.has(code) && typeof problem.message === "string") ownMessage = problem.message;
+      }
+    } catch {
+      // No JSON body: the status message below is enough.
+    }
+    throw new AuthError(ownMessage ?? messages[response.status] ?? "Hệ thống đang gặp lỗi. Vui lòng thử lại sau.", response.status, code);
+  }
   try {
     const envelope: unknown = await response.json();
     if (typeof envelope !== "object" || envelope === null || !("data" in envelope)) throw new Error();
@@ -112,4 +134,30 @@ export async function changePassword(accessToken: string, currentPassword: strin
     429: "Bạn đã thử quá nhiều lần. Vui lòng đợi một phút rồi thử lại.",
   };
   throw new AuthError(byStatus[response.status] ?? "Chưa đổi được mật khẩu. Vui lòng thử lại.", response.status);
+}
+
+export type GuardianRelationship = "MOTHER" | "FATHER" | "GRANDPARENT" | "OTHER";
+
+export interface RegistrationAccepted {
+  email: string;
+  expiresInMinutes: number;
+}
+
+function parseAccepted(value: unknown): RegistrationAccepted {
+  const data = value as Partial<RegistrationAccepted> | null;
+  if (!data || typeof data.email !== "string" || typeof data.expiresInMinutes !== "number") throw new AuthError("Phản hồi từ hệ thống không hợp lệ.", 0);
+  return { email: data.email, expiresInMinutes: data.expiresInMinutes };
+}
+
+/** A guardian signs up; the account stays PENDING_VERIFICATION until the emailed 6-digit code is entered. */
+export async function registerGuardian(input: { fullName: string; email: string; phone: string; relationship: GuardianRelationship; password: string }): Promise<RegistrationAccepted> {
+  return parseAccepted(await authRequest("register", { ...input, fullName: input.fullName.trim(), email: input.email.trim().toLowerCase(), phone: input.phone.trim() }));
+}
+
+export async function verifyEmail(email: string, code: string): Promise<void> {
+  await authRequest("verify-email", { email: email.trim().toLowerCase(), code: code.trim() });
+}
+
+export async function resendVerification(email: string): Promise<RegistrationAccepted> {
+  return parseAccepted(await authRequest("verify-email/resend", { email: email.trim().toLowerCase() }));
 }

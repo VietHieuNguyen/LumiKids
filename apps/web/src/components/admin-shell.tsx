@@ -19,20 +19,31 @@ const adminSections = [
 const teacherSections = [
   { href: "/teacher/classrooms", label: "Lớp của tôi", permission: "READ_OWN_CLASSROOMS", icon: adminSections[1].icon },
   { href: "/teacher/games", label: "Kho trò chơi", permission: "READ_GAMES", icon: adminSections[3].icon },
+  { href: "/teacher/lesson-plans", label: "Giáo án", permission: "MANAGE_LESSON_PLANS", icon: "M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4ZM18 8h2v12M8 9h6M8 13h6" },
   { href: "/teacher/token-usage", label: "Mức sử dụng AI", permission: "READ_OWN_ACCOUNT", icon: "M4 20h16M6 16v-5m6 5V4m6 12V8" },
 ] as const;
+
+const guardianSections = [
+  { href: "/family", label: "Con của tôi", permission: "MANAGE_FAMILY", icon: "M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z" },
+  { href: "/family/join", label: "Vào lớp", permission: "MANAGE_FAMILY", icon: "M3 21V7l9-4 9 4v14M9 21v-6h6v6M12 7v4m-2-2h4" },
+] as const;
+
+type Variant = "admin" | "teacher" | "guardian";
+const variants = {
+  admin: { sections: adminSections, area: "Quản trị", home: "/admin", homeLabel: "Tổng quan", footer: "Không gian quản trị" },
+  teacher: { sections: teacherSections, area: "Giáo viên", home: "/teacher/classrooms", homeLabel: "Lớp của tôi", footer: "Không gian giáo viên" },
+  guardian: { sections: guardianSections, area: "Gia đình", home: "/family", homeLabel: "Con của tôi", footer: "Không gian gia đình" },
+} as const;
 
 function Icon({ path }: { path: string }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>;
 }
 
 /** Shared dashboard presentation; navigation remains specific to each staff area. */
-export function AdminShell({ children, variant = "admin" }: { children: ReactNode; variant?: "admin" | "teacher" }) {
+export function AdminShell({ children, variant = "admin" }: { children: ReactNode; variant?: Variant }) {
   const { session } = useAuth();
   const pathname = usePathname();
-  const sections = variant === "admin" ? adminSections : teacherSections;
-  const area = variant === "admin" ? "Quản trị" : "Giáo viên";
-  const home = variant === "admin" ? "/admin" : "/teacher/classrooms";
+  const { sections, area, home, homeLabel, footer } = variants[variant];
   const drawer = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -41,11 +52,14 @@ export function AdminShell({ children, variant = "admin" }: { children: ReactNod
     desktop.addEventListener("change", closeOnDesktop);
     return () => desktop.removeEventListener("change", closeOnDesktop);
   }, []);
-  const current = sections.find((item) => item.href !== "/admin" && (pathname.startsWith(item.href) || (item.href === "/admin/games" && pathname === "/admin/game-preview"))) ?? sections[0];
+  const current: (typeof sections)[number] =
+    [...sections]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => item.href !== "/admin" && (pathname.startsWith(item.href) || (item.href === "/admin/games" && pathname === "/admin/game-preview"))) ?? sections[0];
   const title = pathname === "/account" ? "Tài khoản" : pathname.endsWith("/assignments/new") ? "Giao bài mới" : pathname.endsWith("/create") ? "Tạo trò chơi" : pathname === "/admin/game-preview" ? "Xem thử trò chơi" : current.label;
   function closeDrawer() { drawer.current?.close(); }
   const links = <>
-    <Link className="admin-brand" href={home} aria-label={`LumiKids — ${variant === "admin" ? "Tổng quan" : "Lớp của tôi"}`}><LumiLogo size={36} /><LumiWordmark /></Link>
+    <Link className="admin-brand" href={home} aria-label={`LumiKids — ${homeLabel}`}><LumiLogo size={36} /><LumiWordmark /></Link>
     <nav className="admin-navigation" aria-label={`Điều hướng ${area.toLowerCase()}`}>
       {sections.filter((item) => session?.user.permissions.includes(item.permission)).map((item) => (
         <Link key={item.href} href={item.href} onClick={closeDrawer} aria-current={pathname !== "/account" && current.href === item.href ? "page" : undefined}>
@@ -53,10 +67,10 @@ export function AdminShell({ children, variant = "admin" }: { children: ReactNod
         </Link>
       ))}
     </nav>
-    <div className="admin-sidebar-footer">{variant === "admin" ? "Không gian quản trị" : "Không gian giáo viên"}</div>
+    <div className="admin-sidebar-footer">{footer}</div>
   </>;
   return (
-    <div className={`admin-shell ${variant === "teacher" ? "teacher-dashboard" : ""}`} data-staff-area={variant}>
+    <div className={`admin-shell ${variant !== "admin" ? "teacher-dashboard" : ""}`} data-staff-area={variant}>
       <a className="admin-skip" href="#admin-content">Đến nội dung chính</a>
       <aside className="admin-sidebar">{links}</aside>
       <dialog ref={drawer} className="admin-drawer" aria-label={`Menu ${area.toLowerCase()}`} onClick={(event) => { if (event.target === event.currentTarget) closeDrawer(); }} onClose={() => trigger.current?.focus()}>

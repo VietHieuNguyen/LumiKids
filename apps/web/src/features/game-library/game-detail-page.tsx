@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { SavedGameDetail } from "@lumikids/shared";
+import type { AgeGroup, SavedGameDetail } from "@lumikids/shared";
 import { StaffPage } from "@/components/staff-shell";
 import { Notice } from "../classrooms/classroom-shell";
 import { GamePreview } from "../game-preview/game-preview";
@@ -197,6 +197,12 @@ function DetailContent({
                     {statusError}
                   </p>
                 )}
+                <AgeGroupField
+                  api={api}
+                  game={game}
+                  canEdit={manageAll || (canSave && game.createdBy === userId)}
+                  onSaved={setGame}
+                />
                 {game.description && (
                   <p className="mt-5 whitespace-pre-wrap text-sm leading-6 text-ink-soft">
                     {game.description}
@@ -234,5 +240,80 @@ function DetailContent({
         )}
       </div>
     </main>
+  );
+}
+
+/** The game's age group; its owner (or an admin) sets it. Games without one cannot be assigned (R-01). */
+function AgeGroupField({
+  api,
+  game,
+  canEdit,
+  onSaved,
+}: {
+  api: GameLibraryApi;
+  game: SavedGameDetail;
+  canEdit: boolean;
+  onSaved: (game: SavedGameDetail) => void;
+}) {
+  const [groups, setGroups] = useState<AgeGroup[]>([]);
+  const [value, setValue] = useState(game.ageGroup?.ageGroupId ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!canEdit) return;
+    const abort = new AbortController();
+    api
+      .ageGroups(abort.signal)
+      .then((list) => {
+        if (!abort.signal.aborted) setGroups(list);
+      })
+      .catch((failure) => {
+        if (!abort.signal.aborted) setError(libraryError(failure));
+      });
+    return () => abort.abort();
+  }, [api, canEdit]);
+  async function save() {
+    if (busy || !value || value === game.ageGroup?.ageGroupId) return;
+    setBusy(true);
+    setError("");
+    setDone(false);
+    try {
+      onSaved(await api.setAgeGroup(game.versionId, value));
+      setDone(true);
+    } catch (failure) {
+      setError(libraryError(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-5 rounded-2xl border border-line bg-white p-4">
+      <h3 className="text-sm font-bold">Nhóm tuổi</h3>
+      {!canEdit ? (
+        <p className="mt-1 text-sm text-ink-soft">{game.ageGroup?.name ?? "Chưa chọn nhóm tuổi — người tạo trò cần chọn trước khi giao bài."}</p>
+      ) : (
+        <>
+          {!game.ageGroup && (
+            <p className="mt-1 text-sm text-[#8a5a00]">Trò này chưa có nhóm tuổi nên chưa giao được cho trẻ. Hãy chọn một nhóm.</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="game-age-group">Nhóm tuổi</label>
+            <select id="game-age-group" className="asset-input w-auto" value={value} onChange={(event) => { setValue(event.target.value); setDone(false); }} disabled={busy}>
+              <option value="" disabled>Chọn nhóm tuổi</option>
+              {groups.map((group) => (
+                <option key={group.ageGroupId} value={group.ageGroupId}>{group.name}</option>
+              ))}
+            </select>
+            <button type="button" className="asset-button-primary" disabled={busy || !value || value === game.ageGroup?.ageGroupId} onClick={() => void save()}>
+              {busy ? "Đang lưu…" : "Lưu nhóm tuổi"}
+            </button>
+            {done && <span role="status" className="text-sm text-leaf">Đã lưu.</span>}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-ink-soft">Đổi nhóm tuổi không tạo phiên bản mới; bài đã giao vẫn giữ nguyên.</p>
+        </>
+      )}
+      {error && <p role="alert" className="asset-error mt-3">{error}</p>}
+    </div>
   );
 }

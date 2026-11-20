@@ -11,7 +11,7 @@ function loginReturningHere(): string {
 }
 
 /** Adult session for the classroom screens; `permission` decides whether the screen is shown at all. */
-export function useClassroomSession(permission: "MANAGE_CLASSROOMS" | "READ_OWN_CLASSROOMS" | "MANAGE_USERS") {
+export function useClassroomSession(permission: "MANAGE_CLASSROOMS" | "READ_OWN_CLASSROOMS" | "MANAGE_USERS" | "MANAGE_FAMILY" | "MANAGE_LESSON_PLANS") {
   const { session, loading, invalidateSession } = useAuth();
   const router = useRouter();
   const token = session?.accessToken;
@@ -39,5 +39,6 @@ export function useClassroomSession(permission: "MANAGE_CLASSROOMS" | "READ_OWN_
     canIssueCodes: permissions.includes("RESET_CHILD_LOGIN_CODES"),
     canAssign: permissions.includes("ASSIGN_ACTIVITIES"),
     canManageUsers: permissions.includes("MANAGE_USERS"),
+    canInvite: permissions.includes("MANAGE_CLASS_INVITES"),
   };
 }

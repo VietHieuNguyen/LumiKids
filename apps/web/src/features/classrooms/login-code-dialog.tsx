@@ -14,13 +14,17 @@ export function LoginCodeDialog({
   api,
   classId,
   className,
+  issue: issueWith,
   child,
   onClose,
   onIssued,
 }: {
-  api: ClassroomApi;
-  classId: string;
+  api?: ClassroomApi;
+  classId?: string;
+  /** Empty for a child the family manages (no class). */
   className: string;
+  /** Issues the code another way (the guardian's family route); defaults to the teacher route. */
+  issue?: () => Promise<IssuedLoginCode>;
   child: { childId: string; fullName: string; loginCodeIssuedAt: string | null };
   onClose: () => void;
   onIssued: (issued: IssuedLoginCode) => void;
@@ -33,7 +37,9 @@ export function LoginCodeDialog({
     setBusy(true);
     setError("");
     try {
-      const result = await api.issueLoginCode(classId, child.childId);
+      const run = issueWith ?? (api && classId ? () => api.issueLoginCode(classId, child.childId) : null);
+      if (!run) throw new Error("Không có cách cấp mã cho trẻ này.");
+      const result = await run();
       setIssued(result);
       onIssued(result);
     } catch (failure) {
@@ -47,7 +53,7 @@ export function LoginCodeDialog({
       {issued ? (
         <div>
           <div className="print-card rounded-2xl border-2 border-dashed border-leaf/40 bg-leaf-soft p-5 text-center">
-            <p className="text-sm font-medium text-leaf">LumiKids · Lớp {className}</p>
+            <p className="text-sm font-medium text-leaf">LumiKids · {className ? `Lớp ${className}` : "Ở nhà"}</p>
             <p className="mt-1 break-words text-lg font-bold text-ink">{child.fullName}</p>
             <p className="mt-4 select-all font-mono text-4xl font-bold tracking-[0.18em] text-ink" aria-label={`Mã ${issued.code.split("").join(" ")}`}>
               {issued.code}

@@ -3,20 +3,17 @@ import { useState } from "react";
 import type { ClassroomChildDetail } from "@lumikids/shared";
 import type { ClassroomApi, ClassroomScope } from "./api";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
-import { gameTypeLabels } from "../game-library/library-page";
 import {
   ageInYears,
   childStatusLabels,
   formatDate,
   formatDateOnly,
   formatDateTime,
-  formatDuration,
   genderLabels,
   localToday,
-  playStatusLabels,
 } from "./format";
-import { EvaluationCell } from "./evaluation-cell";
 import { LoginCodeDialog } from "./login-code-dialog";
+import { PlayHistoryTable } from "./play-history-table";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
 
@@ -35,7 +32,6 @@ export function AdminChildPage({ classId, childId }: { classId: string; childId:
   return <ChildResults key={`${session.user.userId}:${classId}:${childId}`} api={api} scope="admin" classId={classId} childId={childId} canIssueCodes={false} />;
 }
 
-const playTones = { COMPLETED: "green", ABANDONED: "slate", IN_PROGRESS: "blue" } as const;
 
 function ChildResults({
   api,
@@ -120,48 +116,7 @@ function ChildResults({
           {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
           {history.loading && !history.data && <p role="status" className="text-sm">Đang tải lịch sử…</p>}
           {history.data && history.data.pagination.total === 0 && <p className="text-sm text-ink-soft">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
-          {history.data && history.data.items.length > 0 && (
-            <div className="-mx-4 overflow-x-auto sm:mx-0" aria-busy={history.loading}>
-              <table className="w-full min-w-[820px] text-left text-sm">
-                <thead className="border-b border-line text-ink-soft">
-                  <tr>
-                    <th className="px-4 py-2 font-medium sm:px-2">Trò chơi</th>
-                    <th className="px-2 py-2 font-medium">Bắt đầu</th>
-                    <th className="px-2 py-2 font-medium">Thời lượng</th>
-                    <th className="px-2 py-2 text-right font-medium">Số lần chọn</th>
-                    <th className="px-2 py-2 font-medium">Kết quả</th>
-                    <th className="px-2 py-2 font-medium">Điểm · mức · nhận xét</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {history.data.items.map((item) => (
-                    <tr key={item.sessionId}>
-                      <td className="px-4 py-3 sm:px-2">
-                        <span className="block break-words font-medium">{item.gameName}</span>
-                        <span className="text-xs text-ink-soft">{gameTypeLabels[item.gameType]}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-3 tabular-nums">{formatDateTime(item.startedAt)}</td>
-                      <td className="whitespace-nowrap px-2 py-3">{formatDuration(item.startedAt, item.endedAt) ?? "—"}</td>
-                      <td className="px-2 py-3 text-right tabular-nums">{item.attemptCount}</td>
-                      <td className="px-2 py-3">
-                        <StatusPill tone={playTones[item.status]}>{playStatusLabels[item.status]}</StatusPill>
-                      </td>
-                      <td className="px-2 py-3 align-top">
-                        <EvaluationCell evaluation={item.evaluation} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {history.data && history.data.pagination.totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-              <button type="button" className="asset-button-secondary" disabled={page <= 1 || history.loading} onClick={() => setPage((n) => n - 1)}>← Mới hơn</button>
-              <span className="tabular-nums text-ink-soft">Trang {page}/{history.data.pagination.totalPages}</span>
-              <button type="button" className="asset-button-secondary" disabled={page >= history.data.pagination.totalPages || history.loading} onClick={() => setPage((n) => n + 1)}>Cũ hơn →</button>
-            </div>
-          )}
+          {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
         </Panel>
       </div>
       {issuing && classroom.data && (

@@ -174,6 +174,7 @@ function TeacherCard({
         <div className="min-w-0 flex-1">
           <p className="break-words font-display text-lg font-bold leading-tight">{account.fullName}</p>
           <p className="break-all text-sm text-ink-soft">{account.email}</p>
+          {account.specialization && <p className="break-words text-sm font-medium text-leaf">{account.specialization}</p>}
           {account.phone && <p className="text-sm text-ink-soft">{account.phone}</p>}
         </div>
         <StatusPill tone={active ? "green" : "slate"}>{active ? "Hoạt động" : "Đã khóa"}</StatusPill>
@@ -250,6 +251,7 @@ function TeacherForm({
   const [fullName, setFullName] = useState(account?.fullName ?? "");
   const [email, setEmail] = useState(account?.email ?? "");
   const [phone, setPhone] = useState(account?.phone ?? "");
+  const [specialization, setSpecialization] = useState(account?.specialization ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -258,8 +260,9 @@ function TeacherForm({
     setBusy(true);
     setError("");
     try {
-      if (account) onSaved?.(await admin.updateTeacher(account.userId, { fullName: fullName.trim(), phone: phone.trim() }));
-      else onCreated?.(await admin.createTeacher({ fullName: fullName.trim(), email: email.trim(), phone: phone.trim() }));
+      const profile = { fullName: fullName.trim(), phone: phone.trim(), specialization: specialization.trim() };
+      if (account) onSaved?.(await admin.updateTeacher(account.userId, profile));
+      else onCreated?.(await admin.createTeacher({ ...profile, email: email.trim() }));
     } catch (failure) {
       setError(classroomError(failure));
       setBusy(false);
@@ -280,6 +283,10 @@ function TeacherForm({
         <div>
           <label className="asset-label" htmlFor="teacher-phone">Số điện thoại (không bắt buộc)</label>
           <input id="teacher-phone" type="tel" className="asset-input mt-1" maxLength={20} autoComplete="off" value={phone} onChange={(event) => setPhone(event.target.value)} />
+        </div>
+        <div>
+          <label className="asset-label" htmlFor="teacher-specialization">Chuyên môn (không bắt buộc)</label>
+          <input id="teacher-specialization" className="asset-input mt-1" maxLength={200} autoComplete="off" placeholder="Giáo dục mầm non" value={specialization} onChange={(event) => setSpecialization(event.target.value)} />
         </div>
         {!account && <p className="rounded-2xl bg-sky p-3 text-sm">Hệ thống tạo mật khẩu tạm và chỉ hiện <strong>một lần</strong>. Giáo viên nên đổi mật khẩu ở trang tài khoản sau khi đăng nhập.</p>}
         {error && <p role="alert" className="asset-error">{error}</p>}

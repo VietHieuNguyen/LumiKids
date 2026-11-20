@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { tokenUsageReportSchema } from "@lumikids/shared";
+import type { TokenUsageReport } from "@lumikids/shared";
 import { useAuth } from "@/components/auth-provider";
 import {
   ClassroomShell,
@@ -171,6 +172,7 @@ function Usage({ api, admin }: { api: ClassroomApi; admin: boolean }) {
               </div>
             ))}
           </div>
+          <LatencyPanel latency={data.latency} />
           {data.totals.unknownCalls > 0 && (
             <p
               role="status"
@@ -273,6 +275,7 @@ function Usage({ api, admin }: { api: ClassroomApi; admin: boolean }) {
                           </time>
                           <p className="text-xs text-ink-soft">
                             Lần {i.attempt}
+                            {i.durationMs !== null && ` · ${seconds(i.durationMs)}`}
                           </p>
                         </td>
                         {admin && <td className="p-2">{i.user.fullName}</td>}
@@ -339,5 +342,43 @@ function Usage({ api, admin }: { api: ClassroomApi; admin: boolean }) {
         </div>
       )}
     </ClassroomShell>
+  );
+}
+
+function seconds(ms: number) {
+  return `${(ms / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} giây`;
+}
+
+/** NFR-2: generation should answer within 30 s; p50/p95 over the calls measured in the range. */
+function LatencyPanel({ latency }: { latency: TokenUsageReport["latency"] }) {
+  if (!latency.measuredCalls)
+    return (
+      <p className="rounded-md border border-line bg-paper p-3 text-sm text-ink-soft">
+        Chưa có lần gọi nào được đo thời gian phản hồi trong khoảng này.
+      </p>
+    );
+  const over = latency.overBudgetCalls > 0;
+  return (
+    <section aria-label="Thời gian phản hồi AI" className="rounded-lg border border-line bg-paper p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold">Thời gian phản hồi</h2>
+        <p className="text-xs text-ink-soft">Mục tiêu dưới 30 giây · {number(latency.measuredCalls)} lần đã đo</p>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {(
+          [
+            ["Trung vị (p50)", latency.p50Ms === null ? "—" : seconds(latency.p50Ms)],
+            ["p95", latency.p95Ms === null ? "—" : seconds(latency.p95Ms)],
+            ["Chậm nhất", latency.maxMs === null ? "—" : seconds(latency.maxMs)],
+            ["Quá 30 giây / hết giờ", `${number(latency.overBudgetCalls)} / ${number(latency.timeoutCalls)}`],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-ink-soft">{label}</dt>
+            <dd className={`mt-1 text-lg font-semibold tabular-nums ${label.startsWith("Quá") && over ? "text-berry" : ""}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

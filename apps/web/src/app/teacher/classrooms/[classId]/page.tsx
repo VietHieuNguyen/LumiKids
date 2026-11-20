@@ -1,7 +1,7 @@
 import { TeacherClassroomPage } from "@/features/classrooms/teacher-classroom-page";
 import type { ClassroomTab } from "@/features/classrooms/teacher-classroom-page";
 
-const tabs: readonly ClassroomTab[] = ["assignments", "children", "groups"];
+const tabs: readonly ClassroomTab[] = ["assignments", "children", "groups", "families"];
 
 export default async function Page({
   params,

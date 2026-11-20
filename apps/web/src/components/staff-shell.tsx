@@ -11,5 +11,8 @@ export function StaffPage({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const admin = pathname === "/admin" || pathname.startsWith("/admin/") ||
     (pathname === "/account" && !!session?.user.permissions.includes("MANAGE_CLASSROOMS"));
-  return <AdminShell variant={admin ? "admin" : "teacher"}>{children}</AdminShell>;
+  const permissions = session?.user.permissions ?? [];
+  const guardian = pathname === "/family" || pathname.startsWith("/family/") ||
+    (pathname === "/account" && permissions.includes("MANAGE_FAMILY") && !permissions.includes("READ_OWN_CLASSROOMS"));
+  return <AdminShell variant={admin ? "admin" : guardian ? "guardian" : "teacher"}>{children}</AdminShell>;
 }

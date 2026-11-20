@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
 import { LANDING_ASSETS } from "@/features/landing/landing-assets";
+import { AuthError } from "@/lib/auth-api";
 import { childLogin } from "@/lib/child-auth-api";
 import { formatLoginCodeInput, isCompleteLoginCode } from "@/lib/child-login-code";
 import { homeFor } from "@/lib/home-for";
@@ -78,6 +79,10 @@ function LoginForm() {
       setPassword("");
       // The effect above redirects once the session (and so the role's home) is known.
     } catch (failure) {
+      if (failure instanceof AuthError && failure.code === "ACCOUNT_NOT_VERIFIED") {
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+        return;
+      }
       setError(failure instanceof Error ? failure.message : "Đăng nhập không thành công. Vui lòng thử lại.");
     } finally { setSubmitting(false); }
   }
@@ -103,10 +108,10 @@ function LoginForm() {
           </Link>
 
           <h1 id="login-heading" className="lg-title">{mode === "child" ? "Chào bé!" : "Đăng nhập"}</h1>
-          <p className="lg-lead">{mode === "child" ? "Nhập mã cô giáo đưa cho con để vào chơi." : "Sử dụng tài khoản đã được cấp để truy cập hệ thống."}</p>
+          <p className="lg-lead">{mode === "child" ? "Nhập mã cô giáo hoặc bố mẹ đưa cho con để vào chơi." : "Thầy cô và phụ huynh đăng nhập bằng email và mật khẩu."}</p>
 
           <div className="lg-modes" role="group" aria-label="Chọn cách đăng nhập">
-            <button type="button" className="lg-mode" aria-pressed={mode === "adult"} onClick={() => switchMode("adult")} disabled={submitting}>Thầy cô</button>
+            <button type="button" className="lg-mode" aria-pressed={mode === "adult"} onClick={() => switchMode("adult")} disabled={submitting}>Người lớn</button>
             <button type="button" className="lg-mode" aria-pressed={mode === "child"} onClick={() => switchMode("child")} disabled={submitting}>Bé vào chơi</button>
           </div>
 
@@ -139,7 +144,11 @@ function LoginForm() {
           </form>
           )}
 
-          <p className="lg-help">{mode === "child" ? "Chưa có mã? Con hỏi cô giáo nhé." : "Chưa có tài khoản? Vui lòng liên hệ quản trị viên."}</p>
+          {mode === "child" ? (
+            <p className="lg-help">Chưa có mã? Con hỏi cô giáo hoặc bố mẹ nhé.</p>
+          ) : (
+            <p className="lg-help">Phụ huynh chưa có tài khoản? <Link className="lg-link" href="/register">Đăng ký</Link>. Thầy cô nhận tài khoản từ quản trị viên.</p>
+          )}
           <Link className="lg-back" href="/">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4m3.5-3.5L4 8l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Về trang chủ

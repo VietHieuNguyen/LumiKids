@@ -14,7 +14,16 @@ export function CountingGame({
   assetRevisions,
   onAction,
   onAssetError,
+  hint,
 }: RendererCommonProps & { content: CountingContent; state: CountingState }) {
+  // A hint lights up the pictures that are counted (never the number itself).
+  const counted = new Set(
+    hint
+      ? content.schemaVersion === 2
+        ? content.countedItemIds
+        : content.items.map((item) => item.id)
+      : [],
+  );
   const rule = content.schemaVersion === 2 ? content.countingRule : undefined;
   const target =
     content.schemaVersion === 2 && rule?.type === "OBJECT_TYPE"
@@ -71,7 +80,11 @@ export function CountingGame({
           trackClassName="counting-picture-rail"
         >
           {content.items.map((item) => (
-            <div key={item.id} className="counting-picture-card">
+            <div
+              key={item.id}
+              className={`counting-picture-card ${counted.has(item.id) ? "is-hinted" : ""}`}
+              style={counted.has(item.id) ? { animationDelay: `${[...counted].indexOf(item.id) * 180}ms` } : undefined}
+            >
               <GamePicture
                 assetId={item.assetId}
                 label={item.label ?? "Hình minh họa"}
@@ -96,8 +109,9 @@ export function CountingGame({
         <div className="counting-answer-grid">
           {content.choices.map((choice) => {
             const selected = choice.id === state.selectedChoiceId;
+            const last = state.lastInteraction;
             const correct =
-              selected && state.lastInteraction?.result === "CORRECT";
+              selected && last?.actionType === "SELECT_CHOICE" && last.result === "CORRECT";
             return (
               <button
                 key={choice.id}

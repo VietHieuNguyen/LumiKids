@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import type { GameLibraryPage, SavedGame, Skill } from "@lumikids/shared";
+import type { AgeGroup, GameLibraryPage, SavedGame, Skill } from "@lumikids/shared";
 import { StaffPage } from "@/components/staff-shell";
 import { Notice } from "../classrooms/classroom-shell";
 import { LibraryIcon as Icon } from "./library-icon";
@@ -80,6 +80,7 @@ const initialFilters = {
   search: "",
   gameType: "",
   difficulty: "",
+  ageGroupId: "",
   skillCode: "",
   criterionCode: "",
   status: "ACTIVE",
@@ -135,6 +136,7 @@ function LibraryContent({
   const [page, setPage] = useState(1);
   const [reload, setReload] = useState(0);
   const [catalog, setCatalog] = useState<Skill[]>([]);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [data, setData] = useState<GameLibraryPage | null>(null);
   const [loaded, setLoaded] = useState<{
     api: GameLibraryApi;
@@ -155,11 +157,12 @@ function LibraryContent({
     Object.entries(applied).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
-    Promise.all([api.list(params, abort.signal), api.curriculum(abort.signal)])
-      .then(([result, skills]) => {
+    Promise.all([api.list(params, abort.signal), api.curriculum(abort.signal), api.ageGroups(abort.signal)])
+      .then(([result, skills, groups]) => {
         if (abort.signal.aborted) return;
         setData(result);
         setCatalog(skills);
+        setAgeGroups(groups);
         setError("");
       })
       .catch((failure) => {
@@ -185,6 +188,7 @@ function LibraryContent({
     applied.search && `Tìm: ${applied.search}`,
     gameTypeLabels[applied.gameType as keyof typeof gameTypeLabels],
     applied.difficulty && `Độ khó: ${difficultyLabels[applied.difficulty as keyof typeof difficultyLabels]}`,
+    applied.ageGroupId && (ageGroups.find((group) => group.ageGroupId === applied.ageGroupId)?.name ?? applied.ageGroupId),
     applied.skillCode && `Chuẩn ${applied.skillCode}`,
     applied.criterionCode && `Chỉ số ${applied.criterionCode}`,
     applied.status === "ARCHIVED" && "Đã lưu trữ",
@@ -222,7 +226,7 @@ function LibraryContent({
           aria-label="Bộ lọc trò chơi"
         >
           <div className="mb-4 flex items-center gap-2"><Icon name="search" className="h-4 w-4 text-leaf" /><h2 className="text-sm font-bold">Tìm trò chơi phù hợp</h2></div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
             <label className="asset-label sm:col-span-2 lg:col-span-1">
               <span id="library-search-label">Tìm trò chơi</span>
               <input
@@ -269,6 +273,24 @@ function LibraryContent({
                 {Object.entries(difficultyLabels).map(([key, label]) => (
                   <option key={key} value={key}>
                     {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="asset-label">
+              <span id="library-age-label">Nhóm tuổi</span>
+              <select
+                aria-labelledby="library-age-label"
+                className="asset-input mt-2"
+                value={filters.ageGroupId}
+                onChange={(e) =>
+                  setFilters({ ...filters, ageGroupId: e.target.value })
+                }
+              >
+                <option value="">Mọi nhóm tuổi</option>
+                {ageGroups.map((group) => (
+                  <option key={group.ageGroupId} value={group.ageGroupId}>
+                    {group.name}
                   </option>
                 ))}
               </select>
@@ -443,6 +465,9 @@ function LibraryContent({
                         </span>
                         <span className="rounded-lg bg-ink/5 px-2.5 py-1.5 text-ink-soft">
                           {difficultyLabels[game.difficulty]}
+                        </span>
+                        <span className={`rounded-lg px-2.5 py-1.5 ${game.ageGroup ? "bg-leaf-soft text-leaf" : "bg-sun-soft text-[#8a5a00]"}`}>
+                          {game.ageGroup?.name ?? "Chưa chọn nhóm tuổi"}
                         </span>
                         {game.status === "ARCHIVED" && (
                           <span className="rounded-lg border border-line px-2.5 py-1.5 text-ink-soft">

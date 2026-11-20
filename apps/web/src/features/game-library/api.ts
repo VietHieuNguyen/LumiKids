@@ -1,4 +1,5 @@
 import {
+  ageGroupListSchema,
   curriculumSchema,
   gameLibraryPageSchema,
   savedGameDetailSchema,
@@ -78,6 +79,7 @@ export class GameLibraryApi {
         404: "Trò chơi hoặc học liệu không còn khả dụng.",
         409: "Nội dung hoặc học liệu đã thay đổi. Hãy tải lại kho để kiểm tra.",
         410: "Quyền xác thực bản chơi thử đã hết hạn. Vui lòng tạo lại trước khi lưu.",
+        422: "Thông tin chưa hợp lệ. Kiểm tra nhóm tuổi và chỉ số đã chọn.",
         429: "Có quá nhiều yêu cầu. Vui lòng đợi một chút.",
         500: "Kho trò chơi chưa sẵn sàng. Nhờ quản trị viên kiểm tra cấu hình dữ liệu.",
       };
@@ -94,6 +96,20 @@ export class GameLibraryApi {
   async curriculum(signal?: AbortSignal) {
     return curriculumSchema.parse(
       await this.request("/curriculum/skills", { signal }),
+    );
+  }
+  async ageGroups(signal?: AbortSignal) {
+    return ageGroupListSchema.parse(
+      await this.request("/curriculum/age-groups", { signal }),
+    );
+  }
+  async setAgeGroup(id: string, ageGroupId: string, signal?: AbortSignal) {
+    return savedGameDetailSchema.parse(
+      await this.request(`/game-library/${encodeURIComponent(id)}/age-group`, {
+        method: "PATCH",
+        body: { ageGroupId },
+        signal,
+      }),
     );
   }
   async list(params: URLSearchParams, signal?: AbortSignal) {
