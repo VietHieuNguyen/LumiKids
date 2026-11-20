@@ -24,7 +24,6 @@ export function verificationMail({ to, code, ttlMinutes, fullName, webUrl }: Ver
   const name = givenName(fullName);
   const greeting = name ? `Xin chào ${name},` : 'Xin chào,';
   const link = webUrl ? `${webUrl.replace(/\/$/, '')}/verify-email?email=${encodeURIComponent(to)}` : '';
-  const digits = code.split('').join(' ');
   const font = "'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 
   const text = [
@@ -82,7 +81,7 @@ export function verificationMail({ to, code, ttlMinutes, fullName, webUrl }: Ver
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#eef4ec" style="background:#eef4ec;border:1px dashed #9bb89c;border-radius:16px;padding:20px 12px">
               <p style="margin:0 0 6px;font-family:${font};font-size:12px;font-weight:600;color:#527b55">Mã xác minh của bạn</p>
-              <p style="margin:0;font-family:'SFMono-Regular',Consolas,'Courier New',monospace;font-size:34px;line-height:1.2;font-weight:700;letter-spacing:6px;color:#20382b" aria-label="${code}">${digits}</p>
+              <p style="margin:0;font-family:'SFMono-Regular',Consolas,'Courier New',monospace;font-size:26px;line-height:1.2;font-weight:700;letter-spacing:4px;white-space:nowrap;color:#20382b">${code}</p>
               <p style="margin:10px 0 0;font-family:${font};font-size:13px;color:#5f6f64">Hiệu lực trong <strong style="color:#20382b">${ttlMinutes} phút</strong> · chỉ dùng một lần</p>
             </td>
           </tr></table>

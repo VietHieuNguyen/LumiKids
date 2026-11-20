@@ -52,7 +52,7 @@ describe('email verification delivery', () => {
     const mail = verificationMail({ to: 'a+b@example.test', code: '123456', ttlMinutes: 15, fullName: 'Nguyễn Thị Lan', webUrl: 'http://localhost:3000/' });
     expect(mail.subject).toContain('123456');
     expect(mail.text).toContain('123456');
-    expect(mail.html).toContain('1 2 3 4 5 6');
+    expect(mail.html).toContain('white-space:nowrap;color:#20382b">123456<');
     expect(mail.html).toContain('15 phút');
     expect(mail.html).toContain('Xin chào Lan,');
     expect(mail.html).toContain('http://localhost:3000/verify-email?email=a%2Bb%40example.test');
