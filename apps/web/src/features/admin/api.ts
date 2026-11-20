@@ -1,5 +1,8 @@
 import {
   adminOverviewSchema,
+  bulkAccountStatusResultSchema,
+  guardianAccountDetailSchema,
+  teacherAccountDetailSchema,
   ageGroupSchema,
   ageGroupUsageListSchema,
   schoolYearUsageListSchema,
@@ -12,6 +15,7 @@ import {
   teacherAccountSchema,
 } from "@lumikids/shared";
 import type {
+  BulkAccountStatusInput,
   CreateTeacherAccountInput,
   UpdateAgeGroupInput,
   UpdateGuardianAccountInput,
@@ -50,6 +54,20 @@ export class AdminApi {
       await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}/password-reset`, { method: "POST", body: {} }),
     );
   }
+  // ---------- Detail panels and bulk status ----------
+  async teacherDetail(userId: string, signal?: AbortSignal) {
+    return teacherAccountDetailSchema.parse(await this.api.raw(`/admin/teacher-accounts/${encodeURIComponent(userId)}`, { signal }));
+  }
+  async guardianDetail(userId: string, signal?: AbortSignal) {
+    return guardianAccountDetailSchema.parse(await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}`, { signal }));
+  }
+  async bulkTeacherStatus(input: BulkAccountStatusInput) {
+    return bulkAccountStatusResultSchema.parse(await this.api.raw("/admin/teacher-accounts/bulk-status", { method: "POST", body: input }));
+  }
+  async bulkGuardianStatus(input: BulkAccountStatusInput) {
+    return bulkAccountStatusResultSchema.parse(await this.api.raw("/admin/guardian-accounts/bulk-status", { method: "POST", body: input }));
+  }
+
   // ---------- Catalogues ----------
   async ageGroups(signal?: AbortSignal) {
     return ageGroupUsageListSchema.parse(await this.api.raw("/admin/age-groups", { signal }));

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import type { AccountStatus } from "@lumikids/shared";
+import type { ReactNode } from "react";
+import type { AccountStatus, BulkAccountStatusResult } from "@lumikids/shared";
 import { classroomError } from "../classrooms/api";
 import { Dialog, StatusPill } from "../classrooms/classroom-shell";
 
@@ -178,4 +179,207 @@ export function ResetPasswordDialog({ name, onConfirm, onClose }: { name: string
       </div>
     </Dialog>
   );
+}
+
+// ---------- Bulk selection ----------
+
+/** Selected row ids; ids that leave the list (filtered out, reloaded) drop out of the selection. */
+export function useSelection(visibleIds: readonly string[]) {
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const visible = new Set(visibleIds);
+  const selected = [...picked].filter((id) => visible.has(id));
+  const allOnPage = visibleIds.length > 0 && visibleIds.every((id) => picked.has(id));
+  const someOnPage = !allOnPage && visibleIds.some((id) => picked.has(id));
+  return {
+    selected,
+    has: (id: string) => picked.has(id),
+    toggle: (id: string) =>
+      setPicked((current) => {
+        const next = new Set(current);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    toggleAll: () => setPicked(allOnPage ? new Set() : new Set(visibleIds)),
+    clear: () => setPicked(new Set()),
+    allOnPage,
+    someOnPage,
+  };
+}
+
+export function SelectBox({ checked, mixed = false, label, onChange, disabled = false }: { checked: boolean; mixed?: boolean; label: string; onChange: () => void; disabled?: boolean }) {
+  return (
+    <input
+      type="checkbox"
+      className="h-4 w-4 cursor-pointer accent-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-40"
+      checked={checked}
+      ref={(node) => {
+        if (node) node.indeterminate = mixed;
+      }}
+      onChange={onChange}
+      disabled={disabled}
+      aria-label={label}
+    />
+  );
+}
+
+/** Shown while rows are selected: the count and the two status actions (never a bulk password reset). */
+export function BulkBar({ count, onDeactivate, onActivate, onClear }: { count: number; onDeactivate: () => void; onActivate: () => void; onClear: () => void }) {
+  if (count === 0) return null;
+  return (
+    <div role="region" aria-label="Thao tác với tài khoản đã chọn" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-ink/15 bg-cream px-3 py-2">
+      <p className="mr-2 text-sm font-semibold" aria-live="polite">Đã chọn {count}</p>
+      <button type="button" className="asset-button-secondary text-berry" onClick={onDeactivate}>Vô hiệu hóa</button>
+      <button type="button" className="asset-button-secondary" onClick={onActivate}>Kích hoạt lại</button>
+      <button type="button" className="ml-auto text-sm font-medium text-ink-soft underline-offset-4 hover:text-ink hover:underline" onClick={onClear}>Bỏ chọn</button>
+    </div>
+  );
+}
+
+const skipReasons: Record<BulkAccountStatusResult["skipped"][number]["reason"], string> = {
+  NOT_FOUND: "không còn tồn tại",
+  PENDING_VERIFICATION: "chưa xác minh email",
+  UNCHANGED: "đã ở trạng thái này",
+};
+
+/** One confirmation for many accounts, then a summary of what changed and what was skipped. */
+export function BulkStatusDialog({
+  names,
+  activate,
+  consequences,
+  onConfirm,
+  onClose,
+}: {
+  names: ReadonlyMap<string, string>;
+  activate: boolean;
+  consequences: readonly string[];
+  onConfirm: () => Promise<BulkAccountStatusResult>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<BulkAccountStatusResult | null>(null);
+  const list = [...names.values()];
+  async function confirm() {
+    setBusy(true);
+    setError("");
+    try {
+      setResult(await onConfirm());
+    } catch (failure) {
+      setError(classroomError(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (result)
+    return (
+      <Dialog title={activate ? "Đã kích hoạt lại" : "Đã vô hiệu hóa"} onClose={onClose}>
+        <p className="text-sm leading-6">
+          {result.updated.length > 0 ? <><strong>{result.updated.length}</strong> tài khoản đã được {activate ? "kích hoạt lại" : "vô hiệu hóa"}.</> : "Không có tài khoản nào thay đổi."}
+        </p>
+        {result.skipped.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-semibold">Bỏ qua {result.skipped.length} tài khoản</p>
+            <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-[13px] text-ink-soft">
+              {result.skipped.map((item) => (
+                <li key={item.userId}><span className="text-ink">{names.get(item.userId) ?? "Tài khoản"}</span>: {skipReasons[item.reason]}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="mt-6 flex justify-end">
+          <button type="button" className="asset-button-primary" onClick={onClose}>Xong</button>
+        </div>
+      </Dialog>
+    );
+  return (
+    <Dialog title={activate ? `Kích hoạt lại ${names.size} tài khoản` : `Vô hiệu hóa ${names.size} tài khoản`} onClose={busy ? () => undefined : onClose}>
+      <p className="text-sm text-ink-soft">
+        {list.slice(0, 5).join(", ")}
+        {list.length > 5 && ` và ${list.length - 5} người khác`}
+      </p>
+      <ul className="mt-4 space-y-2 text-sm leading-6">
+        {consequences.map((line) => (
+          <li key={line} className="flex gap-2">
+            <span aria-hidden="true" className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${activate ? "bg-leaf" : "bg-berry"}`} />
+            {line}
+          </li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="asset-error mt-4">{error}</p>}
+      <div className="mt-6 flex justify-end gap-2">
+        <button type="button" className="asset-button-secondary" onClick={onClose} disabled={busy}>Hủy</button>
+        <button type="button" className={activate ? "asset-button-primary" : "asset-button-danger"} onClick={() => void confirm()} disabled={busy}>
+          {busy ? "Đang lưu…" : activate ? `Kích hoạt lại ${names.size}` : `Vô hiệu hóa ${names.size}`}
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
+// ---------- Detail side panel ----------
+
+/** A panel sliding in from the right; Esc, the close button or a click on the backdrop closes it. */
+export function DetailDrawer({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  return (
+    <dialog
+      ref={(node) => {
+        if (node && !node.open) node.showModal();
+      }}
+      className="account-drawer"
+      aria-labelledby="drawer-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <h2 id="drawer-title" className="text-base font-semibold">{title}</h2>
+          <button type="button" className="asset-icon-button -mr-2" onClick={onClose} aria-label="Đóng">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+      </div>
+    </dialog>
+  );
+}
+
+export function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mt-5 first:mt-0">
+      {/* Not an h3: the admin theme resizes headings, and these are small labels. */}
+      <p role="heading" aria-level={3} className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-soft">{title}</p>
+      {children}
+    </section>
+  );
+}
+
+export function DetailRows({ rows }: { rows: readonly [string, ReactNode][] }) {
+  return (
+    <dl className="divide-y divide-line rounded-lg border border-line">
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid grid-cols-[156px_minmax(0,1fr)] gap-3 px-3 py-2 text-[13px]">
+          <dt className="text-ink-soft">{label}</dt>
+          <dd className="break-words">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Opens the side panel when a row is clicked, except on its own controls (checkbox, links, buttons). */
+export function openOnRowClick(open: () => void) {
+  return {
+    onClick: (event: { target: EventTarget }) => {
+      if ((event.target as HTMLElement).closest("a, button, input, label")) return;
+      open();
+    },
+    className: "cursor-pointer hover:bg-cream/70",
+  };
 }

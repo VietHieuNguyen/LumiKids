@@ -151,3 +151,10 @@
   .admin-content .admin-chart { height: 160px; }
 }
 @media (min-width: 768px) { .admin-drawer[open] { display: none; } }
+
+/* Account detail panel: a right-hand sheet over the admin pages. */
+.account-drawer { margin: 0 0 0 auto; padding: 0; width: min(460px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-left: 1px solid var(--color-line); background: var(--color-paper); color: var(--color-ink); }
+.account-drawer::backdrop { background: rgb(24 56 41 / 22%); }
+.account-drawer[open] { animation: account-drawer-in 180ms ease-out; }
+@keyframes account-drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .account-drawer[open] { animation: none; } }
