@@ -39,6 +39,8 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       Promise.resolve({ account: {}, temporaryPassword: 'abcd-efgh-jkmn' }),
     ),
     changeOwnPassword: vi.fn(() => Promise.resolve()),
+    bulkStatus: vi.fn(() => Promise.resolve({ updated: [], skipped: [] })),
+    detail: vi.fn(() => Promise.resolve({})),
   };
   const overview = { overview: vi.fn(() => Promise.resolve({ totals: {} })) };
   const profiles = {
@@ -66,6 +68,8 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     resetPassword: vi.fn(() =>
       Promise.resolve({ account: {}, temporaryPassword: 'abcd-efgh-jkmn' }),
     ),
+    bulkStatus: vi.fn(() => Promise.resolve({ updated: [], skipped: [] })),
+    detail: vi.fn(() => Promise.resolve({})),
   };
 
   beforeEach(async () => {
@@ -173,6 +177,46 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .auth(await token(), { type: 'bearer' })
       .expect(200);
     expect(reset.headers['cache-control']).toBe('no-store');
+  });
+
+  it('changes many account statuses at once, within limits, admins only', async () => {
+    const ids = (count: number) =>
+      Array.from({ length: count }, () => randomUUID());
+    for (const path of ['teacher-accounts', 'guardian-accounts']) {
+      actor = teacher;
+      await request(app.getHttpServer())
+        .post(`/api/v1/admin/${path}/bulk-status`)
+        .auth(await token(), { type: 'bearer' })
+        .send({ userIds: ids(1), status: 'DISABLED' })
+        .expect(403);
+      actor = admin;
+      const one = randomUUID();
+      for (const body of [
+        { userIds: [], status: 'DISABLED' },
+        { userIds: ids(101), status: 'DISABLED' },
+        { userIds: [one, one], status: 'DISABLED' },
+        { userIds: ids(2), status: 'PENDING_VERIFICATION' },
+        { userIds: ['not-a-uuid'], status: 'ACTIVE' },
+      ])
+        await request(app.getHttpServer())
+          .post(`/api/v1/admin/${path}/bulk-status`)
+          .auth(await token(), { type: 'bearer' })
+          .send(body)
+          .expect(400);
+      const chosen = ids(3);
+      await request(app.getHttpServer())
+        .post(`/api/v1/admin/${path}/bulk-status`)
+        .auth(await token(), { type: 'bearer' })
+        .send({ userIds: chosen, status: 'DISABLED' })
+        .expect(200);
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/${path}/${chosen[0]}`)
+        .auth(await token(), { type: 'bearer' })
+        .expect(200);
+    }
+    expect(accounts.bulkStatus).toHaveBeenCalledTimes(1);
+    expect(guardians.bulkStatus).toHaveBeenCalledTimes(1);
+    expect(guardians.detail).toHaveBeenCalledTimes(1);
   });
 
   it('shows the branding to everyone and lets only admins change it', async () => {

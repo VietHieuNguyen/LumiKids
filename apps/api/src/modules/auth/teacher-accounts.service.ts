@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  BulkAccountStatusInput,
+  BulkAccountStatusResult,
+  TeacherAccountDetail,
   ChangeOwnPasswordInput,
   IssuedPassword,
   TeacherAccount,
@@ -8,6 +11,7 @@ import type {
 import { ApiProblem } from '../../common/http/api-problem.js';
 import type { Principal } from '../../common/security/principal.js';
 import { PasswordService } from './password.service.js';
+import { AccountStatusRepository } from './account-status.repository.js';
 import { temporaryPassword } from './temporary-password.js';
 import { TeacherAccountsRepository } from './teacher-accounts.repository.js';
 import type { TeacherRow } from './teacher-accounts.repository.js';
@@ -45,7 +49,23 @@ export class TeacherAccountsService {
   constructor(
     private readonly repository: TeacherAccountsRepository,
     private readonly passwords: PasswordService,
+    private readonly statuses: AccountStatusRepository,
   ) {}
+
+  /** The admin's side panel: the account plus its classes, work and open sessions. */
+  async detail(userId: string): Promise<TeacherAccountDetail> {
+    const account = await this.require(userId);
+    const [work, activeSessions] = await Promise.all([
+      this.repository.workCounts(userId),
+      this.statuses.activeSessions(userId),
+    ]);
+    return { ...account, ...work, activeSessions };
+  }
+
+  /** Deactivate or reactivate many teachers; deactivation signs each one out everywhere. */
+  bulkStatus(input: BulkAccountStatusInput): Promise<BulkAccountStatusResult> {
+    return this.statuses.setMany('ROLE_TEACHER', input.userIds, input.status);
+  }
 
   async list(): Promise<TeacherAccount[]> {
     return (await this.repository.list()).map(toAccount);

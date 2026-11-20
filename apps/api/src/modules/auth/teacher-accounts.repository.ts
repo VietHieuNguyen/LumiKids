@@ -59,6 +59,15 @@ export class TeacherAccountsRepository {
     });
   }
 
+  /** Assignments the teacher gave and games they saved, for the admin detail panel. */
+  async workCounts(userId: string) {
+    const [assignmentCount, gameCount] = await Promise.all([
+      this.prisma.activityAssignment.count({ where: { createdBy: userId } }),
+      this.prisma.activity.count({ where: { createdBy: userId } }),
+    ]);
+    return { assignmentCount, gameCount };
+  }
+
   /** Throws Prisma P2002 when the email already has an account (of any role). */
   async create(data: {
     fullName: string;

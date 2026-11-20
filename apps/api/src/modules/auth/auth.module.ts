@@ -20,6 +20,7 @@ import { AccountProfileController } from './account-profile.controller.js';
 import { AccountProfileRepository } from './account-profile.repository.js';
 import { AccountProfileService } from './account-profile.service.js';
 import { GuardianAccountsRepository } from './guardian-accounts.repository.js';
+import { AccountStatusRepository } from './account-status.repository.js';
 import { GuardianAccountsService } from './guardian-accounts.service.js';
 import { TeacherAccountsRepository } from './teacher-accounts.repository.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
@@ -67,6 +68,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     TeacherAccountsRepository,
     GuardianAccountsService,
     GuardianAccountsRepository,
+    AccountStatusRepository,
     AccountProfileService,
     AccountProfileRepository,
     RegistrationService,

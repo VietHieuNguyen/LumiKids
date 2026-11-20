@@ -10,7 +10,10 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { updateGuardianAccountSchema } from '@lumikids/shared';
+import {
+  bulkAccountStatusSchema,
+  updateGuardianAccountSchema,
+} from '@lumikids/shared';
 import { Permissions } from './decorators/auth.decorators.js';
 import { GuardianAccountsService } from './guardian-accounts.service.js';
 
@@ -23,6 +26,23 @@ export class AdminGuardianAccountsController {
   @Get()
   list() {
     return this.accounts.list();
+  }
+
+  /** Deactivate or reactivate up to 100 accounts in one transaction; reports what was skipped. */
+  @Post('bulk-status')
+  @HttpCode(200)
+  bulkStatus(@Body() value: unknown) {
+    const parsed = bulkAccountStatusSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException(
+        'Chọn 1–100 tài khoản và trạng thái hợp lệ.',
+      );
+    return this.accounts.bulkStatus(parsed.data);
+  }
+
+  @Get(':userId')
+  detail(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.accounts.detail(userId);
   }
 
   @Patch(':userId')

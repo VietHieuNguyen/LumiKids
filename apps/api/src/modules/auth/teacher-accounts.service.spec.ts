@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiProblem } from '../../common/http/api-problem.js';
 import type { Principal } from '../../common/security/principal.js';
 import type { PasswordService } from './password.service.js';
+import type { AccountStatusRepository } from './account-status.repository.js';
 import { temporaryPassword } from './temporary-password.js';
 import type { TeacherAccountsRepository } from './teacher-accounts.repository.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
@@ -38,9 +39,14 @@ function setup() {
       Promise.resolve(hash === `hash:${value}`),
     ),
   };
+  const statuses = {
+    setMany: vi.fn(() => Promise.resolve({ updated: [], skipped: [] })),
+    activeSessions: vi.fn(() => Promise.resolve(2)),
+  };
   const service = new TeacherAccountsService(
     repository as unknown as TeacherAccountsRepository,
     passwords as unknown as PasswordService,
+    statuses as unknown as AccountStatusRepository,
   );
   return { service, repository, userId };
 }

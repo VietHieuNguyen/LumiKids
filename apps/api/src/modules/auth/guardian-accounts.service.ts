@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  BulkAccountStatusInput,
+  BulkAccountStatusResult,
+  ChildSharing,
+  GuardianAccountDetail,
   GuardianAccount,
   IssuedGuardianPassword,
   UpdateGuardianAccountInput,
 } from '@lumikids/shared';
 import { ApiProblem } from '../../common/http/api-problem.js';
 import { PasswordService } from './password.service.js';
+import { AccountStatusRepository } from './account-status.repository.js';
 import { temporaryPassword } from './temporary-password.js';
 import { GuardianAccountsRepository } from './guardian-accounts.repository.js';
 import type { GuardianRow } from './guardian-accounts.repository.js';
@@ -38,7 +43,50 @@ export class GuardianAccountsService {
   constructor(
     private readonly repository: GuardianAccountsRepository,
     private readonly passwords: PasswordService,
+    private readonly statuses: AccountStatusRepository,
   ) {}
+
+  /** The admin's side panel: each child's class, whether play is shared with it, and the last play. */
+  async detail(userId: string): Promise<GuardianAccountDetail> {
+    const account = await this.require(userId);
+    const [extras, activeSessions] = await Promise.all([
+      this.repository.childExtras(
+        userId,
+        account.children.map((child) => child.childId),
+      ),
+      this.statuses.activeSessions(userId),
+    ]);
+    const byChild = new Map(extras.map((row) => [row.childId, row]));
+    return {
+      ...account,
+      activeSessions,
+      children: account.children.map((child) => {
+        const extra = byChild.get(child.childId);
+        const consent = extra?.enrollments[0]?.consent;
+        const live = consent && !consent.revokedAt ? consent : null;
+        const pending = extra?.joinRequests[0]?.classroom.className ?? null;
+        const sharing: ChildSharing = child.classroom
+          ? live
+            ? 'CONSENTED'
+            : 'SCHOOL_ENROLLED'
+          : pending
+            ? 'PENDING_REQUEST'
+            : 'HOME';
+        return {
+          ...child,
+          sharing,
+          consentGrantedAt: live?.grantedAt.toISOString() ?? null,
+          pendingClassName: pending,
+          lastPlayedAt: extra?.playSessions[0]?.startedAt.toISOString() ?? null,
+        };
+      }),
+    };
+  }
+
+  /** Unverified guardians are skipped (the admin never confirms an email for them). */
+  bulkStatus(input: BulkAccountStatusInput): Promise<BulkAccountStatusResult> {
+    return this.statuses.setMany('ROLE_GUARDIAN', input.userIds, input.status);
+  }
 
   async list(): Promise<GuardianAccount[]> {
     return (await this.repository.list()).map(toGuardianAccount);
@@ -46,7 +94,8 @@ export class GuardianAccountsService {
 
   private async require(userId: string): Promise<GuardianAccount> {
     const row = await this.repository.find(userId);
-    if (!row) throw new NotFoundException('Không tìm thấy tài khoản phụ huynh.');
+    if (!row)
+      throw new NotFoundException('Không tìm thấy tài khoản phụ huynh.');
     return toGuardianAccount(row);
   }
 
@@ -69,7 +118,10 @@ export class GuardianAccountsService {
   async resetPassword(userId: string): Promise<IssuedGuardianPassword> {
     await this.requireVerified(userId);
     const password = temporaryPassword();
-    await this.repository.setPassword(userId, await this.passwords.hash(password));
+    await this.repository.setPassword(
+      userId,
+      await this.passwords.hash(password),
+    );
     return { account: await this.require(userId), temporaryPassword: password };
   }
 }

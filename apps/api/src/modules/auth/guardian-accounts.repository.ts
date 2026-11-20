@@ -28,7 +28,9 @@ const guardianSelect = {
               enrollments: {
                 where: { endedAt: null },
                 take: 1,
-                select: { classroom: { select: { classId: true, className: true } } },
+                select: {
+                  classroom: { select: { classId: true, className: true } },
+                },
               },
             },
           },
@@ -43,7 +45,9 @@ const guardianSelect = {
   },
 } as const satisfies Prisma.UserSelect;
 
-export type GuardianRow = Prisma.UserGetPayload<{ select: typeof guardianSelect }>;
+export type GuardianRow = Prisma.UserGetPayload<{
+  select: typeof guardianSelect;
+}>;
 
 /** Guardian accounts for the admin. Locking or a new password revokes every open session. */
 @Injectable()
@@ -62,6 +66,34 @@ export class GuardianAccountsRepository {
     return this.prisma.user.findFirst({
       where: { userId, ...guardianWhere },
       select: guardianSelect,
+    });
+  }
+
+  /** Per child of this guardian: current consent, a pending join request, and the last play. */
+  childExtras(guardianId: string, childIds: readonly string[]) {
+    return this.prisma.child.findMany({
+      where: { childId: { in: [...childIds] } },
+      select: {
+        childId: true,
+        enrollments: {
+          where: { endedAt: null },
+          take: 1,
+          select: {
+            consent: { select: { grantedAt: true, revokedAt: true } },
+          },
+        },
+        joinRequests: {
+          where: { guardianId, status: 'PENDING' },
+          orderBy: { requestedAt: 'desc' },
+          take: 1,
+          select: { classroom: { select: { className: true } } },
+        },
+        playSessions: {
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+          select: { startedAt: true },
+        },
+      },
     });
   }
 
