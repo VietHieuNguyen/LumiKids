@@ -161,6 +161,45 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
     });
     return row?.criterionCode ?? null;
   }
+  async finishedPlays(childId: string, limit: number) {
+    const rows = await this.prisma.playSession.findMany({
+      where: { childId, status: 'COMPLETED', endedAt: { not: null } },
+      orderBy: { endedAt: 'desc' },
+      take: limit,
+      select: {
+        versionId: true,
+        endedAt: true,
+        version: { select: { gameType: true, activity: { select: { name: true } } } },
+      },
+    });
+    return rows.map((row) => ({
+      versionId: row.versionId,
+      title: row.version.activity.name,
+      gameType: row.version.gameType,
+      endedAt: row.endedAt as Date,
+    }));
+  }
+  async currentClassroom(childId: string) {
+    const enrollment = await this.prisma.classroomEnrollment.findFirst({
+      where: { childId, endedAt: null },
+      select: {
+        classroom: {
+          select: {
+            className: true,
+            teachers: {
+              orderBy: { teacher: { fullName: 'asc' } },
+              select: { teacher: { select: { fullName: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!enrollment) return null;
+    return {
+      className: enrollment.classroom.className,
+      teacherNames: enrollment.classroom.teachers.map(({ teacher }) => teacher.fullName),
+    };
+  }
   async abandon(sessionId: string) {
     await this.prisma.playSession.updateMany({
       where: { sessionId, status: 'IN_PROGRESS' },

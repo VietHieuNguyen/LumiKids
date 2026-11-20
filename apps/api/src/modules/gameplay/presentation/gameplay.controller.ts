@@ -30,6 +30,12 @@ import { GameplayService } from '../application/gameplay.service.js';
 export class GameplayController {
   constructor(private readonly gameplay: GameplayService) {}
 
+  @Get('me')
+  @Permissions('READ_OWN_PLAY_SESSIONS')
+  corner(@CurrentChild() child: ChildPrincipal) {
+    return this.gameplay.corner(child);
+  }
+
   @Get('assignments')
   @Permissions('PLAY_GAMES')
   assignments(@CurrentChild() child: ChildPrincipal) {

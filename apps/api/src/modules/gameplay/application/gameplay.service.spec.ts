@@ -117,12 +117,23 @@ class MemoryRepository extends PlaySessionRepository {
       if (this.completions.has(commit.sessionId))
         throw new Error('second evaluation for one session');
       session.status = 'COMPLETED';
+      session.endedAt = commit.completion.completedAt;
       this.completions.set(commit.sessionId, commit.completion);
     }
     return Promise.resolve(true);
   }
   primaryCriterionCode() {
     return Promise.resolve(this.criterionCode);
+  }
+  finishedPlays(childId: string) {
+    return Promise.resolve(
+      [...this.sessions.values()]
+        .filter((session) => session.childId === childId && session.status === 'COMPLETED' && session.endedAt)
+        .map((session) => ({ versionId: session.versionId, title: 'Đếm quả', gameType: 'COUNTING' as const, endedAt: session.endedAt as Date })),
+    );
+  }
+  currentClassroom() {
+    return Promise.resolve({ className: 'Lá 1', teacherNames: ['Cô Lan'] });
   }
   abandon(sessionId: string) {
     const session = this.sessions.get(sessionId);
@@ -243,6 +254,23 @@ describe('GameplayService (offline)', () => {
       minimumItemsMet: false,
       ruleVersion: 'ce-score-v2',
     });
+  });
+
+  it("shows the child what they finished and where they learn, never a score", async () => {
+    const { service, versionId, register } = setup();
+    const user = register();
+    expect(await service.corner(user)).toMatchObject({ finishedGames: 0, stickers: [] });
+    const { sessionId } = await service.start(user, { versionId, startRequestId: randomUUID() });
+    await service.submit(user, sessionId, [event('two', 1), event('one', 2)]);
+    const corner = await service.corner(user);
+    expect(corner).toMatchObject({
+      fullName: user.fullName,
+      classroom: { className: 'Lá 1', teacherNames: ['Cô Lan'] },
+      finishedGames: 1,
+      finishedPlays: 1,
+    });
+    expect(corner.playedThisWeek[corner.todayIndex]).toBe(true);
+    expect(JSON.stringify(corner)).not.toMatch(/score|performance/i);
   });
 
   it('completes without a score when the version has no criterion', async () => {
