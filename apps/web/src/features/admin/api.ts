@@ -1,5 +1,9 @@
 import {
   adminOverviewSchema,
+  ageGroupSchema,
+  ageGroupUsageListSchema,
+  schoolYearUsageListSchema,
+  siteSettingsSchema,
   guardianAccountListSchema,
   guardianAccountSchema,
   issuedGuardianPasswordSchema,
@@ -7,7 +11,13 @@ import {
   teacherAccountListSchema,
   teacherAccountSchema,
 } from "@lumikids/shared";
-import type { CreateTeacherAccountInput, UpdateGuardianAccountInput, UpdateTeacherAccountInput } from "@lumikids/shared";
+import type {
+  CreateTeacherAccountInput,
+  UpdateAgeGroupInput,
+  UpdateGuardianAccountInput,
+  UpdateSiteSettingsInput,
+  UpdateTeacherAccountInput,
+} from "@lumikids/shared";
 import type { ClassroomApi } from "../classrooms/api";
 
 /** Admin dashboard and teacher accounts, on the same adult session as the classroom screens. */
@@ -40,6 +50,38 @@ export class AdminApi {
       await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}/password-reset`, { method: "POST", body: {} }),
     );
   }
+  // ---------- Catalogues ----------
+  async ageGroups(signal?: AbortSignal) {
+    return ageGroupUsageListSchema.parse(await this.api.raw("/admin/age-groups", { signal }));
+  }
+  async renameAgeGroup(ageGroupId: string, input: UpdateAgeGroupInput) {
+    return ageGroupSchema.parse(
+      await this.api.raw(`/admin/age-groups/${encodeURIComponent(ageGroupId)}`, { method: "PATCH", body: input }),
+    );
+  }
+  async reorderAgeGroups(ageGroupIds: string[]) {
+    return ageGroupUsageListSchema.parse(await this.api.raw("/admin/age-groups/order", { method: "PUT", body: { ageGroupIds } }));
+  }
+  async schoolYears(signal?: AbortSignal) {
+    return schoolYearUsageListSchema.parse(await this.api.raw("/admin/school-years", { signal }));
+  }
+
+  // ---------- Site settings ----------
+  async siteSettings(signal?: AbortSignal) {
+    return siteSettingsSchema.parse(await this.api.raw("/admin/site-settings", { signal }));
+  }
+  async updateSiteSettings(input: UpdateSiteSettingsInput) {
+    return siteSettingsSchema.parse(await this.api.raw("/admin/site-settings", { method: "PATCH", body: input }));
+  }
+  async uploadLogo(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return siteSettingsSchema.parse(await this.api.raw("/admin/site-settings/logo", { method: "PUT", body: form }));
+  }
+  async removeLogo() {
+    return siteSettingsSchema.parse(await this.api.raw("/admin/site-settings/logo", { method: "DELETE" }));
+  }
+
   async resetPassword(userId: string) {
     return issuedPasswordSchema.parse(
       await this.api.raw(`/admin/teacher-accounts/${encodeURIComponent(userId)}/password-reset`, { method: "POST", body: {} }),

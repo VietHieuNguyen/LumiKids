@@ -4,6 +4,7 @@ import "./globals.css";
 import "@/features/game-runtime/components/correct-answer-mascot.css";
 import "@/features/game-runtime/environment/forest-gameplay.css";
 import { AuthProvider } from "@/components/auth-provider";
+import { SiteSettingsProvider } from "@/components/site-settings-provider";
 import { lumiFontVariables } from "@/lib/lumi-fonts";
 
 // Public origin of the site (e.g. https://lumikids.example), needed to turn share-image paths into absolute URLs.
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${lumiFontVariables} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col"><AuthProvider>{children}</AuthProvider></body>
+      <body className="min-h-full flex flex-col"><SiteSettingsProvider><AuthProvider>{children}</AuthProvider></SiteSettingsProvider></body>
     </html>
   );
 }

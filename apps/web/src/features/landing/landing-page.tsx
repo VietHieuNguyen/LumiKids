@@ -6,6 +6,7 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
+import { useSiteSettings } from "@/components/site-settings-provider";
 import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
 import { ValleyAudio, audioSupported } from "./landing-audio";
@@ -149,6 +150,7 @@ function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
 }
 
 export function LandingPage() {
+  const { siteName, tagline: siteTagline } = useSiteSettings().settings;
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const storyRef = useRef<HTMLElement>(null);
@@ -882,12 +884,12 @@ export function LandingPage() {
           <footer className="lk-footer">
             <div className="lk-footerBrand">
               <span className="lk-brand"><LumiLogo size={28} /><LumiWordmark /></span>
-              <p>{LANDING_COPY.footer.tagline}</p>
+              <p>{siteTagline ?? LANDING_COPY.footer.tagline}</p>
             </div>
             <nav aria-label="Liên kết cuối trang" className="lk-footerLinks">
               {LANDING_COPY.footer.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
             </nav>
-            <p className="lk-copyright">© {new Date().getFullYear()} LumiKids.</p>
+            <p className="lk-copyright">© {new Date().getFullYear()} {siteName}.</p>
             <details className="lk-credits">
               <summary>{LANDING_COPY.footer.creditsLabel}</summary>
               <p>{LANDING_COPY.footer.credits}</p>
