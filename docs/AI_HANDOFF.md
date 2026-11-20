@@ -130,6 +130,14 @@ Web (CHILD) → /gameplay/games (ACTIVE) → scoped image URLs → /gameplay/ses
 
 ## E. CURRENT PROGRESS
 
+- **Cập nhật 20/11/2026 (chưa commit, VERIFIED/CODE + kiểm tra ở `docs/CLASSROOM_PLAN.md` mục 5):**
+  - Phụ huynh: `/register`, `/verify-email` (mã 6 số, HMAC, 15 phút, tối đa 5 lần; ngoài production mã in ra log API), `/family`, `/family/children/[childId]`, `/family/join?code=`. API `/auth/register|verify-email[/resend]`, `/family/*`, `/teacher/classrooms/:classId/{invites,join-requests}`. Bảng Guardian, GuardianChild, EmailVerification, ClassInvite, ClassJoinRequest, SharingConsent.
+  - Trò chọn ở nhà là `ActivityAssignment` `source=GUARDIAN`, `classId` NULL; chỉ cho trẻ **chưa có lớp**. Trẻ có lớp chỉ thấy bài TEACHER của lớp.
+  - Giáo viên chỉ thấy lượt chơi trong thời gian trẻ học lớp, và không thấy nữa khi phụ huynh rút đồng ý (rời lớp).
+  - Giáo án: `/teacher/lesson-plans[/:id]`, API `/teacher/lesson-plans` (MANAGE_LESSON_PLANS).
+  - Kho: `Activity.ageGroupId` bắt buộc khi lưu; `PATCH /game-library/:versionId/age-group`; `GET /curriculum/age-groups`. Giao bài từ chối trẻ lệch nhóm tuổi (`ASSIGNMENT_AGE_MISMATCH`). Trò cũ chưa có nhóm tuổi phải được người tạo/Admin chọn trước khi giao.
+  - Gợi ý trong trò: nút “Gợi ý” (mỗi nhiệm vụ một lần), event `REQUEST_HINT` không có `result`; ScoreCE `ce-score-v2`. Đánh giá cũ (`ce-score-v1`) giữ nguyên, không tính lại.
+
 - **VERIFIED/CODE**: authoring + Preview + kho/curriculum + gameplay (trẻ chơi, ghi PlaySession/InteractionEvent) đã có.
 - Git 13/11/2026: branch `dev` trùng `origin/dev`, working tree sạch. Commit mới nhất: `d7999de` gameplay; `136acc2` kho trò chơi/curriculum/CHILD Auth; `0800962` creator UI; `d269f7e` backend generation; `012dbba` Auth.
 - Chín migration: init Auth; generation permission; asset permissions; GameAsset; library permissions; library tables/catalog; CHILD enums; CHILD grants; gameplay (Child/PlaySession/InteractionEvent). **VERIFIED/RUN 13/11**: cả chín đã áp dụng trên DB dev; `prisma migrate diff` DB ↔ schema rỗng.
