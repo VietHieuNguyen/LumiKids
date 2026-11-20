@@ -1,5 +1,6 @@
 import {
   childAssignmentListSchema,
+  childCornerSchema,
   playableGameDetailSchema,
   playableGamePageSchema,
   playSessionSchema,
@@ -101,6 +102,9 @@ export class GameplayApi {
     if (!record(envelope) || envelope.success !== true)
       throw new GameplayApiError("Phản hồi chưa hợp lệ.", 0);
     return envelope.data;
+  }
+  async corner(signal?: AbortSignal) {
+    return childCornerSchema.parse(await this.request("/me", { signal }));
   }
   async assignments(signal?: AbortSignal) {
     return childAssignmentListSchema.parse(await this.request("/assignments", { signal }));

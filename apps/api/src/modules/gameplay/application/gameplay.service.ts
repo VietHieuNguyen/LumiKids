@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { subject } from '@casl/ability';
 import type {
+  ChildCorner,
   GameContent,
   GameInteraction,
   PlayableGameQuery,
@@ -16,6 +17,7 @@ import { AssignmentsService } from '../../learning-content/assignments.service.j
 import { PlayableGameService } from '../../learning-content/playable-game.service.js';
 import { evaluateCriterion } from '../domain/criterion-evaluation.js';
 import { computeSessionPerformance } from '../domain/session-performance.js';
+import { summarizeChildPlays } from '../domain/child-corner.js';
 import {
   GameplayRuleError,
   appendInteractions,
@@ -47,6 +49,15 @@ export class GameplayService {
     private readonly games: PlayableGameService,
     private readonly assignments: AssignmentsService,
   ) {}
+
+  /** "Góc của bé": who the child is, where they learn and what they finished (never scores). */
+  async corner(child: ChildPrincipal, now = new Date()): Promise<ChildCorner> {
+    const [plays, classroom] = await Promise.all([
+      this.sessions.finishedPlays(child.childId, 1000),
+      this.sessions.currentClassroom(child.childId),
+    ]);
+    return { fullName: child.fullName, classroom, ...summarizeChildPlays(plays, now) };
+  }
 
   /** What the child has been given to play, open assignments first. */
   listAssignments(child: ChildPrincipal) {

@@ -107,6 +107,13 @@ const problems = {
     'Kết quả thao tác không khớp với đáp án của trò chơi.',
   ],
   SCHOOL_YEAR_NAME_TAKEN: [409, 'Tên năm học đã tồn tại.'],
+  AGE_GROUP_NAME_TAKEN: [409, 'Tên nhóm tuổi đã tồn tại.'],
+  SITE_LOGO_TOO_LARGE: [413, 'Logo tối đa 512 KB.'],
+  SITE_LOGO_TYPE: [415, 'Logo cần là ảnh PNG, JPEG hoặc WebP.'],
+  AGE_GROUP_ORDER_INVALID: [
+    422,
+    'Thứ tự mới phải gồm đủ mỗi nhóm tuổi một lần. Hãy tải lại trang rồi thử lại.',
+  ],
   SCHOOL_YEAR_PERIOD_INVALID: [
     422,
     'Ngày kết thúc năm học phải sau ngày bắt đầu.',
@@ -123,6 +130,14 @@ const problems = {
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
+  PROFILE_FIELD_NOT_ALLOWED: [
+    400,
+    'Chuyên môn chỉ dành cho giáo viên, quan hệ với trẻ chỉ dành cho phụ huynh.',
+  ],
+  GUARDIAN_NOT_VERIFIED: [
+    409,
+    'Tài khoản chưa xác minh email nên chưa khóa hoặc đặt lại mật khẩu được.',
+  ],
   PASSWORD_CURRENT_INVALID: [422, 'Mật khẩu hiện tại không đúng.'],
   GROUP_NAME_TAKEN: [409, 'Lớp đã có nhóm trùng tên.'],
   GROUP_MEMBERS_INVALID: [
@@ -155,6 +170,10 @@ const problems = {
     'Đã nhập sai quá số lần cho phép. Hãy yêu cầu gửi mã mới.',
   ],
   VERIFICATION_TOO_SOON: [429, 'Vừa gửi mã. Vui lòng đợi một phút rồi thử lại.'],
+  VERIFICATION_RATE_LIMITED: [
+    429,
+    'Email này đã nhận quá nhiều mã trong một giờ. Vui lòng thử lại sau.',
+  ],
   GAME_AGE_GROUP_MISSING: [
     422,
     'Có trò chơi chưa được gắn nhóm tuổi. Người tạo trò hoặc quản trị cần chọn nhóm tuổi trong kho trước khi giao.',

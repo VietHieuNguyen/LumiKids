@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { guardianRelationshipSchema } from "./family.js";
 
 /** Staff (adult) accounts managed by the admin. Teachers only for now; admins are created by seed. */
 export const accountStatusSchema = z.enum(["ACTIVE", "DISABLED", "PENDING_VERIFICATION"]);
@@ -73,3 +74,141 @@ export type UpdateTeacherAccountInput = z.infer<typeof updateTeacherAccountSchem
 export type TeacherAccount = z.infer<typeof teacherAccountSchema>;
 export type IssuedPassword = z.infer<typeof issuedPasswordSchema>;
 export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
+
+/** Guardian (family) accounts as the admin sees them. Guardians register themselves; the admin only locks, unlocks or resets. */
+export const guardianAccountSchema = z.object({
+  userId: z.uuid(),
+  fullName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  relationship: guardianRelationshipSchema,
+  status: accountStatusSchema,
+  createdAt: z.iso.datetime(),
+  lastLoginAt: z.iso.datetime().nullable(),
+  children: z.array(
+    z.object({
+      childId: z.uuid(),
+      fullName: z.string(),
+      dob: z.iso.date(),
+      /** Class the child is in now; null when the family uses LumiKids on its own. */
+      classroom: z.object({ classId: z.uuid(), className: z.string() }).nullable(),
+    }),
+  ),
+});
+export const guardianAccountListSchema = z.array(guardianAccountSchema);
+/** Lock or unlock. An account still waiting for email verification cannot be changed this way. */
+export const updateGuardianAccountSchema = z.object({ status: staffAccountStatusSchema }).strict();
+export const issuedGuardianPasswordSchema = z.object({
+  account: guardianAccountSchema,
+  temporaryPassword: z.string(),
+});
+
+export type GuardianAccount = z.infer<typeof guardianAccountSchema>;
+export type UpdateGuardianAccountInput = z.infer<typeof updateGuardianAccountSchema>;
+export type IssuedGuardianPassword = z.infer<typeof issuedGuardianPasswordSchema>;
+
+/** One's own adult account (any role). Email is the sign-in name and cannot change. */
+export const accountProfileSchema = z.object({
+  userId: z.uuid(),
+  fullName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  roles: z.array(z.string()),
+  createdAt: z.iso.datetime(),
+  /** The sign-in before the current one, so a stranger's use is noticed; null on the first. */
+  previousLoginAt: z.iso.datetime().nullable(),
+  /** Devices or browsers still signed in. */
+  activeSessions: z.number().int().nonnegative(),
+  teacher: z
+    .object({
+      specialization: z.string(),
+      classes: z.array(
+        z.object({
+          classId: z.uuid(),
+          className: z.string(),
+          schoolYearName: z.string(),
+          ageGroupName: z.string(),
+          childCount: z.number().int().nonnegative(),
+        }),
+      ),
+    })
+    .nullable(),
+  guardian: z
+    .object({
+      relationship: guardianRelationshipSchema,
+      children: z.array(
+        z.object({
+          childId: z.uuid(),
+          fullName: z.string(),
+          dob: z.iso.date(),
+          className: z.string().nullable(),
+        }),
+      ),
+    })
+    .nullable(),
+});
+export const updateAccountProfileSchema = z
+  .object({
+    fullName: fullName.optional(),
+    phone: phone.optional(),
+    /** Teachers only. */
+    specialization: z.string().trim().max(200).optional(),
+    /** Guardians only. */
+    relationship: guardianRelationshipSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "Không có gì để cập nhật.",
+  });
+
+export type AccountProfile = z.infer<typeof accountProfileSchema>;
+export type UpdateAccountProfileInput = z.infer<typeof updateAccountProfileSchema>;
+
+// ---------- Bulk status and detail panels ----------
+
+/** Deactivate or reactivate up to 100 accounts at once (passwords are never reset in bulk). */
+export const bulkAccountStatusSchema = z
+  .object({
+    userIds: z.array(z.uuid()).min(1).max(100),
+    status: staffAccountStatusSchema,
+  })
+  .strict()
+  .refine((value) => new Set(value.userIds).size === value.userIds.length, "Tài khoản bị lặp.");
+export const bulkSkipReasonSchema = z.enum(["NOT_FOUND", "PENDING_VERIFICATION", "UNCHANGED"]);
+export const bulkAccountStatusResultSchema = z.object({
+  updated: z.array(z.uuid()),
+  skipped: z.array(z.object({ userId: z.uuid(), reason: bulkSkipReasonSchema })),
+});
+
+export const teacherAccountDetailSchema = teacherAccountSchema.extend({
+  /** Devices signed in now (unrevoked, unexpired sessions). */
+  activeSessions: z.number().int(),
+  assignmentCount: z.number().int(),
+  /** Games the teacher saved to the shared library. */
+  gameCount: z.number().int(),
+});
+
+/** How a child's play reaches a class: consented join, enrolled by the school, a pending request, or home only. */
+export const childSharingSchema = z.enum(["CONSENTED", "SCHOOL_ENROLLED", "PENDING_REQUEST", "HOME"]);
+export const guardianAccountDetailSchema = guardianAccountSchema.extend({
+  activeSessions: z.number().int(),
+  children: z.array(
+    z.object({
+      childId: z.uuid(),
+      fullName: z.string(),
+      dob: z.iso.date(),
+      classroom: z.object({ classId: z.uuid(), className: z.string() }).nullable(),
+      sharing: childSharingSchema,
+      consentGrantedAt: z.iso.datetime().nullable(),
+      /** Class asked for in a request still waiting for the teacher. */
+      pendingClassName: z.string().nullable(),
+      lastPlayedAt: z.iso.datetime().nullable(),
+    }),
+  ),
+});
+
+export type BulkAccountStatusInput = z.infer<typeof bulkAccountStatusSchema>;
+export type BulkAccountStatusResult = z.infer<typeof bulkAccountStatusResultSchema>;
+export type TeacherAccountDetail = z.infer<typeof teacherAccountDetailSchema>;
+export type GuardianAccountDetail = z.infer<typeof guardianAccountDetailSchema>;
+export type ChildSharing = z.infer<typeof childSharingSchema>;

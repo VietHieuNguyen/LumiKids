@@ -5,11 +5,28 @@ import type { FormEvent } from "react";
 import type { IssuedPassword, TeacherAccount } from "@lumikids/shared";
 import { classroomError } from "../classrooms/api";
 import type { ClassroomApi } from "../classrooms/api";
-import { ClassroomShell, Dialog, ErrorBanner, Notice, StatusPill } from "../classrooms/classroom-shell";
+import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel } from "../classrooms/classroom-shell";
 import { useClassroomSession } from "../classrooms/use-classroom-session";
 import { useResource } from "../classrooms/use-resource";
 import { AdminApi } from "./api";
 import { lastSeenLabel } from "./format";
+import {
+  AccountStatusDialog,
+  AccountStatusPill,
+  BulkBar,
+  BulkStatusDialog,
+  DetailDrawer,
+  DetailRows,
+  DetailSection,
+  Initial,
+  KpiRow,
+  ResetPasswordDialog,
+  SearchBox,
+  SelectBox,
+  StatusFilter,
+  openOnRowClick,
+  useSelection,
+} from "./account-ui";
 
 type Filter = "ACTIVE" | "DISABLED" | "ALL";
 
@@ -29,14 +46,14 @@ export function TeacherAccountsPage() {
 function Accounts({ api }: { api: ClassroomApi }) {
   const admin = useMemo(() => new AdminApi(api), [api]);
   const list = useResource((signal) => admin.teachers(signal), "teachers");
-  const [filter, setFilter] = useState<Filter>("ACTIVE");
+  const [filter, setFilter] = useState<Filter>("ALL");
   const [search, setSearch] = useState("");
-  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "edit"; account: TeacherAccount } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "edit" | "status" | "reset"; account: TeacherAccount } | null>(null);
   const [issued, setIssued] = useState<{ result: IssuedPassword; reason: "created" | "reset" } | null>(null);
   const [now] = useState(() => new Date());
 
   const all = list.data ?? [];
-  const counts = { ACTIVE: all.filter((a) => a.status === "ACTIVE").length, DISABLED: all.filter((a) => a.status === "DISABLED").length, ALL: all.length };
+  const count = (status: Filter) => (status === "ALL" ? all.length : all.filter((account) => account.status === status).length);
   const query = search.trim().toLowerCase();
   const shown = all.filter(
     (account) =>
@@ -46,67 +63,171 @@ function Accounts({ api }: { api: ClassroomApi }) {
   const replace = (account: TeacherAccount) => {
     if (list.data) list.replace(list.data.map((item) => (item.userId === account.userId ? account : item)));
   };
+  const activeClasses = (account: TeacherAccount) => account.classes.filter((item) => item.status === "ACTIVE");
+  const unassigned = all.filter((account) => account.status === "ACTIVE" && activeClasses(account).length === 0).length;
+  const selection = useSelection(shown.map((account) => account.userId));
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [bulk, setBulk] = useState<"ACTIVE" | "DISABLED" | null>(null);
+  const detail = all.find((account) => account.userId === detailId) ?? null;
+  const pick = (account: TeacherAccount) => (kind: "edit" | "status" | "reset") => setDialog({ kind, account });
 
   return (
     <ClassroomShell
       title="Giáo viên"
       eyebrow="Quản trị"
-      back={{ href: "/admin", label: "Tổng quan" }}
       actions={
         <button type="button" className="lumi-button-sun" onClick={() => setDialog({ kind: "create" })}>
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+          <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
           Thêm giáo viên
         </button>
       }
     >
       {list.error && <ErrorBanner message={list.error} onRetry={list.reload} />}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-2xl border border-line bg-paper p-1" role="tablist" aria-label="Lọc theo trạng thái">
-          {([
-            ["ACTIVE", "Đang hoạt động"],
-            ["DISABLED", "Đã khóa"],
-            ["ALL", "Tất cả"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={filter === value}
-              onClick={() => setFilter(value)}
-              className={`min-h-10 rounded-xl px-3 text-sm font-semibold transition ${filter === value ? "bg-ink text-white" : "text-ink-soft hover:bg-cream hover:text-ink"}`}
-            >
-              {label} <span className="tabular-nums opacity-70">{counts[value]}</span>
-            </button>
-          ))}
-        </div>
-        <label className="sr-only" htmlFor="teacher-search">Tìm giáo viên</label>
-        <input id="teacher-search" type="search" className="asset-input min-w-0 flex-1 sm:max-w-xs" placeholder="Tìm theo tên hoặc email…" value={search} onChange={(event) => setSearch(event.target.value)} />
-      </div>
-
-      {list.loading && !list.data && <p role="status" className="text-ink-soft">Đang tải danh sách giáo viên…</p>}
-      {list.data && shown.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-line bg-paper p-10 text-center">
-          <p className="font-display text-xl font-bold">{all.length ? "Không có giáo viên phù hợp" : "Chưa có giáo viên nào"}</p>
-          <p className="mt-1 text-sm text-ink-soft">{all.length ? "Thử bỏ lọc hoặc tìm tên khác." : "Thêm tài khoản để phân công giáo viên vào lớp."}</p>
-        </div>
+      {list.data && (
+        <KpiRow
+          items={[
+            { label: "Tài khoản giáo viên", value: all.length },
+            { label: "Đang hoạt động", value: count("ACTIVE") },
+            { label: "Chưa được phân lớp", value: unassigned },
+            { label: "Đã vô hiệu hóa", value: count("DISABLED") },
+          ]}
+        />
       )}
-      <ul className="admin-teacher-list grid gap-3 md:grid-cols-2">
-        {shown.map((account) => (
-          <TeacherCard
-            key={account.userId}
-            account={account}
-            now={now}
-            admin={admin}
-            onEdit={() => setDialog({ kind: "edit", account })}
-            onChange={replace}
-            onIssued={(result) => {
-              replace(result.account);
-              setIssued({ result, reason: "reset" });
-            }}
-          />
-        ))}
-      </ul>
 
+      <Panel title="Tài khoản giáo viên" description="Tạo tài khoản kèm mật khẩu tạm, sửa thông tin, đặt lại mật khẩu hoặc vô hiệu hóa khi giáo viên nghỉ.">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <StatusFilter
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "ALL", label: "Tất cả", count: count("ALL") },
+              { value: "ACTIVE", label: "Đang hoạt động", count: count("ACTIVE") },
+              { value: "DISABLED", label: "Đã vô hiệu hóa", count: count("DISABLED") },
+            ]}
+          />
+          <SearchBox id="teacher-search" label="Tìm giáo viên" placeholder="Tên hoặc email…" value={search} onChange={setSearch} />
+        </div>
+
+        {list.loading && !list.data && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải danh sách giáo viên…</p>}
+        {list.data && shown.length === 0 && (
+          <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center">
+            <p className="text-sm font-semibold">{all.length ? "Không có giáo viên phù hợp" : "Chưa có giáo viên nào"}</p>
+            <p className="mt-1 text-sm text-ink-soft">{all.length ? "Thử bỏ lọc hoặc tìm tên khác." : "Thêm tài khoản để phân công giáo viên vào lớp."}</p>
+          </div>
+        )}
+
+        <BulkBar count={selection.selected.length} onDeactivate={() => setBulk("DISABLED")} onActivate={() => setBulk("ACTIVE")} onClear={selection.clear} />
+        {shown.length > 0 && (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[820px] text-left text-sm">
+                <thead className="border-b border-line text-ink-soft">
+                  <tr>
+                    <th className="w-10 py-2 pl-3 pr-0">
+                      <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.toggleAll} label="Chọn tất cả giáo viên đang hiện" />
+                    </th>
+                    <th className="w-[32%] px-3 py-2 font-medium">Giáo viên</th>
+                    <th className="w-[22%] px-3 py-2 font-medium">Lớp phụ trách</th>
+                    <th className="whitespace-nowrap px-3 py-2 font-medium">Hoạt động</th>
+                    <th className="px-3 py-2 font-medium">Trạng thái</th>
+                    <th className="px-3 py-2 text-right font-medium"><span className="sr-only">Thao tác</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {shown.map((account) => (
+                    <tr
+                      key={account.userId}
+                      onClick={openOnRowClick(() => setDetailId(account.userId)).onClick}
+                      className={`align-top ${openOnRowClick(() => undefined).className} ${account.status === "DISABLED" ? "text-ink-soft" : ""} ${selection.has(account.userId) ? "bg-leaf-soft/40" : ""}`}
+                    >
+                      <td className="py-3 pl-3 pr-0 align-top">
+                        <span className="flex h-8 items-center">
+                          <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle(account.userId)} label={`Chọn ${account.fullName}`} />
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-start gap-3">
+                          <Initial name={account.fullName} muted={account.status !== "ACTIVE"} />
+                          <div className="min-w-0">
+                            <button type="button" className="break-words text-left font-semibold text-ink hover:text-leaf hover:underline" onClick={() => setDetailId(account.userId)}>{account.fullName}</button>
+                            <p className="max-w-[260px] truncate text-xs text-ink-soft" title={account.email}>{account.email}</p>
+                            {(account.specialization || account.phone) && (
+                              <p className="text-xs text-ink-soft">{[account.specialization, account.phone].filter(Boolean).join(" · ")}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3"><ClassChips classes={activeClasses(account)} /></td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <p>{lastSeenLabel(account.lastLoginAt, now)}</p>
+                        <p className="text-xs tabular-nums text-ink-soft">Tạo {new Date(account.createdAt).toLocaleDateString("vi-VN")}</p>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3"><AccountStatusPill status={account.status} /></td>
+                      <td className="px-3 py-3"><TeacherActions account={account} onPick={pick(account)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="divide-y divide-line md:hidden">
+              {shown.map((account) => (
+                <li key={account.userId} className="py-4 first:pt-0">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-8 items-center">
+                      <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle(account.userId)} label={`Chọn ${account.fullName}`} />
+                    </span>
+                    <Initial name={account.fullName} muted={account.status !== "ACTIVE"} />
+                    <div className="min-w-0 flex-1">
+                      <button type="button" className="break-words text-left font-semibold hover:text-leaf hover:underline" onClick={() => setDetailId(account.userId)}>{account.fullName}</button>
+                      <p className="truncate text-xs text-ink-soft" title={account.email}>{account.email}</p>
+                      <p className="mt-0.5 text-xs text-ink-soft">Đăng nhập: {lastSeenLabel(account.lastLoginAt, now).toLowerCase()}</p>
+                    </div>
+                    <AccountStatusPill status={account.status} />
+                  </div>
+                  <div className="mt-3 pl-[4.25rem]"><ClassChips classes={activeClasses(account)} /></div>
+                  <div className="mt-3 pl-[4.25rem]"><TeacherActions account={account} onPick={pick(account)} /></div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Panel>
+
+      {detail && (
+        <TeacherDrawer
+          key={`${detail.userId}:${detail.status}:${detail.fullName}:${detail.phone}:${detail.specialization}`}
+          admin={admin}
+          account={detail}
+          now={now}
+          onPick={pick(detail)}
+          onClose={() => setDetailId(null)}
+        />
+      )}
+      {bulk && (
+        <BulkStatusDialog
+          names={new Map(all.filter((account) => selection.selected.includes(account.userId)).map((account) => [account.userId, account.fullName]))}
+          activate={bulk === "ACTIVE"}
+          consequences={
+            bulk === "ACTIVE"
+              ? ["Giáo viên đăng nhập lại được bằng mật khẩu hiện tại.", "Phân công lớp vẫn như trước khi vô hiệu hóa."]
+              : [
+                  "Mọi giáo viên đã chọn bị đăng xuất ngay trên mọi thiết bị.",
+                  "Lớp, bài đã giao, giáo án và trò chơi đã lưu được giữ nguyên.",
+                  "Lớp do các giáo viên này phụ trách vẫn giữ tên họ; hãy phân công người khác nếu cần.",
+                ]
+          }
+          onConfirm={async () => {
+            const result = await admin.bulkTeacherStatus({ userIds: selection.selected, status: bulk });
+            list.reload();
+            return result;
+          }}
+          onClose={() => {
+            setBulk(null);
+            selection.clear();
+          }}
+        />
+      )}
       {dialog?.kind === "create" && (
         <TeacherForm
           admin={admin}
@@ -114,7 +235,6 @@ function Accounts({ api }: { api: ClassroomApi }) {
           onCreated={(result) => {
             setDialog(null);
             if (list.data) list.replace([...list.data, result.account].sort((a, b) => a.fullName.localeCompare(b.fullName, "vi")));
-            setFilter("ACTIVE");
             setIssued({ result, reason: "created" });
           }}
         />
@@ -130,108 +250,150 @@ function Accounts({ api }: { api: ClassroomApi }) {
           }}
         />
       )}
+      {dialog?.kind === "status" && (
+        <AccountStatusDialog
+          name={dialog.account.fullName}
+          email={dialog.account.email}
+          activate={dialog.account.status === "DISABLED"}
+          consequences={
+            dialog.account.status === "DISABLED"
+              ? ["Giáo viên đăng nhập lại được bằng mật khẩu hiện tại.", "Phân công lớp vẫn như trước khi vô hiệu hóa."]
+              : [
+                  "Giáo viên bị đăng xuất ngay trên mọi thiết bị và không đăng nhập được nữa.",
+                  "Lớp, bài đã giao, giáo án và trò chơi đã lưu được giữ nguyên.",
+                  activeClasses(dialog.account).length
+                    ? `Giáo viên vẫn có tên trong ${activeClasses(dialog.account).length} lớp. Hãy phân công giáo viên khác nếu lớp cần người phụ trách.`
+                    : "Giáo viên không phụ trách lớp nào.",
+                  "Có thể kích hoạt lại bất cứ lúc nào.",
+                ]
+          }
+          onConfirm={async () => replace(await admin.updateTeacher(dialog.account.userId, { status: dialog.account.status === "DISABLED" ? "ACTIVE" : "DISABLED" }))}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === "reset" && (
+        <ResetPasswordDialog
+          name={dialog.account.fullName}
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            const result = await admin.resetPassword(dialog.account.userId);
+            replace(result.account);
+            setDialog(null);
+            setIssued({ result, reason: "reset" });
+          }}
+        />
+      )}
       {issued && <PasswordDialog issued={issued.result} reason={issued.reason} onClose={() => setIssued(null)} />}
     </ClassroomShell>
   );
 }
 
-function TeacherCard({
+function TeacherDrawer({
+  admin,
   account,
   now,
-  admin,
-  onEdit,
-  onChange,
-  onIssued,
+  onPick,
+  onClose,
 }: {
+  admin: AdminApi;
   account: TeacherAccount;
   now: Date;
-  admin: AdminApi;
-  onEdit: () => void;
-  onChange: (account: TeacherAccount) => void;
-  onIssued: (result: IssuedPassword) => void;
+  onPick: (kind: "edit" | "status" | "reset") => void;
+  onClose: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const active = account.status === "ACTIVE";
-  const activeClasses = account.classes.filter((item) => item.status === "ACTIVE");
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-    } catch (failure) {
-      setError(classroomError(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const detail = useResource((signal) => admin.teacherDetail(account.userId, signal), `teacher:${account.userId}`);
+  const data = detail.data;
+  const current = account.classes.filter((item) => item.status === "ACTIVE");
+  const past = account.classes.filter((item) => item.status === "ARCHIVED");
+  const classList = (classes: TeacherAccount["classes"]) => (
+    <ul className="divide-y divide-line rounded-lg border border-line">
+      {classes.map((item) => (
+        <li key={item.classId} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+          <Link className="font-medium text-leaf hover:underline" href={`/admin/classrooms/${item.classId}`}>{item.className}</Link>
+          <span className="text-ink-soft">Năm học {item.schoolYearName}</span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
-    <li className={`admin-teacher-row flex flex-col rounded-3xl border border-line bg-paper p-5 ${active ? "" : "opacity-75"}`}>
-      <div className="admin-teacher-identity flex items-start gap-3">
-        <span aria-hidden="true" className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-display text-xl font-bold ring-1 ${active ? "bg-sun-soft ring-sun-edge/40" : "bg-ink/5 ring-line"}`}>
-          {account.fullName.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
-        </span>
+    <DetailDrawer title="Chi tiết giáo viên" onClose={onClose} footer={<TeacherActions account={account} onPick={onPick} />}>
+      <div className="flex items-start gap-3">
+        <Initial name={account.fullName} muted={account.status !== "ACTIVE"} />
         <div className="min-w-0 flex-1">
-          <p className="break-words font-display text-lg font-bold leading-tight">{account.fullName}</p>
-          <p className="break-all text-sm text-ink-soft">{account.email}</p>
-          {account.specialization && <p className="break-words text-sm font-medium text-leaf">{account.specialization}</p>}
-          {account.phone && <p className="text-sm text-ink-soft">{account.phone}</p>}
+          <p className="break-words font-semibold">{account.fullName}</p>
+          <p className="break-all text-xs text-ink-soft">{account.email}</p>
         </div>
-        <StatusPill tone={active ? "green" : "slate"}>{active ? "Hoạt động" : "Đã khóa"}</StatusPill>
+        <AccountStatusPill status={account.status} />
       </div>
-      <dl className="admin-teacher-stats mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt className="text-xs font-semibold text-ink-soft">Đăng nhập gần nhất</dt>
-          <dd className="font-semibold">{lastSeenLabel(account.lastLoginAt, now)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold text-ink-soft">Lớp đang phụ trách</dt>
-          <dd className="font-semibold">{activeClasses.length || "Chưa có"}</dd>
-        </div>
-      </dl>
-      {activeClasses.length > 0 && (
-        <ul className="admin-teacher-classes mt-3 flex flex-wrap gap-1.5">
-          {activeClasses.map((item) => (
-            <li key={item.classId}>
-              <Link href={`/admin/classrooms/${item.classId}`} className="inline-flex min-h-8 items-center rounded-full bg-leaf-soft px-3 text-xs font-semibold text-leaf hover:bg-leaf hover:text-white">
-                {item.className}
-              </Link>
-            </li>
+      <div className="mt-5">
+        <DetailSection title="Liên hệ và chuyên môn">
+          <DetailRows
+            rows={[
+              ["Điện thoại", account.phone || <span className="text-ink-soft">Chưa có</span>],
+              ["Chuyên môn", account.specialization || <span className="text-ink-soft">Chưa có</span>],
+              ["Tạo tài khoản", new Date(account.createdAt).toLocaleDateString("vi-VN")],
+              ["Đăng nhập gần nhất", lastSeenLabel(account.lastLoginAt, now)],
+              ["Thiết bị đang đăng nhập", data ? data.activeSessions : "…"],
+            ]}
+          />
+        </DetailSection>
+      </div>
+      {detail.error && <div className="mt-4"><ErrorBanner message={detail.error} onRetry={detail.reload} /></div>}
+      <DetailSection title="Công việc">
+        <dl className="grid grid-cols-2 gap-2">
+          {[
+            ["Bài đã giao", data?.assignmentCount],
+            ["Trò chơi đã lưu", data?.gameCount],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-line px-3 py-2">
+              <dt className="text-xs text-ink-soft">{label}</dt>
+              <dd className="text-xl font-semibold tabular-nums">{value ?? "…"}</dd>
+            </div>
           ))}
-        </ul>
-      )}
-      <div className="admin-teacher-actions mt-auto flex flex-wrap gap-2 pt-4">
-        <button type="button" className="asset-button-secondary" onClick={onEdit} disabled={busy}>Sửa</button>
-        {active && (
-          <button
-            type="button"
-            className="asset-button-secondary"
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm(`Đặt lại mật khẩu cho ${account.fullName}? Mật khẩu cũ hết hiệu lực và giáo viên bị đăng xuất khỏi mọi thiết bị.`))
-                void run(async () => onIssued(await admin.resetPassword(account.userId)));
-            }}
+        </dl>
+      </DetailSection>
+      <DetailSection title={`Lớp đang phụ trách (${current.length})`}>
+        {current.length ? classList(current) : <p className="text-sm text-ink-soft">Chưa được phân lớp năm nay.</p>}
+      </DetailSection>
+      {past.length > 0 && <DetailSection title={`Lớp đã phụ trách (${past.length})`}>{classList(past)}</DetailSection>}
+    </DetailDrawer>
+  );
+}
+
+function ClassChips({ classes }: { classes: TeacherAccount["classes"] }) {
+  if (classes.length === 0) return <span className="text-xs text-ink-soft">Chưa phân lớp</span>;
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {classes.map((item) => (
+        <li key={item.classId}>
+          <Link
+            href={`/admin/classrooms/${item.classId}`}
+            className="inline-flex min-h-6 items-center whitespace-nowrap rounded border border-line px-1.5 text-xs text-leaf hover:bg-leaf-soft"
           >
-            Đặt lại mật khẩu
-          </button>
-        )}
-        <button
-          type="button"
-          className={active ? "asset-button-secondary text-berry" : "asset-button-primary"}
-          disabled={busy}
-          onClick={() => {
-            const message = active
-              ? `Khóa tài khoản ${account.fullName}? Giáo viên bị đăng xuất ngay và không đăng nhập được nữa. Lớp và bài đã giao vẫn giữ nguyên.`
-              : `Mở khóa tài khoản ${account.fullName}?`;
-            if (window.confirm(message))
-              void run(async () => onChange(await admin.updateTeacher(account.userId, { status: active ? "DISABLED" : "ACTIVE" })));
-          }}
-        >
-          {active ? "Khóa" : "Mở khóa"}
-        </button>
-      </div>
-      {error && <p role="alert" className="asset-error mt-3">{error}</p>}
-    </li>
+            {item.className}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function TeacherActions({ account, onPick }: { account: TeacherAccount; onPick: (kind: "edit" | "status" | "reset") => void }) {
+  const active = account.status === "ACTIVE";
+  return (
+    <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
+      <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick("edit")}>Sửa</button>
+      {active && (
+        <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick("reset")}>Đặt lại mật khẩu</button>
+      )}
+      <button
+        type="button"
+        className={`whitespace-nowrap ${active ? "asset-button-secondary text-berry" : "asset-button-primary"}`}
+        onClick={() => onPick("status")}
+      >
+        {active ? "Vô hiệu hóa" : "Kích hoạt lại"}
+      </button>
+    </div>
   );
 }
 
@@ -301,7 +463,16 @@ function TeacherForm({
   );
 }
 
-function PasswordDialog({ issued, reason, onClose }: { issued: IssuedPassword; reason: "created" | "reset"; onClose: () => void }) {
+/** Shows a temporary password once (teacher or guardian account). */
+export function PasswordDialog({
+  issued,
+  reason,
+  onClose,
+}: {
+  issued: { account: { fullName: string; email: string }; temporaryPassword: string };
+  reason: "created" | "reset";
+  onClose: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <Dialog title={reason === "created" ? "Đã tạo tài khoản" : "Đã đặt lại mật khẩu"} onClose={onClose}>

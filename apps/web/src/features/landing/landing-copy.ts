@@ -8,6 +8,9 @@ export const LANDING_COPY = {
       { label: "Dành cho giáo viên", href: "#giao-vien", target: "teacher" },
     ],
     login: "Đăng nhập",
+    /** Children sign in with the code a teacher or parent gave them. */
+    child: "Bé vào chơi",
+    family: "Phụ huynh",
     cta: "Khám phá trò chơi",
     ctaShort: "Trò chơi",
     /** While the visitor is still in the valley story, the same button skips straight to the games. */
@@ -72,12 +75,25 @@ export const LANDING_COPY = {
     cardLogin: "Đăng nhập để chơi cùng bé",
     note: "Mọi trò chơi đều được giáo viên duyệt trước khi đến tay trẻ.",
   },
+  family: {
+    eyebrow: "Dành cho phụ huynh",
+    title: "Cùng con học ở nhà",
+    subtitle: "Không cần chờ lớp học: bố mẹ tự tạo tài khoản, thêm hồ sơ con và chọn trò phù hợp với tuổi của con.",
+    steps: [
+      { title: "Đăng ký bằng email", detail: "Nhận mã xác minh qua email để kích hoạt tài khoản." },
+      { title: "Thêm hồ sơ con, cấp mã", detail: "Bé vào chơi bằng mã riêng, không cần email hay mật khẩu." },
+      { title: "Chơi ở nhà hoặc vào lớp", detail: "Chọn trò theo tuổi của con, hoặc xin vào lớp bằng mã mời của cô." },
+    ],
+    cta: "Đăng ký cho phụ huynh",
+    child: "Bé đã có mã? Vào chơi",
+    note: "Giáo viên chỉ xem kết quả chơi của con khi bố mẹ đồng ý chia sẻ, và bố mẹ rút lại được bất cứ lúc nào.",
+  },
   footer: {
     tagline: "Nền tảng trò chơi giáo dục mầm non — học qua chơi, có người lớn đồng hành.",
     links: [
       { label: "Đăng nhập", href: "/login" },
-      { label: "Kho trò chơi", href: "/teacher/games" },
-      { label: "Tạo trò chơi", href: "/teacher/games/create" },
+      { label: "Đăng ký cho phụ huynh", href: "/register" },
+      { label: "Bé vào chơi", href: "/login?mode=child" },
     ],
     creditsLabel: "Ghi công mô hình 3D",
     credits: "Mô hình 3D: thung lũng LumiKids Pastel; Thỏ và Gấu từ Sketchfab (xem giấy phép của tác giả); vịt của Liray 3D (Fab); Hươu và Ếch của Quaternius (Poly Pizza, CC0), đã chỉnh dáng và màu; Voi của Ozor, Chó con của kenchoo và Cỏ đuôi nến của SXuno — Sketchfab, CC BY 4.0, đã giảm lưới, làm mịn, đổi màu và thêm hoạt ảnh chờ.",

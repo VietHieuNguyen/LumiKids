@@ -24,6 +24,7 @@ const ownMessageCodes = new Set([
   "VERIFICATION_INVALID",
   "VERIFICATION_LOCKED",
   "VERIFICATION_TOO_SOON",
+  "VERIFICATION_RATE_LIMITED",
 ]);
 
 const messages: Record<number, string> = {

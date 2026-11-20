@@ -107,6 +107,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
+  @Throttle({ default: { ttl: 900_000, limit: 20 } })
   @Public()
   @HttpCode(200)
   @UseGuards(BrowserRequestGuard)

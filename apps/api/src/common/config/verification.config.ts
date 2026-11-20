@@ -20,10 +20,11 @@ export default registerAs('verification', () => {
     ttlMinutes: 15,
     maxAttempts: 5,
     resendAfterSeconds: 60,
-    /**
-     * No mail server is configured yet. Outside production the code is written to the API log so a
-     * developer can finish registration; in production it is never logged (a mailer must be added).
-     */
+    /** Codes one email address may receive per hour (stops mail bombing a mailbox from many IPs). */
+    maxCodesPerEmailPerHour: 5,
+    /** Verification mails the whole API process may send per hour (keeps under the Gmail quota). */
+    maxMailsPerHour: 100,
+    /** Outside production the code is also written to the API log (mail is sent when configured). */
     logCodes: env.NODE_ENV !== 'production',
   };
 });

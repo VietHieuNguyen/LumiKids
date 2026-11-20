@@ -85,9 +85,12 @@ export class ClassroomApi {
           : AbortSignal.timeout(20000),
         headers: {
           Authorization: `Bearer ${this.token}`,
-          ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+          // A FormData upload sets its own multipart boundary.
+          ...(options.body === undefined || options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         },
-        ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+        ...(options.body === undefined
+          ? {}
+          : { body: options.body instanceof FormData ? options.body : JSON.stringify(options.body) }),
       });
     } catch (error) {
       if (options.signal?.aborted) throw error;

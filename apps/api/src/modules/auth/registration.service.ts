@@ -8,6 +8,10 @@ import type {
 } from '@lumikids/shared';
 import verificationConfig from '../../common/config/verification.config.js';
 import { ApiProblem } from '../../common/http/api-problem.js';
+import { MailService } from '../../common/mail/mail.service.js';
+import { SlidingWindowLimiter } from '../../common/security/sliding-window-limiter.js';
+import mailConfig from '../../common/config/mail.config.js';
+import { verificationMail } from './verification-mail.js';
 import { PasswordService } from './password.service.js';
 import { RegistrationRepository } from './registration.repository.js';
 
@@ -31,13 +35,21 @@ function isUniqueViolation(error: unknown): boolean {
 @Injectable()
 export class RegistrationService {
   private readonly logger = new Logger('EmailVerification');
+  private readonly perEmail: SlidingWindowLimiter;
+  private readonly allMail: SlidingWindowLimiter;
 
   constructor(
     private readonly repository: RegistrationRepository,
     private readonly passwords: PasswordService,
+    private readonly mail: MailService,
     @Inject(verificationConfig.KEY)
     private readonly config: ConfigType<typeof verificationConfig>,
-  ) {}
+    @Inject(mailConfig.KEY)
+    private readonly mailSettings: ConfigType<typeof mailConfig>,
+  ) {
+    this.perEmail = new SlidingWindowLimiter(config.maxCodesPerEmailPerHour, 3_600_000);
+    this.allMail = new SlidingWindowLimiter(config.maxMailsPerHour, 3_600_000);
+  }
 
   private digest(userId: string, code: string): string {
     // Bound to the account so a digest cannot be replayed onto another one.
@@ -54,10 +66,31 @@ export class RegistrationService {
     return new Date(Date.now() + this.config.ttlMinutes * 60_000);
   }
 
-  /** Stand-in for the mailer: development only. */
-  private deliver(email: string, code: string) {
+  /**
+   * Emails the code. A failed or missing mailer never fails the request (the answer stays the same,
+   * so it cannot reveal accounts); the guardian can ask for a new code. Outside production the code
+   * is also logged, so registration still works without mail.
+   */
+  private async deliver(email: string, code: string, fullName?: string): Promise<void> {
     if (this.config.logCodes)
       this.logger.log(`Mã xác minh cho ${email}: ${code} (chỉ ghi log ở môi trường phát triển)`);
+    if (!this.allMail.take('all')) {
+      this.logger.warn('Đã chạm giới hạn email xác minh mỗi giờ của hệ thống: tạm không gửi.');
+      return;
+    }
+    if (!this.mail.enabled) {
+      if (!this.config.logCodes)
+        this.logger.error('Chưa cấu hình gửi email (EMAIL_USER, EMAIL_PASSWORD): không gửi được mã xác minh.');
+      return;
+    }
+    try {
+      await this.mail.send(
+        verificationMail({ to: email, code, ttlMinutes: this.config.ttlMinutes, fullName, webUrl: this.mailSettings.webUrl }),
+      );
+    } catch (error) {
+      // No code and no SMTP credentials in the log line.
+      this.logger.warn(`Gửi email xác minh thất bại: ${error instanceof Error ? error.name : 'Error'}`);
+    }
   }
 
   async register(input: Required<RegisterGuardianInput>): Promise<RegistrationAccepted> {
@@ -69,6 +102,8 @@ export class RegistrationService {
       return this.accepted(input.email);
     }
     const passwordHash = await this.passwords.hash(input.password);
+    // A new account's first code counts toward the per-email hourly limit too.
+    if (!this.perEmail.take(input.email)) return this.accepted(input.email);
     const code = verificationCode();
     const userId = randomUUID();
     try {
@@ -86,7 +121,7 @@ export class RegistrationService {
       if (isUniqueViolation(error)) return this.accepted(input.email);
       throw error;
     }
-    this.deliver(input.email, code);
+    await this.deliver(input.email, code, input.fullName);
     return this.accepted(input.email);
   }
 
@@ -96,9 +131,10 @@ export class RegistrationService {
     const sentAt = user.verification?.sentAt.getTime() ?? 0;
     if (Date.now() - sentAt < this.config.resendAfterSeconds * 1000)
       throw new ApiProblem('VERIFICATION_TOO_SOON');
+    if (!this.perEmail.take(email)) throw new ApiProblem('VERIFICATION_RATE_LIMITED');
     const code = verificationCode();
     await this.repository.replaceCode(user.userId, this.digest(user.userId, code), this.expiry());
-    this.deliver(email, code);
+    await this.deliver(email, code, user.fullName);
     return this.accepted(email);
   }
 
@@ -119,3 +155,4 @@ export class RegistrationService {
       throw new ApiProblem('VERIFICATION_INVALID');
   }
 }
+

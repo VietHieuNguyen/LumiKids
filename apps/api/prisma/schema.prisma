@@ -779,3 +779,15 @@ model LessonBlock {
   @@unique([lessonPlanId, position])
   @@index([versionId])
 }
+
+/// Site-wide branding, a single row (id = 1, enforced by a CHECK). The logo file lives in object
+/// storage under logoObjectKey and is served by the API; landingScene names a 3D scene the web knows.
+model SiteSetting {
+  id            Int      @id @default(1)
+  siteName      String   @default("LumiKids") @db.VarChar(60)
+  tagline       String?  @db.VarChar(160)
+  logoObjectKey String?  @db.VarChar(255)
+  logoMimeType  String?  @db.VarChar(50)
+  landingScene  String   @default("VALLEY") @db.VarChar(30)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+}

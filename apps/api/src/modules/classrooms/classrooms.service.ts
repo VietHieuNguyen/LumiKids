@@ -3,6 +3,10 @@ import { sessionPerformanceSchema } from '@lumikids/shared';
 import type { CriterionEvaluationView } from '@lumikids/shared';
 import type {
   AgeGroup,
+  AgeGroupUsage,
+  ReorderAgeGroupsInput,
+  SchoolYearUsage,
+  UpdateAgeGroupInput,
   ClassGroup,
   CreateClassGroupInput,
   UpdateClassGroupInput,
@@ -142,11 +146,54 @@ export class ClassroomsService {
 
   // ---------- Admin: catalogues ----------
 
-  async listAgeGroups(): Promise<AgeGroup[]> {
-    return (await this.repository.listAgeGroups()).map(ageGroup);
+  async ageGroupUsage(): Promise<AgeGroupUsage[]> {
+    return (await this.repository.ageGroupUsage()).map((row) => ({
+      ...ageGroup(row),
+      displayOrder: row.displayOrder,
+      classroomCount: row._count.classrooms,
+      activeClassroomCount: row.activeClassroomCount,
+      activityCount: row._count.activities,
+      lessonPlanCount: row._count.lessonPlans,
+    }));
   }
-  async listSchoolYears(): Promise<SchoolYear[]> {
-    return (await this.repository.listSchoolYears()).map(schoolYear);
+  /** Only the display name changes: the age range drives R-01 and the scoring rules. */
+  async renameAgeGroup(
+    ageGroupId: string,
+    input: UpdateAgeGroupInput,
+  ): Promise<AgeGroup> {
+    if (!(await this.repository.findAgeGroup(ageGroupId)))
+      throw new NotFoundException('Không tìm thấy nhóm tuổi.');
+    try {
+      return ageGroup(
+        await this.repository.renameAgeGroup(ageGroupId, input.name),
+      );
+    } catch (error) {
+      if (isUniqueViolation(error))
+        throw new ApiProblem('AGE_GROUP_NAME_TAKEN');
+      throw error;
+    }
+  }
+  /** The new order must name every age group exactly once. */
+  async reorderAgeGroups(
+    input: ReorderAgeGroupsInput,
+  ): Promise<AgeGroupUsage[]> {
+    const current = await this.repository.listAgeGroups();
+    const known = new Set(current.map((group) => group.ageGroupId));
+    if (
+      input.ageGroupIds.length !== known.size ||
+      !input.ageGroupIds.every((id) => known.has(id))
+    )
+      throw new ApiProblem('AGE_GROUP_ORDER_INVALID');
+    await this.repository.reorderAgeGroups(input.ageGroupIds);
+    return this.ageGroupUsage();
+  }
+  async schoolYearUsage(): Promise<SchoolYearUsage[]> {
+    return (await this.repository.schoolYearUsage()).map((row) => ({
+      ...schoolYear(row),
+      classroomCount: row.classroomCount,
+      activeClassroomCount: row.activeClassroomCount,
+      childCount: row.childCount,
+    }));
   }
   async createSchoolYear(input: CreateSchoolYearInput): Promise<SchoolYear> {
     try {
@@ -523,8 +570,15 @@ export class ClassroomsService {
     return this.playHistory(childId, periods, query);
   }
   /** Every session of the child (the guardian's view; the family service checks the link first). */
-  childPlayHistory(childId: string, query: PlayHistoryQuery): Promise<PlayHistoryPage> {
-    return this.playHistory(childId, [{ startedAt: new Date(0), endedAt: null }], query);
+  childPlayHistory(
+    childId: string,
+    query: PlayHistoryQuery,
+  ): Promise<PlayHistoryPage> {
+    return this.playHistory(
+      childId,
+      [{ startedAt: new Date(0), endedAt: null }],
+      query,
+    );
   }
   private async playHistory(
     childId: string,
@@ -546,8 +600,8 @@ export class ClassroomsService {
         status: row.status,
         // Answers only: hint requests are events too but not attempts.
         attemptCount:
-          sessionPerformanceSchema.safeParse(row.performance).data?.attemptCount ??
-          row.eventCount,
+          sessionPerformanceSchema.safeParse(row.performance).data
+            ?.attemptCount ?? row.eventCount,
         startedAt: row.startedAt.toISOString(),
         endedAt: row.endedAt?.toISOString() ?? null,
         evaluation: evaluationView(row),

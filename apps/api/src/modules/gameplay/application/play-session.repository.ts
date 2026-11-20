@@ -4,6 +4,7 @@ import type {
   SessionPerformance,
 } from '@lumikids/shared';
 import type { CriterionEvaluationDraft } from '../domain/criterion-evaluation.js';
+import type { FinishedPlay } from '../domain/child-corner.js';
 
 export interface PlaySessionRecord {
   sessionId: string;
@@ -55,4 +56,10 @@ export abstract class PlaySessionRepository {
    * that rule may have several, and the first by code is used.
    */
   abstract primaryCriterionCode(versionId: string): Promise<string | null>;
+  /** The child's completed plays, newest first (bounded). */
+  abstract finishedPlays(childId: string, limit: number): Promise<FinishedPlay[]>;
+  /** The class the child is in now and its teachers, or null. */
+  abstract currentClassroom(
+    childId: string,
+  ): Promise<{ className: string; teacherNames: string[] } | null>;
 }

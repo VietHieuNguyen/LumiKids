@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { z } from 'zod';
 import {
+  bulkAccountStatusSchema,
   createTeacherAccountSchema,
   updateTeacherAccountSchema,
 } from '@lumikids/shared';
@@ -37,6 +38,23 @@ export class AdminTeacherAccountsController {
   @Get()
   list() {
     return this.accounts.list();
+  }
+
+  /** Deactivate or reactivate up to 100 accounts in one transaction; reports what was skipped. */
+  @Post('bulk-status')
+  @HttpCode(200)
+  bulkStatus(@Body() value: unknown) {
+    const parsed = bulkAccountStatusSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException(
+        'Chọn 1–100 tài khoản và trạng thái hợp lệ.',
+      );
+    return this.accounts.bulkStatus(parsed.data);
+  }
+
+  @Get(':userId')
+  detail(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.accounts.detail(userId);
   }
 
   @Post()

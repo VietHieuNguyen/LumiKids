@@ -9,7 +9,9 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   createFamilyActivitySchema,
   createFamilyChildSchema,
@@ -110,12 +112,17 @@ export class FamilyController {
   ) {
     return this.family.leaveClass(guardian, childId);
   }
+  // Invite codes are long and random; a per-IP cap still stops guessing them in bulk.
   @Post('invites/preview')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 600_000, limit: 20 } })
   @HttpCode(200)
   previewInvite(@Body() value: unknown) {
     return this.family.previewInvite(parse(inviteCodeSchema, value, 'Mã mời không hợp lệ.').code);
   }
   @Post('join-requests')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 600_000, limit: 10 } })
   requestJoin(@CurrentUser() guardian: Principal, @Body() value: unknown) {
     return this.family.requestJoin(
       guardian,

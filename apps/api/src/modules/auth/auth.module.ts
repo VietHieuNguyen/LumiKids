@@ -7,12 +7,21 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import authConfig from '../../common/config/auth.config.js';
 import childAuthConfig from '../../common/config/child-auth.config.js';
 import verificationConfig from '../../common/config/verification.config.js';
+import mailConfig from '../../common/config/mail.config.js';
+import { MailService } from '../../common/mail/mail.service.js';
 import { RegistrationRepository } from './registration.repository.js';
 import { RegistrationService } from './registration.service.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AdminTeacherAccountsController } from './admin-teacher-accounts.controller.js';
+import { AdminGuardianAccountsController } from './admin-guardian-accounts.controller.js';
+import { AccountProfileController } from './account-profile.controller.js';
+import { AccountProfileRepository } from './account-profile.repository.js';
+import { AccountProfileService } from './account-profile.service.js';
+import { GuardianAccountsRepository } from './guardian-accounts.repository.js';
+import { AccountStatusRepository } from './account-status.repository.js';
+import { GuardianAccountsService } from './guardian-accounts.service.js';
 import { TeacherAccountsRepository } from './teacher-accounts.repository.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
 import { ChildAuthController } from './child-auth.controller.js';
@@ -30,6 +39,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     ConfigModule.forFeature(authConfig),
     ConfigModule.forFeature(childAuthConfig),
     ConfigModule.forFeature(verificationConfig),
+    ConfigModule.forFeature(mailConfig),
     PrismaModule,
     UsersModule,
     JwtModule.register({}),
@@ -45,6 +55,8 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     AuthController,
     ChildAuthController,
     AdminTeacherAccountsController,
+    AdminGuardianAccountsController,
+    AccountProfileController,
   ],
   providers: [
     AuthService,
@@ -54,7 +66,13 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     ChildAuthRepository,
     TeacherAccountsService,
     TeacherAccountsRepository,
+    GuardianAccountsService,
+    GuardianAccountsRepository,
+    AccountStatusRepository,
+    AccountProfileService,
+    AccountProfileRepository,
     RegistrationService,
+    MailService,
     RegistrationRepository,
     BrowserRequestGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },

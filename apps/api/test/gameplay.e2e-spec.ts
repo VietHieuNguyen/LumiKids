@@ -64,6 +64,8 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     commitAppend: vi.fn(),
     abandon: vi.fn(),
     primaryCriterionCode: vi.fn(() => Promise.resolve('50')),
+    finishedPlays: vi.fn(),
+    currentClassroom: vi.fn(),
   };
   const games = {
     list: vi.fn(),
@@ -149,9 +151,28 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
   });
 
   it('refuses a child token on adult routes', async () => {
-    await request(app.getHttpServer())
-      .get('/api/v1/auth/me')
+    for (const path of ['/api/v1/auth/me', '/api/v1/auth/profile'])
+      await request(app.getHttpServer())
+        .get(path)
+        .auth(await token(), { type: 'bearer' })
+        .expect(403);
+  });
+
+  it("shows the child's own corner, with no scores, and only to the child", async () => {
+    sessions.finishedPlays.mockResolvedValue([
+      { versionId: randomUUID(), title: 'Đếm quả', gameType: 'COUNTING', endedAt: new Date() },
+    ]);
+    sessions.currentClassroom.mockResolvedValue(null);
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/gameplay/me')
       .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    expect(response.body.data).toMatchObject({ fullName: child.fullName, classroom: null, finishedGames: 1 });
+    expect(JSON.stringify(response.body.data)).not.toMatch(/score|performance/i);
+    expect(sessions.finishedPlays).toHaveBeenCalledWith(child.childId, 1000);
+    await request(app.getHttpServer())
+      .get('/api/v1/gameplay/me')
+      .auth(await token('adult'), { type: 'bearer' })
       .expect(403);
   });
 

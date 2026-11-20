@@ -6,6 +6,7 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
+import { useSiteSettings } from "@/components/site-settings-provider";
 import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
 import { ValleyAudio, audioSupported } from "./landing-audio";
@@ -149,6 +150,7 @@ function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
 }
 
 export function LandingPage() {
+  const { siteName, tagline: siteTagline } = useSiteSettings().settings;
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const storyRef = useRef<HTMLElement>(null);
@@ -643,8 +645,10 @@ export function LandingPage() {
           {LANDING_COPY.nav.links.map((link) => (
             <a key={link.href} href={link.href} onClick={goTo(link.target)}>{link.label}</a>
           ))}
+          <a href="#phu-huynh">{LANDING_COPY.nav.family}</a>
         </nav>
         <div className="lk-navRight">
+          <Link className="lk-navLogin lk-navChild" href="/login?mode=child">{LANDING_COPY.nav.child}</Link>
           <Link className="lk-navLogin" href="/login">{LANDING_COPY.nav.login}</Link>
           <Link className="lk-navLoginIcon" href="/login" aria-label={LANDING_COPY.nav.login}><UserIcon /></Link>
           {/* One button, two jobs: inside the valley story it skips to the games; afterwards it is the usual CTA. */}
@@ -670,6 +674,8 @@ export function LandingPage() {
           {LANDING_COPY.nav.links.map((link) => (
             <a key={link.href} href={link.href} onClick={goTo(link.target)}>{link.label}</a>
           ))}
+          <a href="#phu-huynh" onClick={() => setMenuOpen(false)}>{LANDING_COPY.nav.family}</a>
+          <Link href="/login?mode=child" onClick={() => setMenuOpen(false)}>{LANDING_COPY.nav.child}</Link>
           <Link href="/login" onClick={() => setMenuOpen(false)}>{LANDING_COPY.nav.login}</Link>
         </div>
       </header>
@@ -851,15 +857,39 @@ export function LandingPage() {
             <p className="lk-gamesNote">{LANDING_COPY.games.note}</p>
           </div>
 
+          <div id="phu-huynh" className="lk-family" aria-labelledby="family-title">
+            <div className="lk-familyIntro">
+              <p className="lk-eyebrow">{LANDING_COPY.family.eyebrow}</p>
+              <h2 id="family-title" className="lk-familyTitle">{LANDING_COPY.family.title}</h2>
+              <p className="lk-familySubtitle">{LANDING_COPY.family.subtitle}</p>
+              <div className="lk-familyActions">
+                <Link className="lk-cta lk-ctaLarge" href="/register">{LANDING_COPY.family.cta}<ArrowIcon /></Link>
+                <Link className="lk-ghostLink" href="/login?mode=child">{LANDING_COPY.family.child}</Link>
+              </div>
+            </div>
+            <ol className="lk-familySteps">
+              {LANDING_COPY.family.steps.map((step, index) => (
+                <li key={step.title} className="lk-familyStep">
+                  <span className="lk-familyNumber" aria-hidden="true">{index + 1}</span>
+                  <div>
+                    <h3>{step.title}</h3>
+                    <p>{step.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="lk-familyNote">{LANDING_COPY.family.note}</p>
+          </div>
+
           <footer className="lk-footer">
             <div className="lk-footerBrand">
               <span className="lk-brand"><LumiLogo size={28} /><LumiWordmark /></span>
-              <p>{LANDING_COPY.footer.tagline}</p>
+              <p>{siteTagline ?? LANDING_COPY.footer.tagline}</p>
             </div>
             <nav aria-label="Liên kết cuối trang" className="lk-footerLinks">
               {LANDING_COPY.footer.links.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
             </nav>
-            <p className="lk-copyright">© {new Date().getFullYear()} LumiKids.</p>
+            <p className="lk-copyright">© {new Date().getFullYear()} {siteName}.</p>
             <details className="lk-credits">
               <summary>{LANDING_COPY.footer.creditsLabel}</summary>
               <p>{LANDING_COPY.footer.credits}</p>

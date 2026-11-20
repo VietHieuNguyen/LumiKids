@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -41,8 +42,10 @@ export function ChildFrame({
         </span>
         {childName && (
           <div className="ck-me">
-            <span className="ck-avatar" aria-hidden="true">{childName.charAt(0).toUpperCase()}</span>
-            <span className="ck-meName">{childName}</span>
+            <Link className="ck-meLink" href="/child/me" aria-label={`Góc của ${childName}`}>
+              <span className="ck-avatar" aria-hidden="true">{childName.charAt(0).toUpperCase()}</span>
+              <span className="ck-meName">{childName}</span>
+            </Link>
             {logout && (
               <button
                 type="button"

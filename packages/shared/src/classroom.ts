@@ -72,6 +72,16 @@ export const updateChildSchema = z
   .strict();
 export const transferChildSchema = z.object({ classId: z.uuid() }).strict();
 
+/** Admins rename an age group; its age range stays fixed (R-01 and the scoring rules depend on it). */
+export const updateAgeGroupSchema = z
+  .object({ name: z.string().trim().min(1).max(50) })
+  .strict();
+/** The full new order of every age group, first shown first. */
+export const reorderAgeGroupsSchema = z
+  .object({ ageGroupIds: z.array(z.string().min(1).max(20)).min(1).max(20) })
+  .strict()
+  .refine((value) => new Set(value.ageGroupIds).size === value.ageGroupIds.length, "Nhóm tuổi bị lặp.");
+
 export const playHistoryQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).max(100000).default(1),
@@ -92,6 +102,20 @@ export const schoolYearSchema = z.object({
   name: z.string(),
   startDate: dateOnlySchema,
   endDate: dateOnlySchema,
+});
+/** Admin catalogue rows: what uses each age group, so a rename is made knowingly. */
+export const ageGroupUsageSchema = ageGroupSchema.extend({
+  displayOrder: z.number().int(),
+  classroomCount: z.number().int(),
+  activeClassroomCount: z.number().int(),
+  activityCount: z.number().int(),
+  lessonPlanCount: z.number().int(),
+});
+export const schoolYearUsageSchema = schoolYearSchema.extend({
+  classroomCount: z.number().int(),
+  activeClassroomCount: z.number().int(),
+  /** Children currently enrolled in this year's classes. */
+  childCount: z.number().int(),
 });
 export const classroomTeacherSchema = z.object({
   userId: z.uuid(),
@@ -162,6 +186,8 @@ export const issuedLoginCodeSchema = z.object({
 });
 
 export const ageGroupListSchema = z.array(ageGroupSchema);
+export const ageGroupUsageListSchema = z.array(ageGroupUsageSchema);
+export const schoolYearUsageListSchema = z.array(schoolYearUsageSchema);
 export const schoolYearListSchema = z.array(schoolYearSchema);
 export const classroomTeacherListSchema = z.array(classroomTeacherSchema);
 export const classroomSummaryListSchema = z.array(classroomSummarySchema);
@@ -178,6 +204,10 @@ export type CreateChildInput = z.infer<typeof createChildSchema>;
 export type UpdateChildInput = z.infer<typeof updateChildSchema>;
 export type PlayHistoryQuery = z.infer<typeof playHistoryQuerySchema>;
 export type AgeGroup = z.infer<typeof ageGroupSchema>;
+export type AgeGroupUsage = z.infer<typeof ageGroupUsageSchema>;
+export type SchoolYearUsage = z.infer<typeof schoolYearUsageSchema>;
+export type UpdateAgeGroupInput = z.infer<typeof updateAgeGroupSchema>;
+export type ReorderAgeGroupsInput = z.infer<typeof reorderAgeGroupsSchema>;
 export type SchoolYear = z.infer<typeof schoolYearSchema>;
 export type ClassroomTeacher = z.infer<typeof classroomTeacherSchema>;
 export type ClassroomSummary = z.infer<typeof classroomSummarySchema>;

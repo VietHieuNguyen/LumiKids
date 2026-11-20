@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import type { SchoolYear } from "@lumikids/shared";
 import { classroomError } from "./api";
 import type { ClassroomApi } from "./api";
-import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
+import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
 import { classroomStatusLabels, formatDateOnly } from "./format";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
@@ -22,10 +22,12 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
   const years = useResource((signal) => api.schoolYears(signal), "years");
   const ageGroups = useResource((signal) => api.ageGroups(signal), "age-groups");
   const rowLink = useRowLink();
-  const [picked, setPicked] = useState<string | null>(null);
+  // Rendered only after the session check (client side), so the address bar can be read directly.
+  const [picked, setPicked] = useState<string | null>(() => new URLSearchParams(window.location.search).get("year"));
   const [showArchived, setShowArchived] = useState(false);
   // Default to the most recent school year (the API lists newest first).
-  const schoolYearId = picked ?? years.data?.[0]?.schoolYearId ?? null;
+  const schoolYearId =
+    (picked && years.data?.some((item) => item.schoolYearId === picked) ? picked : null) ?? years.data?.[0]?.schoolYearId ?? null;
   const classrooms = useResource(
     schoolYearId
       ? (signal) => api.adminClassrooms(new URLSearchParams({ schoolYearId, ...(showArchived ? {} : { status: "ACTIVE" }) }), signal)
@@ -59,7 +61,11 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
               ) : undefined
             }
           >
-            {years.data?.length === 0 && <p className="text-sm text-ink-soft">Chưa có năm học. Hãy tạo năm học trước khi thêm lớp.</p>}
+            {years.data?.length === 0 && (
+              <p className="text-sm text-ink-soft">
+                Chưa có năm học. <Link className="font-semibold text-leaf hover:underline" href="/admin/school-years">Tạo năm học</Link> trước khi thêm lớp.
+              </p>
+            )}
             {classrooms.error && <ErrorBanner message={classrooms.error} onRetry={classrooms.reload} />}
             {schoolYearId && classrooms.loading && !classrooms.data && <p role="status" className="text-sm text-ink-soft">Đang tải lớp…</p>}
             {classrooms.data && classrooms.data.length === 0 && <p className="text-sm text-ink-soft">Năm học này chưa có lớp nào.</p>}
@@ -104,16 +110,11 @@ function AdminClassrooms({ api }: { api: ClassroomApi }) {
               onCreated={classrooms.reload}
             />
           )}
-          {years.data && years.data.length > 0 && (
-            <SchoolYearsPanel api={api} years={years.data} onSaved={years.reload} />
-          )}
-          <CreateSchoolYearForm
-            api={api}
-            onCreated={(created) => {
-              setPicked(created.schoolYearId);
-              years.reload();
-            }}
-          />
+          <p className="px-1 text-[13px] leading-5 text-ink-soft">
+            Năm học và nhóm tuổi được quản lý ở trang riêng:{" "}
+            <Link className="font-semibold text-leaf hover:underline" href="/admin/school-years">Năm học</Link>,{" "}
+            <Link className="font-semibold text-leaf hover:underline" href="/admin/age-groups">Nhóm tuổi</Link>.
+          </p>
         </aside>
       </div>
     </ClassroomShell>
@@ -173,146 +174,5 @@ function CreateClassroomForm({
         <button className="asset-button-primary w-full" disabled={busy || !className.trim()}>{busy ? "Đang tạo…" : "Tạo lớp"}</button>
       </form>
     </Panel>
-  );
-}
-
-function CreateSchoolYearForm({ api, onCreated }: { api: ClassroomApi; onCreated: (year: SchoolYear) => void }) {
-  const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    if (endDate <= startDate) {
-      setError("Ngày kết thúc phải sau ngày bắt đầu.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const created = await api.createSchoolYear({ name: name.trim(), startDate, endDate });
-      setName("");
-      setStartDate("");
-      setEndDate("");
-      onCreated(created);
-    } catch (failure) {
-      setError(classroomError(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Panel title="Thêm năm học">
-      <form className="space-y-4" onSubmit={submit}>
-        <div>
-          <label className="asset-label" htmlFor="year-name">Tên năm học</label>
-          <input id="year-name" className="asset-input mt-1" required maxLength={50} value={name} onChange={(event) => setName(event.target.value)} placeholder="2026–2027" disabled={busy} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="asset-label" htmlFor="year-start">Bắt đầu</label>
-            <input id="year-start" type="date" className="asset-input mt-1" required value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={busy} />
-          </div>
-          <div>
-            <label className="asset-label" htmlFor="year-end">Kết thúc</label>
-            <input id="year-end" type="date" className="asset-input mt-1" required min={startDate || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={busy} />
-          </div>
-        </div>
-        {error && <p role="alert" className="asset-error">{error}</p>}
-        <button className="asset-button-secondary w-full" disabled={busy || !name.trim() || !startDate || !endDate}>{busy ? "Đang tạo…" : "Tạo năm học"}</button>
-      </form>
-    </Panel>
-  );
-}
-
-/** The school years, newest first, each with an edit action (name and period). */
-function SchoolYearsPanel({ api, years, onSaved }: { api: ClassroomApi; years: SchoolYear[]; onSaved: () => void }) {
-  const [editing, setEditing] = useState<SchoolYear | null>(null);
-  return (
-    <Panel title="Năm học">
-      <ul className="divide-y divide-line">
-        {years.map((year) => (
-          <li key={year.schoolYearId} className="flex items-center justify-between gap-3 py-2.5">
-            <span className="min-w-0">
-              <span className="block break-words font-semibold text-ink">{year.name}</span>
-              <span className="block text-xs text-ink-soft">{formatDateOnly(year.startDate)} – {formatDateOnly(year.endDate)}</span>
-            </span>
-            <button type="button" className="asset-button-secondary shrink-0 px-3" onClick={() => setEditing(year)} aria-label={`Sửa năm học ${year.name}`}>
-              Sửa
-            </button>
-          </li>
-        ))}
-      </ul>
-      {editing && (
-        <EditSchoolYearDialog
-          api={api}
-          year={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            onSaved();
-          }}
-        />
-      )}
-    </Panel>
-  );
-}
-
-function EditSchoolYearDialog({ api, year, onClose, onSaved }: { api: ClassroomApi; year: SchoolYear; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(year.name);
-  const [startDate, setStartDate] = useState(year.startDate);
-  const [endDate, setEndDate] = useState(year.endDate);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const unchanged = name.trim() === year.name && startDate === year.startDate && endDate === year.endDate;
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy || unchanged) return;
-    if (endDate <= startDate) {
-      setError("Ngày kết thúc phải sau ngày bắt đầu.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      await api.updateSchoolYear(year.schoolYearId, {
-        ...(name.trim() !== year.name ? { name: name.trim() } : {}),
-        ...(startDate !== year.startDate ? { startDate } : {}),
-        ...(endDate !== year.endDate ? { endDate } : {}),
-      });
-      onSaved();
-    } catch (failure) {
-      setError(classroomError(failure));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Dialog title={`Sửa năm học ${year.name}`} onClose={onClose}>
-      <form className="space-y-4" onSubmit={submit}>
-        <div>
-          <label className="asset-label" htmlFor="edit-year-name">Tên năm học</label>
-          <input id="edit-year-name" className="asset-input mt-1" required maxLength={50} value={name} onChange={(event) => setName(event.target.value)} disabled={busy} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="asset-label" htmlFor="edit-year-start">Bắt đầu</label>
-            <input id="edit-year-start" type="date" className="asset-input mt-1" required value={startDate} onChange={(event) => setStartDate(event.target.value)} disabled={busy} />
-          </div>
-          <div>
-            <label className="asset-label" htmlFor="edit-year-end">Kết thúc</label>
-            <input id="edit-year-end" type="date" className="asset-input mt-1" required min={startDate || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)} disabled={busy} />
-          </div>
-        </div>
-        <p className="text-xs leading-5 text-ink-soft">Đổi tên hoặc thời gian không ảnh hưởng lớp, trẻ và lịch sử chơi đã có.</p>
-        {error && <p role="alert" className="asset-error">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" className="asset-button-secondary" onClick={onClose} disabled={busy}>Hủy</button>
-          <button className="asset-button-primary" disabled={busy || unchanged || !name.trim() || !startDate || !endDate}>{busy ? "Đang lưu…" : "Lưu thay đổi"}</button>
-        </div>
-      </form>
-    </Dialog>
   );
 }

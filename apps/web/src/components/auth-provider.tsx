@@ -10,6 +10,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   invalidateSession: () => void;
+  updateUser: (patch: { fullName?: string }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,7 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  return <AuthContext.Provider value={{ session, loading, login, logout, invalidateSession }}>{children}</AuthContext.Provider>;
+  // After the user edits their own profile: show the new name without a new sign-in.
+  const updateUser = useCallback((patch: Partial<Pick<api.Session["user"], "fullName">>) => {
+    setSession((current) => (current ? { ...current, user: { ...current.user, ...patch } } : current));
+  }, []);
+
+  return <AuthContext.Provider value={{ session, loading, login, logout, invalidateSession, updateUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

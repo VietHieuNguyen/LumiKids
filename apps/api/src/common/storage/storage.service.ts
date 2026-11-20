@@ -75,6 +75,20 @@ export class StorageService implements OnModuleDestroy {
     }
   }
 
+  /** Reads a small object into memory (the site logo); null when it does not exist. */
+  async readObject(key: string): Promise<Buffer | null> {
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({ Bucket: this.config.bucket, Key: key }),
+      );
+      if (!result.Body) return null;
+      return Buffer.from(await result.Body.transformToByteArray());
+    } catch (error) {
+      if ((error as { name?: string }).name === 'NoSuchKey') return null;
+      throw new ServiceUnavailableException('Asset storage is unavailable.');
+    }
+  }
+
   async deleteObject(key: string): Promise<void> {
     try {
       await this.client.send(
