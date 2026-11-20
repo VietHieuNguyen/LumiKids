@@ -21,6 +21,8 @@ export const saveGameSchema = z
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(1000).default(""),
     difficulty: gameDifficultySchema,
+    /** Target age group (FR-5.1 AC-01): e.g. AGE_5_6. */
+    ageGroupId: z.string().min(1).max(20),
     // One ActivityVersion is assessed for exactly one AssessmentCriterion.
     criterionCodes: z.array(z.string().regex(/^\d{2}$/)).length(1),
     content: gameContentSchema,
@@ -43,6 +45,7 @@ export const gameLibraryQuerySchema = z
       .string()
       .regex(/^\d{2}$/)
       .optional(),
+    ageGroupId: z.string().max(20).optional(),
     mine: z.enum(["true", "false"]).default("false"),
     status: z.enum(["ACTIVE", "ARCHIVED"]).default("ACTIVE"),
   })
@@ -50,6 +53,8 @@ export const gameLibraryQuerySchema = z
 export const gameStatusSchema = z
   .object({ status: z.enum(["ACTIVE", "ARCHIVED"]) })
   .strict();
+/** Owner or admin sets the age group of a saved game (activity metadata, not the versioned content). */
+export const gameAgeGroupSchema = z.object({ ageGroupId: z.string().min(1).max(20) }).strict();
 export const savedGameSchema = z.object({
   activityId: z.uuid(),
   versionId: z.uuid(),
@@ -58,6 +63,8 @@ export const savedGameSchema = z.object({
   description: z.string(),
   gameType: gameTypeSchema,
   difficulty: gameDifficultySchema,
+  /** Null for games saved before age groups were required; they cannot be assigned until set. */
+  ageGroup: z.object({ ageGroupId: z.string(), name: z.string(), minAge: z.number().int(), maxAge: z.number().int() }).nullable(),
   status: z.enum(["ACTIVE", "ARCHIVED"]),
   createdBy: z.uuid(),
   creatorName: z.string(),

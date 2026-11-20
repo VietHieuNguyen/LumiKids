@@ -22,6 +22,16 @@ const totals = z.object({
   cachedTokens: z.number(),
   totalTokens: z.number(),
 });
+/** Latency of calls that recorded a duration (NFR-2: p95 ≤ 30 s). Null when none in the range. */
+const latency = z.object({
+  measuredCalls: z.number(),
+  p50Ms: z.number().nullable(),
+  p95Ms: z.number().nullable(),
+  maxMs: z.number().nullable(),
+  /** Calls that hit the 30-second deadline. */
+  timeoutCalls: z.number(),
+  overBudgetCalls: z.number(),
+});
 const account = z.object({
   userId: z.string(),
   fullName: z.string(),
@@ -29,6 +39,7 @@ const account = z.object({
 });
 export const tokenUsageReportSchema = z.object({
   totals,
+  latency,
   accounts: z.array(account.extend({ totals })),
   items: z.array(
     z.object({
@@ -43,6 +54,7 @@ export const tokenUsageReportSchema = z.object({
       thoughtTokens: z.number().nullable(),
       cachedTokens: z.number().nullable(),
       totalTokens: z.number().nullable(),
+      durationMs: z.number().nullable(),
       createdAt: z.string(),
       user: account,
     }),

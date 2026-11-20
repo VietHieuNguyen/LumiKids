@@ -47,6 +47,10 @@ export function narrowInteraction(event: GameInteraction): string {
     case "MATCH_DROP":
     case "CLASSIFY_DROP":
       return event.targetId;
+    case "REQUEST_HINT":
+      // @ts-expect-error A hint request is not an answer: it has no result.
+      void event.result;
+      return event.sourceId;
     default: {
       const exhaustive: never = event;
       return exhaustive;

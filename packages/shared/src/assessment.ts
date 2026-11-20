@@ -13,15 +13,19 @@ export const criterionLevelSchema = z.enum([
   "LEVEL_4",
 ]);
 
-/** Item counts for the session's single criterion. F and R are mutually exclusive. */
+/** Item counts for the session's single criterion. F, R and H are mutually exclusive. */
 export const criterionPerformanceSchema = z.object({
   /** N: scored items of the criterion, taken from the version content (not from events). */
   totalScoredItems: z.number().int().min(0),
   finalizedScoredItems: z.number().int().min(0),
   /** F: items solved on the first attempt. */
   firstAttemptCorrectCount: z.number().int().min(0),
-  /** R: items answered wrong first, then corrected. */
+  /** R: items answered wrong first, then corrected without a hint. */
   retryCorrectCount: z.number().int().min(0),
+  /** H: items solved after the child asked for a hint (rule ce-score-v2; 0 in older evaluations). */
+  hintCorrectCount: z.number().int().min(0).default(0),
+  /** Hints requested in the session (at most one per item). */
+  hintCount: z.number().int().min(0).default(0),
   attemptCount: z.number().int().min(0),
 });
 

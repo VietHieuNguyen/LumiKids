@@ -5,15 +5,20 @@ import type {
   MatchingInteraction,
   ClassificationInteraction,
   GameInteraction,
+  HintInteraction,
 } from "../game-content/interaction.schema.js";
 
 export type GameAction =
   | Pick<CountingInteraction, "actionType" | "sourceId">
   | Pick<MatchingInteraction, "actionType" | "sourceId" | "targetId">
-  | Pick<ClassificationInteraction, "actionType" | "sourceId" | "targetId">;
+  | Pick<ClassificationInteraction, "actionType" | "sourceId" | "targetId">
+  | Pick<HintInteraction, "actionType" | "sourceId">;
 
 interface BaseState {
+  /** Number of events applied (answers and hint requests). */
   attemptCount: number;
+  /** Tasks the child already got a hint for (one hint per task). */
+  hintedItemIds: readonly string[];
   completed: boolean;
   lastInteraction: GameInteraction | null;
 }

@@ -158,10 +158,18 @@ export interface AiClientOptions {
 }
 export class AiClient {
   constructor(private readonly options: AiClientOptions) {}
-  async generate(request: AiGenerationRequest): Promise<AiGenerationResponse> {
+  /** `timeoutMs` may shorten (never extend) the client timeout, e.g. to fit a whole-request deadline. */
+  async generate(
+    request: AiGenerationRequest,
+    call: { timeoutMs?: number } = {},
+  ): Promise<AiGenerationResponse> {
     const input = aiRequestSchema.parse(request);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.options.timeoutMs);
+    const timeoutMs = Math.max(
+      1,
+      Math.min(this.options.timeoutMs, call.timeoutMs ?? Infinity),
+    );
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const fetcher = this.options.fetcher ?? globalThis.fetch;
       const response = await fetcher.call(

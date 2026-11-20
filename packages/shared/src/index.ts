@@ -78,7 +78,9 @@ export {
   countingInteractionSchema,
   matchingInteractionSchema,
   classificationInteractionSchema,
+  hintInteractionSchema,
   gameInteractionSchema,
+  isAnswerInteraction,
 } from "./game-content/interaction.schema.js";
 export {
   habitatAliases,
@@ -103,6 +105,8 @@ export type {
   CountingInteraction,
   MatchingInteraction,
   ClassificationInteraction,
+  HintInteraction,
+  AnswerInteraction,
   GameInteraction,
 } from "./game-content/interaction.schema.js";
 export {
@@ -111,6 +115,8 @@ export {
   createInitialState,
   getGameProgress,
 } from "./game-runtime/engine.js";
+export { canRequestHint, getHintTargets, nextHintTarget } from "./game-runtime/hint.js";
+export type { HintTarget } from "./game-runtime/hint.js";
 export type {
   GameAction,
   CountingState,
@@ -131,3 +137,6 @@ export * from "./staff.js";
 export * from "./admin-overview.js";
 export * from "./assessment.js";
 export * from './token-usage.js';
+export * from './age.js';
+export * from './family.js';
+export * from './lesson-plan.js';
