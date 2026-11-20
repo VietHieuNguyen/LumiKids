@@ -74,7 +74,7 @@ export function SearchBox({ id, label, placeholder, value, onChange }: { id: str
   );
 }
 
-export function KpiRow({ items }: { items: readonly { label: string; value: number; hint?: string }[] }) {
+export function KpiRow({ items }: { items: readonly { label: string; value: number | string; hint?: string }[] }) {
   return (
     <dl className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
       {items.map((item) => (
