@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/modules/users/users.service.js';
 import { TeacherAccountsService } from '../src/modules/auth/teacher-accounts.service.js';
+import { GuardianAccountsService } from '../src/modules/auth/guardian-accounts.service.js';
 import { AdminOverviewService } from '../src/modules/admin-overview/admin-overview.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
@@ -37,6 +38,13 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     changeOwnPassword: vi.fn(() => Promise.resolve()),
   };
   const overview = { overview: vi.fn(() => Promise.resolve({ totals: {} })) };
+  const guardians = {
+    list: vi.fn(() => Promise.resolve([])),
+    update: vi.fn(() => Promise.resolve({})),
+    resetPassword: vi.fn(() =>
+      Promise.resolve({ account: {}, temporaryPassword: 'abcd-efgh-jkmn' }),
+    ),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -57,6 +65,8 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .useValue(accounts)
       .overrideProvider(AdminOverviewService)
       .useValue(overview)
+      .overrideProvider(GuardianAccountsService)
+      .useValue(guardians)
       .compile();
     app = module.createNestApplication();
     configureHttp(app);
@@ -98,6 +108,37 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
         .get(path)
         .auth(await token(), { type: 'bearer' })
         .expect(200);
+  });
+
+  it('keeps guardian accounts for admins: lock/unlock only, password never cached', async () => {
+    const guardianId = randomUUID();
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/guardian-accounts')
+      .auth(await token(), { type: 'bearer' })
+      .expect(403);
+    actor = admin;
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/guardian-accounts')
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    for (const body of [{ status: 'PENDING_VERIFICATION' }, { status: 'ACTIVE', fullName: 'x' }, {}])
+      await request(app.getHttpServer())
+        .patch(`/api/v1/admin/guardian-accounts/${guardianId}`)
+        .auth(await token(), { type: 'bearer' })
+        .send(body)
+        .expect(400);
+    expect(guardians.update).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/guardian-accounts/${guardianId}`)
+      .auth(await token(), { type: 'bearer' })
+      .send({ status: 'DISABLED' })
+      .expect(200);
+    expect(guardians.update).toHaveBeenCalledWith(guardianId, { status: 'DISABLED' });
+    const reset = await request(app.getHttpServer())
+      .post(`/api/v1/admin/guardian-accounts/${guardianId}/password-reset`)
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    expect(reset.headers['cache-control']).toBe('no-store');
   });
 
   it('validates a new teacher and never caches the temporary password', async () => {

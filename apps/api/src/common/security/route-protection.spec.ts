@@ -58,7 +58,10 @@ const meta = (key: string, route: { target: Handler; controller: object }) =>
 describe('route protection', () => {
   let all: ReturnType<typeof routes> = [];
   beforeAll(async () => {
-    all = routes((await Promise.all(controllerFiles.map((file) => import(file)))) as Record<string, unknown>[]);
+    // One at a time: importing Nest modules in parallel races on their shared ESM graph.
+    const modules: Record<string, unknown>[] = [];
+    for (const file of controllerFiles) modules.push((await import(file)) as Record<string, unknown>);
+    all = routes(modules);
   });
   it('finds the controllers', () => {
     expect(all.length).toBeGreaterThan(50);

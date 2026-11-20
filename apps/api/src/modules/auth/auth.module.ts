@@ -15,6 +15,9 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AdminTeacherAccountsController } from './admin-teacher-accounts.controller.js';
+import { AdminGuardianAccountsController } from './admin-guardian-accounts.controller.js';
+import { GuardianAccountsRepository } from './guardian-accounts.repository.js';
+import { GuardianAccountsService } from './guardian-accounts.service.js';
 import { TeacherAccountsRepository } from './teacher-accounts.repository.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
 import { ChildAuthController } from './child-auth.controller.js';
@@ -48,6 +51,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     AuthController,
     ChildAuthController,
     AdminTeacherAccountsController,
+    AdminGuardianAccountsController,
   ],
   providers: [
     AuthService,
@@ -57,6 +61,8 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     ChildAuthRepository,
     TeacherAccountsService,
     TeacherAccountsRepository,
+    GuardianAccountsService,
+    GuardianAccountsRepository,
     RegistrationService,
     MailService,
     RegistrationRepository,

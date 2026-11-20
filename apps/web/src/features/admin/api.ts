@@ -1,5 +1,13 @@
-import { adminOverviewSchema, issuedPasswordSchema, teacherAccountListSchema, teacherAccountSchema } from "@lumikids/shared";
-import type { CreateTeacherAccountInput, UpdateTeacherAccountInput } from "@lumikids/shared";
+import {
+  adminOverviewSchema,
+  guardianAccountListSchema,
+  guardianAccountSchema,
+  issuedGuardianPasswordSchema,
+  issuedPasswordSchema,
+  teacherAccountListSchema,
+  teacherAccountSchema,
+} from "@lumikids/shared";
+import type { CreateTeacherAccountInput, UpdateGuardianAccountInput, UpdateTeacherAccountInput } from "@lumikids/shared";
 import type { ClassroomApi } from "../classrooms/api";
 
 /** Admin dashboard and teacher accounts, on the same adult session as the classroom screens. */
@@ -17,6 +25,19 @@ export class AdminApi {
   async updateTeacher(userId: string, input: UpdateTeacherAccountInput) {
     return teacherAccountSchema.parse(
       await this.api.raw(`/admin/teacher-accounts/${encodeURIComponent(userId)}`, { method: "PATCH", body: input }),
+    );
+  }
+  async guardians(signal?: AbortSignal) {
+    return guardianAccountListSchema.parse(await this.api.raw("/admin/guardian-accounts", { signal }));
+  }
+  async updateGuardian(userId: string, input: UpdateGuardianAccountInput) {
+    return guardianAccountSchema.parse(
+      await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}`, { method: "PATCH", body: input }),
+    );
+  }
+  async resetGuardianPassword(userId: string) {
+    return issuedGuardianPasswordSchema.parse(
+      await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}/password-reset`, { method: "POST", body: {} }),
     );
   }
   async resetPassword(userId: string) {

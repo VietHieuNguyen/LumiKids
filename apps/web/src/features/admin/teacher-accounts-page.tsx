@@ -301,7 +301,16 @@ function TeacherForm({
   );
 }
 
-function PasswordDialog({ issued, reason, onClose }: { issued: IssuedPassword; reason: "created" | "reset"; onClose: () => void }) {
+/** Shows a temporary password once (teacher or guardian account). */
+export function PasswordDialog({
+  issued,
+  reason,
+  onClose,
+}: {
+  issued: { account: { fullName: string; email: string }; temporaryPassword: string };
+  reason: "created" | "reset";
+  onClose: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <Dialog title={reason === "created" ? "Đã tạo tài khoản" : "Đã đặt lại mật khẩu"} onClose={onClose}>

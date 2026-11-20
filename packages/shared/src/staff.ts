@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { guardianRelationshipSchema } from "./family.js";
 
 /** Staff (adult) accounts managed by the admin. Teachers only for now; admins are created by seed. */
 export const accountStatusSchema = z.enum(["ACTIVE", "DISABLED", "PENDING_VERIFICATION"]);
@@ -73,3 +74,35 @@ export type UpdateTeacherAccountInput = z.infer<typeof updateTeacherAccountSchem
 export type TeacherAccount = z.infer<typeof teacherAccountSchema>;
 export type IssuedPassword = z.infer<typeof issuedPasswordSchema>;
 export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
+
+/** Guardian (family) accounts as the admin sees them. Guardians register themselves; the admin only locks, unlocks or resets. */
+export const guardianAccountSchema = z.object({
+  userId: z.uuid(),
+  fullName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  relationship: guardianRelationshipSchema,
+  status: accountStatusSchema,
+  createdAt: z.iso.datetime(),
+  lastLoginAt: z.iso.datetime().nullable(),
+  children: z.array(
+    z.object({
+      childId: z.uuid(),
+      fullName: z.string(),
+      dob: z.iso.date(),
+      /** Class the child is in now; null when the family uses LumiKids on its own. */
+      classroom: z.object({ classId: z.uuid(), className: z.string() }).nullable(),
+    }),
+  ),
+});
+export const guardianAccountListSchema = z.array(guardianAccountSchema);
+/** Lock or unlock. An account still waiting for email verification cannot be changed this way. */
+export const updateGuardianAccountSchema = z.object({ status: staffAccountStatusSchema }).strict();
+export const issuedGuardianPasswordSchema = z.object({
+  account: guardianAccountSchema,
+  temporaryPassword: z.string(),
+});
+
+export type GuardianAccount = z.infer<typeof guardianAccountSchema>;
+export type UpdateGuardianAccountInput = z.infer<typeof updateGuardianAccountSchema>;
+export type IssuedGuardianPassword = z.infer<typeof issuedGuardianPasswordSchema>;

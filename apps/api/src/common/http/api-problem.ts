@@ -123,6 +123,10 @@ const problems = {
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
+  GUARDIAN_NOT_VERIFIED: [
+    409,
+    'Tài khoản chưa xác minh email nên chưa khóa hoặc đặt lại mật khẩu được.',
+  ],
   PASSWORD_CURRENT_INVALID: [422, 'Mật khẩu hiện tại không đúng.'],
   GROUP_NAME_TAKEN: [409, 'Lớp đã có nhóm trùng tên.'],
   GROUP_MEMBERS_INVALID: [
