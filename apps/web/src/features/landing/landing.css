@@ -524,6 +524,29 @@
 .lk-credits summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
 .lk-credits p { max-width: 900px; padding-bottom: 8px; }
 
+/* ---------- Family (parents) ---------- */
+.lk-family {
+  max-width: 1280px; margin: 8px auto 56px; padding: 0 var(--pad); box-sizing: content-box;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px 56px; align-items: center;
+}
+.lk-family > * { min-width: 0; }
+.lk-familyIntro { padding: clamp(28px, 4vw, 48px); border-radius: 32px; background: var(--paper); border: 2px solid rgba(255, 255, 255, 0.9); box-shadow: 0 16px 36px rgba(24, 56, 41, 0.08); }
+.lk-familyTitle { margin-top: 14px; font-family: var(--display); font-size: clamp(32px, 4vw, 54px); line-height: 1.02; font-weight: 800; text-wrap: balance; }
+.lk-familySubtitle { margin-top: 14px; max-width: 460px; color: var(--ink-soft); font-size: 17px; line-height: 1.55; }
+.lk-familyActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
+.lk-familyActions .lk-ghostLink { margin-top: 26px; }
+.lk-familySteps { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0; }
+.lk-familyStep { display: flex; gap: 18px; align-items: flex-start; padding: 20px 22px; border-radius: 24px; background: rgba(255, 253, 247, 0.7); border: 1px solid var(--line); }
+.lk-familyStep h3 { font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1.15; }
+.lk-familyStep p { margin-top: 4px; color: var(--ink-soft); }
+.lk-familyNumber {
+  flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 16px;
+  font-family: var(--display); font-size: 22px; font-weight: 800; background: var(--accent); box-shadow: inset 0 -4px 0 var(--accent-edge);
+}
+.lk-familyStep:nth-child(2) .lk-familyNumber { background: #a9dcef; box-shadow: inset 0 -4px 0 var(--blue); }
+.lk-familyStep:nth-child(3) .lk-familyNumber { background: #b6e2c3; box-shadow: inset 0 -4px 0 var(--leaf); }
+.lk-familyNote { grid-column: 1 / -1; font-size: 14.5px; color: var(--ink-soft); }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .lk-root { --story-height: 812svh; }
@@ -539,6 +562,7 @@
 }
 
 @media (max-width: 820px) {
+  .lk-family { grid-template-columns: minmax(0, 1fr); margin-bottom: 40px; }
   /* Icon-only sound button with a full-size touch target. */
   .lk-sound { width: 44px; height: 44px; padding: 0; justify-content: center; right: 16px; }
   .lk-sound span { display: none; }
