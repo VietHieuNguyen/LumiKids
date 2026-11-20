@@ -14,6 +14,7 @@ const teacherSelect = {
   phone: true,
   status: true,
   createdAt: true,
+  teacherProfile: { select: { specialization: true } },
   authSessions: {
     orderBy: { createdAt: 'desc' },
     take: 1,
@@ -63,6 +64,7 @@ export class TeacherAccountsRepository {
     fullName: string;
     email: string;
     phone: string;
+    specialization: string;
     passwordHash: string;
   }): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
@@ -70,12 +72,14 @@ export class TeacherAccountsRepository {
         where: { code: 'ROLE_TEACHER' },
         select: { roleId: true },
       });
+      const { specialization, ...account } = data;
       const user = await tx.user.create({
         data: {
-          ...data,
+          ...account,
           address: '',
           status: 'ACTIVE',
           roles: { create: { roleId: role.roleId } },
+          teacherProfile: { create: { specialization } },
         },
         select: { userId: true },
       });
@@ -85,10 +89,22 @@ export class TeacherAccountsRepository {
 
   async update(
     userId: string,
-    data: { fullName?: string; phone?: string; status?: AccountStatus },
+    data: {
+      fullName?: string;
+      phone?: string;
+      specialization?: string;
+      status?: AccountStatus;
+    },
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { userId }, data });
+      const { specialization, ...account } = data;
+      await tx.user.update({ where: { userId }, data: account });
+      if (specialization !== undefined)
+        await tx.teacher.upsert({
+          where: { userId },
+          create: { userId, specialization },
+          update: { specialization },
+        });
       if (data.status === 'DISABLED')
         await tx.authSession.updateMany({
           where: { userId, revokedAt: null },

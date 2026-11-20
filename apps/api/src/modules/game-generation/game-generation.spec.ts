@@ -303,6 +303,7 @@ describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
     url: 'http://ai.example.test',
     token: 'x'.repeat(32),
     timeoutMs: 25000,
+    requestDeadlineMs: 30000,
   };
   let service: GameGenerationService;
   beforeEach(() => {

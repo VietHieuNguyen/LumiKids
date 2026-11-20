@@ -34,7 +34,11 @@ function version(versionId: string, status: 'ACTIVE' | 'ARCHIVED' = 'ACTIVE') {
     gameType: 'COUNTING' as const,
     difficulty: 'EASY' as const,
     content: {},
-    activity: { name: `Trò ${versionId.slice(0, 4)}`, status },
+    activity: {
+      name: `Trò ${versionId.slice(0, 4)}`,
+      status,
+      ageGroup: { name: 'Lá (5–6 tuổi)', minAge: 5, maxAge: 6 },
+    },
   };
 }
 
@@ -70,6 +74,7 @@ function setup() {
     childNames: vi.fn(() => Promise.resolve(new Map())),
   };
   const forChildRows: unknown[] = [];
+  const dobs = new Map<string, Date>();
   const sessions: SessionFact[] = [];
   const repository = {
     playableVersions: vi.fn((ids: string[]) =>
@@ -78,6 +83,16 @@ function setup() {
       ),
     ),
     create: vi.fn(() => Promise.resolve(randomUUID())),
+    // Born 2021-06-01: 65 months in November 2026, inside "Lá" (60–71 months).
+    childDobs: vi.fn((ids: string[]) =>
+      Promise.resolve(
+        ids.map((childId) => ({
+          childId,
+          fullName: 'Bé',
+          dob: dobs.get(childId) ?? new Date('2021-06-01T00:00:00.000Z'),
+        })),
+      ),
+    ),
     find: vi.fn(() => Promise.resolve(null)),
     forChild: vi.fn(() => Promise.resolve(forChildRows)),
     sessions: vi.fn(() => Promise.resolve(sessions)),
@@ -131,6 +146,7 @@ function setup() {
     forChildRows,
     sessions,
     recipientRow,
+    dobs,
   };
 }
 
@@ -177,6 +193,31 @@ describe('recipientProgress', () => {
 });
 
 describe('AssignmentsService — teacher', () => {
+  it('R-01: rejects a recipient outside the game age group, by months on the opening day', async () => {
+    const { service, repository, classId, an, v1, dobs } = setup();
+    // 59 months on 2026-11-12: still "Chồi", one month short of "Lá".
+    dobs.set(an, new Date('2021-12-01T00:00:00.000Z'));
+    const input = {
+      title: 'A',
+      note: '',
+      dueAt: null,
+      versionIds: [v1],
+      target: { type: 'CHILDREN' as const, childIds: [an] },
+    };
+    await expect(service.create(teacher, classId, input)).rejects.toMatchObject({
+      publicCode: 'ASSIGNMENT_AGE_MISMATCH',
+    });
+    // The birthday on the opening day counts: born 2021-11-12 → exactly 60 months.
+    dobs.set(an, new Date('2021-11-12T00:00:00.000Z'));
+    await expect(service.create(teacher, classId, input)).resolves.toBeDefined();
+    repository.playableVersions.mockResolvedValueOnce([
+      { ...version(v1), activity: { ...version(v1).activity, ageGroup: null } },
+    ] as never);
+    await expect(service.create(teacher, classId, input)).rejects.toMatchObject({
+      publicCode: 'GAME_AGE_GROUP_MISSING',
+    });
+  });
+
   it('snapshots recipients for the whole class, a group or picked children', async () => {
     const { service, repository, classId, an, binh, chi, v1, groupId } =
       setup();

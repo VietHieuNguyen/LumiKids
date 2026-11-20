@@ -14,13 +14,19 @@ import {
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
-import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
+import { SkipThrottle, Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import authConfig from '../../common/config/auth.config.js';
 import type { Principal } from '../../common/security/principal.js';
 import { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
-import { changeOwnPasswordSchema } from '@lumikids/shared';
+import {
+  changeOwnPasswordSchema,
+  registerGuardianSchema,
+  resendVerificationSchema,
+  verifyEmailSchema,
+} from '@lumikids/shared';
+import { RegistrationService } from './registration.service.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
 import {
   CurrentUser,
@@ -37,6 +43,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly users: UsersService,
     private readonly accounts: TeacherAccountsService,
+    private readonly registration: RegistrationService,
     @Inject(authConfig.KEY)
     private readonly config: ConfigType<typeof authConfig>,
   ) {}
@@ -82,6 +89,44 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.reply(await this.auth.login(dto), response);
+  }
+
+  /** Guardian self-registration (FR-1.6). Same answer whether or not the email has an account. */
+  @Post('register')
+  @Public()
+  @HttpCode(202)
+  @UseGuards(BrowserRequestGuard)
+  @Throttle({ default: { ttl: 3_600_000, limit: 10 } })
+  register(@Body() value: unknown) {
+    const parsed = registerGuardianSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException(
+        'Kiểm tra họ tên, email, quan hệ với trẻ và mật khẩu (10–128 kí tự).',
+      );
+    return this.registration.register(parsed.data);
+  }
+
+  @Post('verify-email')
+  @Public()
+  @HttpCode(200)
+  @UseGuards(BrowserRequestGuard)
+  async verifyEmail(@Body() value: unknown) {
+    const parsed = verifyEmailSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException('Mã xác minh gồm 6 chữ số.');
+    await this.registration.verify(parsed.data);
+    return { verified: true };
+  }
+
+  @Post('verify-email/resend')
+  @Public()
+  @HttpCode(202)
+  @UseGuards(BrowserRequestGuard)
+  @Throttle({ default: { ttl: 3_600_000, limit: 10 } })
+  resendVerification(@Body() value: unknown) {
+    const parsed = resendVerificationSchema.safeParse(value);
+    if (!parsed.success) throw new BadRequestException('Email không hợp lệ.');
+    return this.registration.resend(parsed.data.email);
   }
 
   @Post('refresh-token')

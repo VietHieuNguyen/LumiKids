@@ -51,6 +51,7 @@ describe('token usage access and accounting', () => {
           ],
           [],
           3,
+          [{ durationMs: 1200, status: 'OK' }],
         ]),
     };
     return {
@@ -130,5 +131,25 @@ describe('token usage access and accounting', () => {
       { ...query, fake: true },
     ])
       expect(tokenUsageQuerySchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe('latencyOf (NFR-2)', () => {
+  it('reports nearest-rank p50/p95, timeouts and calls over the 30 s budget', async () => {
+    const { latencyOf } = await import('./token-usage.service.js');
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      durationMs: (i + 1) * 2000,
+      status: i === 19 ? 'AI_TIMEOUT' : 'OK',
+    }));
+    rows.push({ durationMs: null as unknown as number, status: 'OK' });
+    expect(latencyOf(rows)).toEqual({
+      measuredCalls: 20,
+      p50Ms: 20000,
+      p95Ms: 38000,
+      maxMs: 40000,
+      timeoutCalls: 1,
+      overBudgetCalls: 5,
+    });
+    expect(latencyOf([])).toMatchObject({ p50Ms: null, p95Ms: null, measuredCalls: 0 });
   });
 });

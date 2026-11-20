@@ -233,13 +233,15 @@ describe('GameplayService (offline)', () => {
       finalizedScoredItems: 1,
       firstAttemptCorrectCount: 0,
       retryCorrectCount: 1,
+      hintCorrectCount: 0,
+      hintCount: 0,
       attemptCount: 2,
     });
     expect(completion?.evaluation).toEqual({
       criterionCode: '50',
       score: 50,
       minimumItemsMet: false,
-      ruleVersion: 'ce-score-v1',
+      ruleVersion: 'ce-score-v2',
     });
   });
 

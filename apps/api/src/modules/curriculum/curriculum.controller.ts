@@ -10,4 +10,9 @@ export class CurriculumController {
   list() {
     return this.curriculum.list();
   }
+  @Get('age-groups')
+  @Permissions('READ_GAMES')
+  ageGroups() {
+    return this.curriculum.ageGroups();
+  }
 }

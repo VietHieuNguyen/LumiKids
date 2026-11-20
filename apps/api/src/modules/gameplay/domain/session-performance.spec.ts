@@ -83,6 +83,8 @@ const perf = (
   finalizedScoredItems: 6,
   firstAttemptCorrectCount: 0,
   retryCorrectCount: 0,
+  hintCorrectCount: 0,
+  hintCount: 0,
   attemptCount: 6,
   ...overrides,
 });
@@ -118,6 +120,8 @@ describe('computeSessionPerformance', () => {
         finalizedScoredItems: 6,
         firstAttemptCorrectCount: 4,
         retryCorrectCount: 2,
+        hintCorrectCount: 0,
+        hintCount: 0,
         attemptCount: 9,
       },
     });
@@ -139,6 +143,8 @@ describe('computeSessionPerformance', () => {
       finalizedScoredItems: 1,
       firstAttemptCorrectCount: 1,
       retryCorrectCount: 0,
+      hintCorrectCount: 0,
+      hintCount: 0,
       attemptCount: 2,
     });
     expect(result.completionDurationSeconds).toBeNull();
@@ -247,5 +253,93 @@ describe('evaluateCriterion', () => {
   });
   it('produces nothing when the version has no criterion', () => {
     expect(evaluateCriterion(session(5, null))).toBeNull();
+  });
+});
+
+describe('hints (ce-score-v2)', () => {
+  const hint = (sourceId: string): GameAction => ({
+    actionType: 'REQUEST_HINT',
+    sourceId,
+  });
+
+  it('counts a pair solved after its hint as H, even if the first answer after it is right', () => {
+    const events = play(matching6, [
+      drop('cat', 'cat'), // F
+      hint('dog'),
+      drop('dog', 'dog'), // H
+      drop('cow', 'pig'),
+      hint('cow'),
+      drop('cow', 'cow'), // wrong, then hint, then right → H
+      drop('pig', 'duck'),
+      drop('pig', 'pig'), // R
+      drop('duck', 'duck'),
+      drop('hen', 'hen'),
+    ]);
+    const result = computeSessionPerformance({
+      content: matching6,
+      events,
+      criterionCode: '46',
+      startedAt,
+      endedAt,
+    });
+    expect(result.criterionPerformance).toEqual({
+      totalScoredItems: 6,
+      finalizedScoredItems: 6,
+      firstAttemptCorrectCount: 3,
+      retryCorrectCount: 1,
+      hintCorrectCount: 2,
+      hintCount: 2,
+      attemptCount: 8,
+    });
+    expect(result.attemptCount).toBe(8);
+    // (3 + 0.5 × 1 + 0.25 × 2) / 6 × 100
+    expect(criterionScore(result.criterionPerformance)).toBeCloseTo(66.6667, 4);
+  });
+
+  it('maps a counting hint (named by the correct choice) to the question', () => {
+    const events = play(counting, [
+      hint('one'),
+      { actionType: 'SELECT_CHOICE', sourceId: 'one' },
+    ]);
+    const result = computeSessionPerformance({
+      content: counting,
+      events,
+      criterionCode: '50',
+      startedAt,
+      endedAt,
+    });
+    expect(result.criterionPerformance).toMatchObject({
+      hintCorrectCount: 1,
+      firstAttemptCorrectCount: 0,
+      hintCount: 1,
+      attemptCount: 1,
+    });
+    expect(criterionScore(result.criterionPerformance)).toBe(25);
+  });
+
+  it('allows one hint per unsolved task only', () => {
+    let state = createInitialState(classification);
+    const id = { eventId: randomUUID(), timestamp: '2026-11-17T08:00:00.000+07:00' };
+    state = applyGameAction(classification, state, hint('fish'), id).state;
+    expect(
+      applyGameAction(classification, state, hint('fish'), { ...id, eventId: randomUUID() }).interaction,
+    ).toBeNull();
+    state = applyGameAction(
+      classification,
+      state,
+      { actionType: 'CLASSIFY_DROP', sourceId: 'monkey', targetId: 'forest' },
+      { ...id, eventId: randomUUID() },
+    ).state;
+    // monkey is solved: no hint for it any more.
+    expect(
+      applyGameAction(classification, state, hint('monkey'), { ...id, eventId: randomUUID() }).interaction,
+    ).toBeNull();
+    expect(state.attemptCount).toBe(2);
+  });
+
+  it('rejects inconsistent hint counts', () => {
+    expect(() =>
+      criterionScore(perf({ firstAttemptCorrectCount: 5, hintCorrectCount: 2 })),
+    ).toThrow(CriterionPerformanceInvalidError);
   });
 });

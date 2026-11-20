@@ -1,3 +1,4 @@
+import { getHintTargets } from '@lumikids/shared';
 import type {
   CriterionPerformance,
   GameContent,
@@ -24,6 +25,7 @@ export function scoredItemIds(content: GameContent): string[] {
   }
 }
 
+/** A hint names its task the same way an answer names its item (see getHintTargets). */
 function itemOf(content: GameContent, event: GameInteraction): string {
   return content.gameType === 'COUNTING' ? COUNTING_ITEM_ID : event.sourceId;
 }
@@ -38,50 +40,63 @@ export interface PerformanceInput {
   endedAt: Date | null;
 }
 
+type Step = 'CORRECT' | 'INCORRECT' | 'HINT';
+
 /**
- * Builds SessionPerformance. Each item is classified once: correct on its first attempt → F;
- * wrong first and correct later → R; never correct → finalized only if the engine locked it
- * (the current engines never lock a wrong answer, so such items stay unfinished).
+ * Builds SessionPerformance. Each item is classified once by what happened before its first
+ * correct answer: a hint → H; otherwise correct on the first attempt → F; wrong first → R.
+ * Never correct → unfinished (the current engines never lock a wrong answer).
+ * attemptCount counts answers only; hints are counted separately.
  */
 export function computeSessionPerformance(
   input: PerformanceInput,
 ): SessionPerformance {
   const items = scoredItemIds(input.content);
   const known = new Set(items);
-  const attempts = new Map<string, ('CORRECT' | 'INCORRECT')[]>(
-    items.map((id) => [id, []]),
-  );
+  const steps = new Map<string, Step[]>(items.map((id) => [id, []]));
   const ordered = [...input.events].sort(
     (a, b) => a.attemptIndex - b.attemptIndex,
   );
+  const hintTasks = new Set(getHintTargets(input.content).map((t) => t.taskId));
   for (const event of ordered) {
+    if (event.actionType === 'REQUEST_HINT' && !hintTasks.has(event.sourceId))
+      continue;
     const itemId = itemOf(input.content, event);
     // A wrong MATCH_DROP/CLASSIFY_DROP always names an existing source; anything else is ignored.
     if (!known.has(itemId)) continue;
-    attempts.get(itemId)?.push(event.result);
+    steps.get(itemId)?.push('result' in event ? event.result : 'HINT');
   }
 
   let firstAttemptCorrectCount = 0;
   let retryCorrectCount = 0;
+  let hintCorrectCount = 0;
+  let hintCount = 0;
   let attemptCount = 0;
-  for (const results of attempts.values()) {
-    attemptCount += results.length;
-    const firstCorrect = results.indexOf('CORRECT');
-    if (firstCorrect === 0) firstAttemptCorrectCount++;
-    else if (firstCorrect > 0) retryCorrectCount++;
+  for (const list of steps.values()) {
+    const answers = list.filter((step) => step !== 'HINT');
+    attemptCount += answers.length;
+    hintCount += list.length - answers.length;
+    const firstCorrect = list.indexOf('CORRECT');
+    if (firstCorrect < 0) continue;
+    const before = list.slice(0, firstCorrect);
+    if (before.includes('HINT')) hintCorrectCount++;
+    else if (before.length === 0) firstAttemptCorrectCount++;
+    else retryCorrectCount++;
   }
-  const finalized = firstAttemptCorrectCount + retryCorrectCount;
+  const finalized = firstAttemptCorrectCount + retryCorrectCount + hintCorrectCount;
   const criterionPerformance: CriterionPerformance = {
     totalScoredItems: items.length,
     finalizedScoredItems: finalized,
     firstAttemptCorrectCount,
     retryCorrectCount,
+    hintCorrectCount,
+    hintCount,
     attemptCount,
   };
   return {
     totalItemCount: items.length,
     finalizedItemCount: finalized,
-    attemptCount: ordered.length,
+    attemptCount,
     completionDurationSeconds: input.endedAt
       ? Math.max(0, (input.endedAt.getTime() - input.startedAt.getTime()) / 1000)
       : null,

@@ -100,7 +100,7 @@ describe('Gameplay session replay', () => {
       existing: [],
       incoming: events,
     });
-    expect(result.accepted.map((event) => event.result)).toEqual([
+    expect(result.accepted.map((event) => ('result' in event ? event.result : null))).toEqual([
       'INCORRECT',
       'CORRECT',
       'CORRECT',
@@ -148,7 +148,7 @@ describe('Gameplay session replay', () => {
         appendInteractions({
           ...base,
           existing: [],
-          incoming: [{ ...first, result: 'CORRECT' }],
+          incoming: [{ ...first, result: 'CORRECT' } as GameInteraction],
         }),
       ),
     ).toBe('INTERACTION_RESULT_MISMATCH');
@@ -219,7 +219,7 @@ describe('Gameplay session replay', () => {
       existing: [],
       incoming: events,
     });
-    expect(result.accepted.map((event) => event.result)).toEqual([
+    expect(result.accepted.map((event) => ('result' in event ? event.result : null))).toEqual([
       'INCORRECT',
       'CORRECT',
     ]);
@@ -244,5 +244,44 @@ describe('Gameplay session replay', () => {
         }),
       ),
     ).toBe('INTERACTION_LIMIT');
+  });
+});
+
+describe('hint events', () => {
+  it('replays a hint (no result) between answers and keeps the order', () => {
+    if (matching.gameType !== 'MATCHING') throw new Error('fixture');
+    const firstPair = matching.pairs[0];
+    let state = createInitialState(matching);
+    const events: GameInteraction[] = [];
+    const actions: GameAction[] = [
+      { actionType: 'REQUEST_HINT', sourceId: firstPair.sourceId },
+      { actionType: 'MATCH_DROP', ...firstPair },
+    ];
+    for (const action of actions) {
+      const transition = applyGameAction(matching, state, action, {
+        eventId: randomUUID(),
+        timestamp: '2026-11-17T08:00:00.000+07:00',
+      });
+      if (!transition.interaction) throw new Error('ignored');
+      events.push(transition.interaction);
+      state = transition.state;
+    }
+    const result = appendInteractions({
+      content: matching,
+      status: 'IN_PROGRESS',
+      existing: [],
+      incoming: events,
+    });
+    expect(result.accepted).toHaveLength(2);
+    expect(result.nextAttemptIndex).toBe(3);
+    // A forged result on a hint is a mismatch.
+    expect(() =>
+      appendInteractions({
+        content: matching,
+        status: 'IN_PROGRESS',
+        existing: [],
+        incoming: [{ ...events[0], result: 'CORRECT' } as unknown as GameInteraction],
+      }),
+    ).toThrow();
   });
 });

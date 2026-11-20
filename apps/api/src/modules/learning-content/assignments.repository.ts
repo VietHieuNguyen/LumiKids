@@ -8,7 +8,13 @@ const versionSelect = {
   gameType: true,
   difficulty: true,
   content: true,
-  activity: { select: { name: true, status: true } },
+  activity: {
+    select: {
+      name: true,
+      status: true,
+      ageGroup: { select: { name: true, minAge: true, maxAge: true } },
+    },
+  },
 } as const satisfies Prisma.ActivityVersionSelect;
 
 const assignmentInclude = {
@@ -58,8 +64,17 @@ export class AssignmentsRepository {
     });
   }
 
+  /** Birthdays for the age check (R-01). */
+  childDobs(childIds: readonly string[]) {
+    return this.prisma.child.findMany({
+      where: { childId: { in: [...childIds] } },
+      select: { childId: true, fullName: true, dob: true },
+    });
+  }
+
   async create(data: {
-    classId: string;
+    source?: 'TEACHER' | 'GUARDIAN';
+    classId: string | null;
     title: string;
     note: string;
     createdBy: string;
@@ -93,6 +108,25 @@ export class AssignmentsRepository {
       include: assignmentInclude,
       orderBy: [{ opensAt: 'desc' }, { assignmentId: 'asc' }],
       take: 100,
+    });
+  }
+  /** Family picks of one child (newest first). */
+  listFamilyPicks(childId: string) {
+    return this.prisma.activityAssignment.findMany({
+      where: { source: 'GUARDIAN', recipients: { some: { childId } } },
+      include: assignmentInclude,
+      orderBy: [{ opensAt: 'desc' }, { assignmentId: 'asc' }],
+      take: 50,
+    });
+  }
+  findFamilyPick(childId: string, assignmentId: string) {
+    return this.prisma.activityAssignment.findFirst({
+      where: {
+        assignmentId,
+        source: 'GUARDIAN',
+        recipients: { some: { childId } },
+      },
+      select: { assignmentId: true, status: true },
     });
   }
   find(classId: string, assignmentId: string) {
@@ -150,11 +184,21 @@ export class AssignmentsRepository {
   // ---------- Child ----------
 
   /** Opened, not cancelled assignments of the child's current class. */
-  forChild(childId: string, classId: string, now: Date) {
+  /**
+   * Opened assignments of a child. In a class: that class's teacher assignments only. Without a class:
+   * the guardian's family picks only (a class child plays what the teacher assigns).
+   */
+  forChild(childId: string, classId: string | null, now: Date) {
     return this.prisma.activityRecipient.findMany({
       where: {
         childId,
-        assignment: { classId, status: 'ACTIVE', opensAt: { lte: now } },
+        assignment: {
+          ...(classId
+            ? { classId, source: 'TEACHER' }
+            : { classId: null, source: 'GUARDIAN' }),
+          status: 'ACTIVE',
+          opensAt: { lte: now },
+        },
       },
       select: {
         recipientId: true,

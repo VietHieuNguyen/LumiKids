@@ -36,7 +36,7 @@ function toInteraction(row: EventRow): GameInteraction {
     actionType: row.eventType,
     sourceId: action.sourceId,
     ...(action.targetId === undefined ? {} : { targetId: action.targetId }),
-    result: row.result,
+    ...(row.result === null ? {} : { result: row.result }),
     timestamp: row.clientTimestamp.toISOString(),
     attemptIndex: row.attemptIndex,
   });
@@ -51,10 +51,10 @@ function toEventData(
     sessionId,
     eventType: event.actionType,
     actionData:
-      event.actionType === 'SELECT_CHOICE'
-        ? { sourceId: event.sourceId }
-        : { sourceId: event.sourceId, targetId: event.targetId },
-    result: event.result,
+      'targetId' in event
+        ? { sourceId: event.sourceId, targetId: event.targetId }
+        : { sourceId: event.sourceId },
+    result: 'result' in event ? event.result : null,
     attemptIndex: event.attemptIndex,
     schemaVersion: event.schemaVersion,
     clientTimestamp: new Date(event.timestamp),

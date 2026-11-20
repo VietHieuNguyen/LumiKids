@@ -8,6 +8,10 @@ export class CurriculumService {
   async list() {
     return curriculumSchema.parse(await this.repository.list());
   }
+  /** Age groups for authoring, lesson plans and family picks (same list the admin sees). */
+  ageGroups() {
+    return this.repository.ageGroups();
+  }
   async requireCodes(codes: string[]) {
     const catalog = await this.list();
     const available = new Set(

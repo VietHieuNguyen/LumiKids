@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
+  gameAgeGroupSchema,
   gameLibraryQuerySchema,
   gameStatusSchema,
   saveGameSchema,
@@ -63,6 +64,18 @@ export class GameLibraryController {
     if (!parsed.success)
       throw new BadRequestException('Trạng thái trò chơi không hợp lệ.');
     return this.games.status(user, id, parsed.data.status);
+  }
+  @Patch(':versionId/age-group')
+  @Permissions('READ_GAMES')
+  ageGroup(
+    @CurrentUser() user: Principal,
+    @Param('versionId', ParseUUIDPipe) id: string,
+    @Body() value: unknown,
+  ) {
+    const parsed = gameAgeGroupSchema.safeParse(value);
+    if (!parsed.success)
+      throw new BadRequestException('Nhóm tuổi không hợp lệ.');
+    return this.games.ageGroup(user, id, parsed.data.ageGroupId);
   }
   @Get(':versionId/assets/:assetId/read-url')
   @Permissions('READ_GAMES')

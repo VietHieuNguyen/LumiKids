@@ -520,6 +520,17 @@ export class ClassroomsService {
     query: PlayHistoryQuery,
   ): Promise<PlayHistoryPage> {
     const { periods } = await this.childInClass(classId, childId);
+    return this.playHistory(childId, periods, query);
+  }
+  /** Every session of the child (the guardian's view; the family service checks the link first). */
+  childPlayHistory(childId: string, query: PlayHistoryQuery): Promise<PlayHistoryPage> {
+    return this.playHistory(childId, [{ startedAt: new Date(0), endedAt: null }], query);
+  }
+  private async playHistory(
+    childId: string,
+    periods: readonly { startedAt: Date; endedAt: Date | null }[],
+    query: PlayHistoryQuery,
+  ): Promise<PlayHistoryPage> {
     const { total, rows } = await this.repository.listPlaySessions(
       childId,
       periods,
@@ -533,7 +544,10 @@ export class ClassroomsService {
         gameName: row.version.activity.name,
         gameType: row.version.gameType,
         status: row.status,
-        attemptCount: row.eventCount,
+        // Answers only: hint requests are events too but not attempts.
+        attemptCount:
+          sessionPerformanceSchema.safeParse(row.performance).data?.attemptCount ??
+          row.eventCount,
         startedAt: row.startedAt.toISOString(),
         endedAt: row.endedAt?.toISOString() ?? null,
         evaluation: evaluationView(row),

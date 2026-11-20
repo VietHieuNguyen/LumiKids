@@ -71,19 +71,27 @@ export class GameGenerationService {
         input.gameType,
         candidates.map((asset) => asset.id),
       );
+      const deadline = started + this.config.requestDeadlineMs;
       while (attempts < 2) {
+        // A second attempt that cannot finish within the request deadline is not started.
+        const remaining = deadline - Date.now();
+        if (remaining < 1000) throw new ApiProblem('AI_TIMEOUT');
         attempts++;
         diagnostic = undefined;
         validationStage = undefined;
         try {
-          const output = await this.generateTracked(user.userId, {
-            ...input,
-            requestId,
-            candidates,
-            responseSchema,
-            attempt: attempts,
-            validationErrors,
-          });
+          const output = await this.generateTracked(
+            user.userId,
+            {
+              ...input,
+              requestId,
+              candidates,
+              responseSchema,
+              attempt: attempts,
+              validationErrors,
+            },
+            remaining,
+          );
           const normalized = normalizeHabitatAnswers(
             output.gameContent,
             candidates,
@@ -184,20 +192,34 @@ export class GameGenerationService {
     }
   }
 
-  private async generateTracked(userId: string, request: AiGenerationRequest) {
+  private async generateTracked(
+    userId: string,
+    request: AiGenerationRequest,
+    timeoutMs: number,
+  ) {
     let output;
+    const started = Date.now();
     try {
-      output = await this.ai.generate(request);
+      output = await this.ai.generate(request, { timeoutMs });
     } catch (error) {
       await this.usage.record(
         userId,
         request,
         error instanceof AiClientError ? error.code : 'INTERNAL_ERROR',
         error instanceof AiClientError ? error.usage : undefined,
+        undefined,
+        Date.now() - started,
       );
       throw error;
     }
-    await this.usage.record(userId, request, 'OK', output.usage, output.model);
+    await this.usage.record(
+      userId,
+      request,
+      'OK',
+      output.usage,
+      output.model,
+      Date.now() - started,
+    );
     return output;
   }
 }

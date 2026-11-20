@@ -6,6 +6,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import authConfig from '../../common/config/auth.config.js';
 import childAuthConfig from '../../common/config/child-auth.config.js';
+import verificationConfig from '../../common/config/verification.config.js';
+import { RegistrationRepository } from './registration.repository.js';
+import { RegistrationService } from './registration.service.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
@@ -26,6 +29,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
   imports: [
     ConfigModule.forFeature(authConfig),
     ConfigModule.forFeature(childAuthConfig),
+    ConfigModule.forFeature(verificationConfig),
     PrismaModule,
     UsersModule,
     JwtModule.register({}),
@@ -50,6 +54,8 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     ChildAuthRepository,
     TeacherAccountsService,
     TeacherAccountsRepository,
+    RegistrationService,
+    RegistrationRepository,
     BrowserRequestGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

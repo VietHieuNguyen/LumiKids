@@ -36,12 +36,20 @@ export class ChildAuthRepository {
     });
   }
 
-  /** A child may sign in only while enrolled in a class that is still active. */
+  /**
+   * A child may sign in while enrolled in a class that is still active, or while a guardian manages
+   * the child at home (family flow: the guardian picks the games).
+   */
   async hasCurrentClass(childId: string): Promise<boolean> {
-    const count = await this.prisma.classroomEnrollment.count({
-      where: { childId, endedAt: null, classroom: { status: 'ACTIVE' } },
-    });
-    return count > 0;
+    const [enrolled, guardians] = await Promise.all([
+      this.prisma.classroomEnrollment.count({
+        where: { childId, endedAt: null, classroom: { status: 'ACTIVE' } },
+      }),
+      this.prisma.guardianChild.count({
+        where: { childId, guardian: { user: { status: 'ACTIVE' } } },
+      }),
+    ]);
+    return enrolled + guardians > 0;
   }
 
   /**
