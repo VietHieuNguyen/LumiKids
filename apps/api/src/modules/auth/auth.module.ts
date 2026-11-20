@@ -16,6 +16,9 @@ import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AdminTeacherAccountsController } from './admin-teacher-accounts.controller.js';
 import { AdminGuardianAccountsController } from './admin-guardian-accounts.controller.js';
+import { AccountProfileController } from './account-profile.controller.js';
+import { AccountProfileRepository } from './account-profile.repository.js';
+import { AccountProfileService } from './account-profile.service.js';
 import { GuardianAccountsRepository } from './guardian-accounts.repository.js';
 import { GuardianAccountsService } from './guardian-accounts.service.js';
 import { TeacherAccountsRepository } from './teacher-accounts.repository.js';
@@ -52,6 +55,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     ChildAuthController,
     AdminTeacherAccountsController,
     AdminGuardianAccountsController,
+    AccountProfileController,
   ],
   providers: [
     AuthService,
@@ -63,6 +67,8 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
     TeacherAccountsRepository,
     GuardianAccountsService,
     GuardianAccountsRepository,
+    AccountProfileService,
+    AccountProfileRepository,
     RegistrationService,
     MailService,
     RegistrationRepository,

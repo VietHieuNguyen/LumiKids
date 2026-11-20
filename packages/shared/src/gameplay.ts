@@ -73,3 +73,31 @@ export type PlaySessionView = z.infer<typeof playSessionSchema>;
 export type SubmitInteractionsResult = z.infer<
   typeof submitInteractionsResultSchema
 >;
+
+/**
+ * "Góc của bé": what a signed-in child sees about themselves. No scores: results are for the
+ * adults; the child sees what they finished and on which days they played.
+ */
+export const childCornerSchema = z.object({
+  fullName: z.string(),
+  classroom: z.object({ className: z.string(), teacherNames: z.array(z.string()) }).nullable(),
+  /** Different games finished at least once. */
+  finishedGames: z.number().int().nonnegative(),
+  /** Finished plays, replays included. */
+  finishedPlays: z.number().int().nonnegative(),
+  /** Monday→Sunday of the current week (Vietnam time): true when a play was finished that day. */
+  playedThisWeek: z.array(z.boolean()).length(7),
+  /** Index of today in `playedThisWeek` (0 = Monday). */
+  todayIndex: z.number().int().min(0).max(6),
+  /** One sticker per finished game, latest first (at most 24). */
+  stickers: z.array(
+    z.object({
+      versionId: z.uuid(),
+      title: z.string(),
+      gameType: gameTypeSchema,
+      times: z.number().int().positive(),
+      lastFinishedAt: z.iso.datetime(),
+    }),
+  ),
+});
+export type ChildCorner = z.infer<typeof childCornerSchema>;

@@ -11,7 +11,7 @@ function loginReturningHere(): string {
 }
 
 /** Adult session for the classroom screens; `permission` decides whether the screen is shown at all. */
-export function useClassroomSession(permission: "MANAGE_CLASSROOMS" | "READ_OWN_CLASSROOMS" | "MANAGE_USERS" | "MANAGE_FAMILY" | "MANAGE_LESSON_PLANS") {
+export function useClassroomSession(permission: "MANAGE_CLASSROOMS" | "READ_OWN_CLASSROOMS" | "MANAGE_USERS" | "MANAGE_FAMILY" | "MANAGE_LESSON_PLANS" | "READ_OWN_ACCOUNT") {
   const { session, loading, invalidateSession } = useAuth();
   const router = useRouter();
   const token = session?.accessToken;

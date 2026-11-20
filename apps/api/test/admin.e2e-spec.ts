@@ -8,6 +8,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/modules/users/users.service.js';
 import { TeacherAccountsService } from '../src/modules/auth/teacher-accounts.service.js';
 import { GuardianAccountsService } from '../src/modules/auth/guardian-accounts.service.js';
+import { AccountProfileService } from '../src/modules/auth/account-profile.service.js';
 import { AdminOverviewService } from '../src/modules/admin-overview/admin-overview.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
@@ -38,6 +39,10 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     changeOwnPassword: vi.fn(() => Promise.resolve()),
   };
   const overview = { overview: vi.fn(() => Promise.resolve({ totals: {} })) };
+  const profiles = {
+    get: vi.fn(() => Promise.resolve({})),
+    update: vi.fn(() => Promise.resolve({})),
+  };
   const guardians = {
     list: vi.fn(() => Promise.resolve([])),
     update: vi.fn(() => Promise.resolve({})),
@@ -67,6 +72,8 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .useValue(overview)
       .overrideProvider(GuardianAccountsService)
       .useValue(guardians)
+      .overrideProvider(AccountProfileService)
+      .useValue(profiles)
       .compile();
     app = module.createNestApplication();
     configureHttp(app);
@@ -139,6 +146,25 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .auth(await token(), { type: 'bearer' })
       .expect(200);
     expect(reset.headers['cache-control']).toBe('no-store');
+  });
+
+  it('lets any adult edit their own name and phone, never email or roles', async () => {
+    for (const body of [{ email: 'x@example.test' }, { roles: ['ROLE_ADMIN'] }, { fullName: '   ' }, {}])
+      await request(app.getHttpServer())
+        .patch('/api/v1/auth/profile')
+        .auth(await token(), { type: 'bearer' })
+        .send(body)
+        .expect(400);
+    expect(profiles.update).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .patch('/api/v1/auth/profile')
+      .auth(await token(), { type: 'bearer' })
+      .send({ fullName: ' Cô Lan ', phone: '0900' })
+      .expect(200);
+    expect(profiles.update).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: actor.userId }),
+      { fullName: 'Cô Lan', phone: '0900' },
+    );
   });
 
   it('validates a new teacher and never caches the temporary password', async () => {

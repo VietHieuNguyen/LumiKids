@@ -106,3 +106,60 @@ export const issuedGuardianPasswordSchema = z.object({
 export type GuardianAccount = z.infer<typeof guardianAccountSchema>;
 export type UpdateGuardianAccountInput = z.infer<typeof updateGuardianAccountSchema>;
 export type IssuedGuardianPassword = z.infer<typeof issuedGuardianPasswordSchema>;
+
+/** One's own adult account (any role). Email is the sign-in name and cannot change. */
+export const accountProfileSchema = z.object({
+  userId: z.uuid(),
+  fullName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  roles: z.array(z.string()),
+  createdAt: z.iso.datetime(),
+  /** The sign-in before the current one, so a stranger's use is noticed; null on the first. */
+  previousLoginAt: z.iso.datetime().nullable(),
+  /** Devices or browsers still signed in. */
+  activeSessions: z.number().int().nonnegative(),
+  teacher: z
+    .object({
+      specialization: z.string(),
+      classes: z.array(
+        z.object({
+          classId: z.uuid(),
+          className: z.string(),
+          schoolYearName: z.string(),
+          ageGroupName: z.string(),
+          childCount: z.number().int().nonnegative(),
+        }),
+      ),
+    })
+    .nullable(),
+  guardian: z
+    .object({
+      relationship: guardianRelationshipSchema,
+      children: z.array(
+        z.object({
+          childId: z.uuid(),
+          fullName: z.string(),
+          dob: z.iso.date(),
+          className: z.string().nullable(),
+        }),
+      ),
+    })
+    .nullable(),
+});
+export const updateAccountProfileSchema = z
+  .object({
+    fullName: fullName.optional(),
+    phone: phone.optional(),
+    /** Teachers only. */
+    specialization: z.string().trim().max(200).optional(),
+    /** Guardians only. */
+    relationship: guardianRelationshipSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "Không có gì để cập nhật.",
+  });
+
+export type AccountProfile = z.infer<typeof accountProfileSchema>;
+export type UpdateAccountProfileInput = z.infer<typeof updateAccountProfileSchema>;

@@ -123,6 +123,10 @@ const problems = {
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
+  PROFILE_FIELD_NOT_ALLOWED: [
+    400,
+    'Chuyên môn chỉ dành cho giáo viên, quan hệ với trẻ chỉ dành cho phụ huynh.',
+  ],
   GUARDIAN_NOT_VERIFIED: [
     409,
     'Tài khoản chưa xác minh email nên chưa khóa hoặc đặt lại mật khẩu được.',
