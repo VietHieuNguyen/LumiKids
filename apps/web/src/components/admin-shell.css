@@ -119,30 +119,12 @@
 .admin-content .admin-panel { border: 1px solid var(--color-line); border-radius: 8px; padding: 20px; background: var(--color-paper); box-shadow: none; }
 .admin-content .admin-panel > div:first-child { margin-bottom: 16px; }
 .admin-content .admin-panel > div:first-child p { font-size: 12px; }
-.admin-content .admin-teacher-list, .admin-content .admin-teacher-row { min-width: 0; }
-.admin-content .admin-teacher-identity > span:first-child { width: 36px; height: 36px; background: var(--color-leaf-soft); font-size: 15px; --tw-ring-color: var(--color-line); }
-.admin-content .admin-teacher-identity p { font-size: 13px; }
-.admin-content .admin-teacher-identity p:first-child { font-size: 14px; }
-.admin-content .admin-teacher-classes a { min-height: 26px; border: 1px solid var(--color-line); border-radius: 4px; background: transparent; padding: 3px 8px; color: var(--color-ink-soft); }
-.admin-content .admin-teacher-classes a:hover { background: var(--color-leaf-soft); }
 .teacher-dashboard .teacher-classroom-card { gap: 10px; padding: 18px; box-shadow: none; }
 .teacher-dashboard .teacher-classroom-card > div > span { font-size: 16px; font-weight: 600; }
 .teacher-dashboard .teacher-classroom-card > span { font-size: 13px; }
 .teacher-dashboard .teacher-children-list > li { min-width: 0; }
 .teacher-dashboard .teacher-children-list > li > span[aria-hidden] { width: 32px; height: 32px; flex-shrink: 0; background: var(--color-leaf-soft); font-size: 13px; --tw-ring-color: var(--color-line); }
 .teacher-dashboard .teacher-assignment-form > aside { min-width: 0; }
-@media (min-width: 1280px) {
-  .admin-content .admin-teacher-list { grid-template-columns: minmax(0, 1fr); gap: 0; overflow: hidden; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-paper); }
-  .admin-content .admin-teacher-row { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(140px, .8fr) minmax(90px, .6fr) minmax(280px, 1.3fr); align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--color-line); border-radius: 0; padding: 16px; }
-  .admin-content .admin-teacher-row:last-child { border-bottom: 0; }
-  .admin-content .admin-teacher-identity { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: start; gap: 8px; }
-  .admin-content .admin-teacher-identity > .ring-inset { grid-column: 2; justify-self: start; }
-  .admin-content .admin-teacher-stats { grid-column: 2; margin-top: 0; }
-  .admin-content .admin-teacher-classes { grid-column: 3; margin-top: 0; }
-  .admin-content .admin-teacher-actions { grid-column: 4; justify-content: end; margin-top: 0; padding-top: 0; }
-  .admin-content .admin-teacher-row > [role="alert"] { grid-column: 1 / -1; }
-}
-
 @media (max-width: 1199px) {
   .admin-content > main { padding-inline: 24px; }
   .admin-content .admin-classroom-columns { grid-template-columns: minmax(0, 1fr); }
