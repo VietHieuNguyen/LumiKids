@@ -1,4 +1,5 @@
-import { RegistrationService, verificationMail } from './registration.service.js';
+import { RegistrationService } from './registration.service.js';
+import { verificationMail } from './verification-mail.js';
 import type { RegistrationRepository } from './registration.repository.js';
 import type { PasswordService } from './password.service.js';
 import type { MailService } from '../../common/mail/mail.service.js';
@@ -18,6 +19,7 @@ function setup(mail: Partial<MailService>, logCodes = false, limits: Partial<typ
     passwords as unknown as PasswordService,
     mail as MailService,
     { ...config, ...limits, logCodes } as never,
+    { webUrl: 'http://localhost:3000' } as never,
   );
   return { service, repository };
 }
@@ -46,11 +48,19 @@ describe('email verification delivery', () => {
     await service.register(input);
     expect(send).not.toHaveBeenCalled();
   });
-  it('builds a mail with the code and its lifetime, without other secrets', () => {
-    const mail = verificationMail('a@example.test', '123456', 15);
+  it('builds a mail with the code, its lifetime, a greeting by given name and the verify link', () => {
+    const mail = verificationMail({ to: 'a+b@example.test', code: '123456', ttlMinutes: 15, fullName: 'Nguyễn Thị Lan', webUrl: 'http://localhost:3000/' });
     expect(mail.subject).toContain('123456');
+    expect(mail.text).toContain('123456');
+    expect(mail.html).toContain('1 2 3 4 5 6');
     expect(mail.html).toContain('15 phút');
-    expect(mail.text).not.toContain('password');
+    expect(mail.html).toContain('Xin chào Lan,');
+    expect(mail.html).toContain('http://localhost:3000/verify-email?email=a%2Bb%40example.test');
+  });
+  it('escapes names so a crafted full name cannot inject markup', () => {
+    const mail = verificationMail({ to: 'x@example.test', code: '000111', ttlMinutes: 15, fullName: 'Lan <script>alert(1)</script>' });
+    expect(mail.html).not.toContain('<script>');
+    expect(mail.html).not.toContain('Mở trang xác minh');
   });
 });
 

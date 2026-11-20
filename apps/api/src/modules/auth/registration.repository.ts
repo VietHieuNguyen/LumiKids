@@ -10,7 +10,7 @@ export class RegistrationRepository {
   findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
-      select: { userId: true, status: true, verification: true },
+      select: { userId: true, fullName: true, status: true, verification: true },
     });
   }
 

@@ -8,6 +8,9 @@ const schema = z.object({
   /** A Gmail App Password (16 characters), never the account password. */
   EMAIL_PASSWORD: z.string().default(''),
   EMAIL_FROM: z.string().trim().default(''),
+  /** Web origin used in email links; defaults to the first AUTH_ALLOWED_ORIGINS entry. */
+  EMAIL_LINK_BASE_URL: z.string().trim().default(''),
+  AUTH_ALLOWED_ORIGINS: z.string().default(''),
 });
 
 /** Outgoing mail (verification codes). Disabled until both EMAIL_USER and EMAIL_PASSWORD are set. */
@@ -26,5 +29,6 @@ export default registerAs('mail', () => {
     user: env.EMAIL_USER,
     password,
     from: env.EMAIL_FROM || (env.EMAIL_USER ? `LumiKids <${env.EMAIL_USER}>` : ''),
+    webUrl: env.EMAIL_LINK_BASE_URL || env.AUTH_ALLOWED_ORIGINS.split(',')[0]?.trim() || '',
   };
 });
