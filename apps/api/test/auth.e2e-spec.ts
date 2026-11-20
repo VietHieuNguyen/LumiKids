@@ -164,11 +164,24 @@ describe('Auth HTTP contract (offline)', () => {
   ])('rejects invalid or privilege-escalating input (%#)', async (body) => {
     await login(body).expect(400);
   });
-  it('does not expose a registration endpoint', async () => {
-    const response = await request(app.getHttpServer())
+  // Guardian self-registration (G-05) exists, but only as a browser request with a fixed guardian shape.
+  it('registration needs the CSRF header and never accepts roles or permissions', async () => {
+    const guardian = {
+      fullName: 'Phụ huynh',
+      email: 'parent@example.test',
+      relationship: 'MOTHER',
+      password: 'a-long-password',
+    };
+    await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ roles: ['ROLE_ADMIN'] });
-    expect([401, 404]).toContain(response.status);
+      .send(guardian)
+      .expect(403);
+    for (const extra of [{ roles: ['ROLE_ADMIN'] }, { permissions: ['MANAGE_USERS'] }, { status: 'ACTIVE' }])
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .set('X-CSRF-Protection', '1')
+        .send({ ...guardian, ...extra })
+        .expect(400);
   });
   it('rejects a missing access token', async () => {
     await request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);

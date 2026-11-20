@@ -118,6 +118,7 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       fullName: 'Cô Lan',
       email: 'lan@example.test',
       phone: '',
+      specialization: '',
     });
   });
 

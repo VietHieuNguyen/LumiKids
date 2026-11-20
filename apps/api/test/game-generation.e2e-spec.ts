@@ -39,7 +39,7 @@ describe('Game generation HTTP (offline)', () => {
     vi.resetAllMocks();
     usageDb.aiTokenUsage.create.mockResolvedValue({});
     usageDb.user.findMany.mockResolvedValue([]);
-    usageDb.$transaction.mockResolvedValue([[], [], 0]);
+    usageDb.$transaction.mockResolvedValue([[], [], 0, []]);
     stubStorageEnvironment();
     vi.stubEnv('JWT_ACCESS_SECRET', secret);
     vi.stubEnv('JWT_ISSUER', 'lumikids-api');
