@@ -36,6 +36,8 @@
     "@aws-sdk/client-s3": "3.1165.0",
     "@aws-sdk/s3-request-presigner": "3.1165.0",
     "@casl/ability": "7.1.1",
+    "@lumikids/ai-client": "workspace:*",
+    "@lumikids/shared": "workspace:*",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.1.1",
     "@nestjs/core": "^12.0.1",
@@ -49,11 +51,10 @@
     "class-validator": "0.15.1",
     "cookie-parser": "1.4.7",
     "helmet": "8.1.0",
+    "nodemailer": "^10.6.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^4.6.7",
-    "@lumikids/shared": "workspace:*",
-    "@lumikids/ai-client": "workspace:*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
@@ -62,6 +63,7 @@
     "@types/cookie-parser": "1.4.10",
     "@types/express": "^5.0.0",
     "@types/node": "^22",
+    "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "dotenv": "18.0.10",

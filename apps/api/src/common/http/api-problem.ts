@@ -155,6 +155,10 @@ const problems = {
     'Đã nhập sai quá số lần cho phép. Hãy yêu cầu gửi mã mới.',
   ],
   VERIFICATION_TOO_SOON: [429, 'Vừa gửi mã. Vui lòng đợi một phút rồi thử lại.'],
+  VERIFICATION_RATE_LIMITED: [
+    429,
+    'Email này đã nhận quá nhiều mã trong một giờ. Vui lòng thử lại sau.',
+  ],
   GAME_AGE_GROUP_MISSING: [
     422,
     'Có trò chơi chưa được gắn nhóm tuổi. Người tạo trò hoặc quản trị cần chọn nhóm tuổi trong kho trước khi giao.',
