@@ -19,6 +19,7 @@ function setup() {
     phone: '',
     status: 'ACTIVE' as const,
     createdAt: new Date('2026-11-01T00:00:00.000Z'),
+    teacherProfile: { specialization: 'Mầm non' },
     authSessions: [],
     classrooms: [],
   };
@@ -51,6 +52,7 @@ describe('TeacherAccountsService', () => {
       fullName: 'Cô Lan',
       email: 'lan@example.test',
       phone: '',
+      specialization: 'Mầm non',
     });
     expect(result.temporaryPassword).toMatch(
       /^[A-Za-z2-9]{4}-[A-Za-z2-9]{4}-[A-Za-z2-9]{4}$/,
@@ -71,7 +73,12 @@ describe('TeacherAccountsService', () => {
       Object.assign(new Error('unique'), { code: 'P2002' }),
     );
     await expect(
-      service.create({ fullName: 'X', email: 'lan@example.test', phone: '' }),
+      service.create({
+        fullName: 'X',
+        email: 'lan@example.test',
+        phone: '',
+        specialization: '',
+      }),
     ).rejects.toEqual(problem('ACCOUNT_EMAIL_TAKEN'));
   });
 

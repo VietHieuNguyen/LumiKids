@@ -16,6 +16,7 @@ export function ClassificationGame({
   assetRevisions,
   onAction,
   onAssetError,
+  hint,
 }: RendererCommonProps & {
   content: ClassificationContent;
   state: ClassificationState;
@@ -75,7 +76,7 @@ export function ClassificationGame({
                     id={item.id}
                     label={labelFor(item)}
                     pairing={pairing}
-                    className="classification-animal-card"
+                    className={`classification-animal-card ${hint?.taskId === item.id ? "is-hinted" : ""}`}
                   >
                     <span className="classification-animal-picture">
                       <GamePicture
@@ -142,7 +143,7 @@ export function ClassificationGame({
                   <div
                     key={group.id}
                     data-game-target-id={state.completed ? undefined : group.id}
-                    className={`classification-environment-card ${hovering ? "is-hovered" : ""} ${wrong ? "is-incorrect" : ""}`}
+                    className={`classification-environment-card ${hovering ? "is-hovered" : ""} ${wrong ? "is-incorrect" : ""} ${hint?.targetIds.includes(group.id) ? "is-hinted" : ""}`}
                   >
                     <button
                       type="button"

@@ -39,14 +39,22 @@ export interface AppendResult {
 }
 
 function toAction(event: GameInteraction): GameAction {
-  return event.actionType === 'SELECT_CHOICE'
-    ? { actionType: event.actionType, sourceId: event.sourceId }
-    : {
+  switch (event.actionType) {
+    case 'SELECT_CHOICE':
+    case 'REQUEST_HINT':
+      return { actionType: event.actionType, sourceId: event.sourceId };
+    case 'MATCH_DROP':
+    case 'CLASSIFY_DROP':
+      return {
         actionType: event.actionType,
         sourceId: event.sourceId,
         targetId: event.targetId,
       };
+  }
 }
+
+const resultOf = (event: GameInteraction) =>
+  'result' in event ? event.result : null;
 
 function samePayload(a: GameInteraction, b: GameInteraction): boolean {
   return (
@@ -55,7 +63,7 @@ function samePayload(a: GameInteraction, b: GameInteraction): boolean {
     ('targetId' in a ? a.targetId : undefined) ===
       ('targetId' in b ? b.targetId : undefined) &&
     a.attemptIndex === b.attemptIndex &&
-    a.result === b.result &&
+    resultOf(a) === resultOf(b) &&
     Date.parse(a.timestamp) === Date.parse(b.timestamp)
   );
 }
@@ -75,7 +83,8 @@ function step(
   });
   if (!transition.interaction)
     throw new GameplayRuleError('INTERACTION_INVALID');
-  if (transition.interaction.result !== event.result)
+  // A hint has no result; an answer must carry the result the engine computes.
+  if (resultOf(transition.interaction) !== resultOf(event))
     throw new GameplayRuleError('INTERACTION_RESULT_MISMATCH');
   return transition.state;
 }

@@ -27,6 +27,7 @@ function toAccount(row: TeacherRow): TeacherAccount {
     fullName: row.fullName,
     email: row.email,
     phone: row.phone,
+    specialization: row.teacherProfile?.specialization ?? '',
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.authSessions[0]?.createdAt.toISOString() ?? null,
@@ -61,6 +62,7 @@ export class TeacherAccountsService {
     fullName: string;
     email: string;
     phone: string;
+    specialization: string;
   }): Promise<IssuedPassword> {
     const password = temporaryPassword();
     let userId: string;

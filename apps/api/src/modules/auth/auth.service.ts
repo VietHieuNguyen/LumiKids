@@ -13,6 +13,7 @@ import {
 } from './refresh-token.js';
 import type { Principal } from '../../common/security/principal.js';
 import type { LoginDto } from './dto/login.dto.js';
+import { ApiProblem } from '../../common/http/api-problem.js';
 
 @Injectable()
 export class AuthService {
@@ -57,7 +58,12 @@ export class AuthService {
       dto.password,
       account?.passwordHash,
     );
-    if (!account || !valid || account.status !== 'ACTIVE')
+    if (!account || !valid)
+      throw new UnauthorizedException('Invalid email or password.');
+    // Only someone who knows the password learns that the email still needs verifying.
+    if (account.status === 'PENDING_VERIFICATION')
+      throw new ApiProblem('ACCOUNT_NOT_VERIFIED');
+    if (account.status !== 'ACTIVE')
       throw new UnauthorizedException('Invalid email or password.');
     const refresh = newRefreshToken();
     const expiresAt = new Date(

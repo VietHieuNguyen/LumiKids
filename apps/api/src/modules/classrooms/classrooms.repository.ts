@@ -240,9 +240,17 @@ export class ClassroomsRepository {
     });
   }
   /** Every period the child spent in this class, oldest first. */
+  /**
+   * The child's periods in a class. A period opened through a guardian's consent that was later revoked
+   * is left out: the class no longer sees that child's data (BR-16).
+   */
   listPeriods(classId: string, childId: string): Promise<Period[]> {
     return this.prisma.classroomEnrollment.findMany({
-      where: { classId, childId },
+      where: {
+        classId,
+        childId,
+        OR: [{ consent: null }, { consent: { revokedAt: null } }],
+      },
       orderBy: { startedAt: 'asc' },
       select: { startedAt: true, endedAt: true },
     });

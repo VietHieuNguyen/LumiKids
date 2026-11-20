@@ -7,6 +7,7 @@ import type { GameContent } from "../game-content/game-content.schema.js";
 import { evaluateCounting } from "./counting.js";
 import { evaluateMatching } from "./matching.js";
 import { evaluateClassification } from "./classification.js";
+import { canRequestHint } from "./hint.js";
 import type {
   ActionEvaluation,
   GameAction,
@@ -17,7 +18,7 @@ import type {
 } from "./types.js";
 
 export function createInitialState(content: GameContent): GameState {
-  const base = { attemptCount: 0, completed: false, lastInteraction: null };
+  const base = { attemptCount: 0, hintedItemIds: [], completed: false, lastInteraction: null };
   switch (content.gameType) {
     case "COUNTING":
       return { ...base, gameType: "COUNTING", selectedChoiceId: null };
@@ -98,6 +99,27 @@ export function applyGameAction(
 ): GameTransition {
   const ignored = { state, interaction: null, completedNow: false };
   if (state.completed || state.gameType !== content.gameType) return ignored;
+  if (action.actionType === "REQUEST_HINT") {
+    // A hint is recorded like an answer (ordered, replayed by the server) but has no result.
+    if (!canRequestHint(content, state, action.sourceId)) return ignored;
+    const interaction = gameInteractionSchema.parse({
+      schemaVersion: GAME_INTERACTION_SCHEMA_VERSION,
+      ...identity,
+      actionType: "REQUEST_HINT",
+      sourceId: action.sourceId,
+      attemptIndex: state.attemptCount + 1,
+    });
+    return {
+      state: {
+        ...state,
+        hintedItemIds: [...state.hintedItemIds, action.sourceId],
+        attemptCount: interaction.attemptIndex,
+        lastInteraction: interaction,
+      },
+      interaction,
+      completedNow: false,
+    };
+  }
   let evaluation: ActionEvaluation | null = null;
   switch (content.gameType) {
     case "COUNTING":

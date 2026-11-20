@@ -40,6 +40,8 @@ export default registerAs('ai', () => {
     url: parsed.data.AI_SERVICE_URL,
     token: parsed.data.AI_SERVICE_TOKEN,
     timeoutMs: parsed.data.AI_SERVICE_TIMEOUT_MS,
+    /** NFR-2: one generation request (both attempts) answers within 30 s. */
+    requestDeadlineMs: 30000,
     ...((process.env.NODE_ENV || 'development') === 'development'
       ? {
           diagnosticLogFile: resolve(

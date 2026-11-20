@@ -16,6 +16,7 @@ import type {
   SaveGameInput,
   SavedGameDetail,
 } from '@lumikids/shared';
+import { ApiProblem } from '../../common/http/api-problem.js';
 import { buildAbility } from '../../common/security/ability.js';
 import type { Principal } from '../../common/security/principal.js';
 import { CurriculumService } from '../curriculum/curriculum.service.js';
@@ -69,6 +70,7 @@ export class GameLibraryService {
       description: row.activity.description,
       gameType: row.gameType,
       difficulty: row.difficulty,
+      ageGroup: row.activity.ageGroup,
       status: row.activity.status,
       createdBy: row.activity.createdBy,
       creatorName: row.activity.creator.fullName,
@@ -110,6 +112,7 @@ export class GameLibraryService {
       name: input.name,
       description: input.description,
       difficulty: input.difficulty,
+      ageGroupId: input.ageGroupId,
       criterionCodes: [...input.criterionCodes].sort(),
       content: input.content,
     });
@@ -126,6 +129,8 @@ export class GameLibraryService {
     }
     await this.previews.verifyForSave(user, input.previewToken, input.content);
     await this.curriculum.requireCodes(input.criterionCodes);
+    if (!(await this.repository.ageGroupExists(input.ageGroupId)))
+      throw new ApiProblem('AGE_GROUP_INVALID');
     const assets = await this.assets.generationAssets(
       user,
       getGameContentAssetIds(input.content),
@@ -168,6 +173,22 @@ export class GameLibraryService {
     )
       throw new ForbiddenException('Ảnh không thuộc trò chơi đã lưu.');
     return this.assets.savedGameReadUrl(user, assetId);
+  }
+  /** Who may archive a game may also set its age group (metadata: the versioned content is untouched). */
+  private requireManager(user: Principal, row: LibraryVersion) {
+    if (this.canManageAll(user)) return;
+    this.authorize(user, 'SAVE_GAMES');
+    if (row.activity.createdBy !== user.userId)
+      throw new ForbiddenException('Bạn chỉ có thể quản lý trò chơi do mình tạo.');
+  }
+  async ageGroup(user: Principal, versionId: string, ageGroupId: string) {
+    this.authorize(user, 'READ_GAMES');
+    const row = await this.requireVersion(user, versionId);
+    this.requireManager(user, row);
+    if (!(await this.repository.ageGroupExists(ageGroupId)))
+      throw new ApiProblem('AGE_GROUP_INVALID');
+    await this.repository.setAgeGroup(row.activityId, ageGroupId);
+    return this.detail(user, versionId);
   }
   async status(
     user: Principal,

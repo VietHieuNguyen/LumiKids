@@ -20,6 +20,7 @@ export function MatchingGame({
   assetRevisions,
   onAction,
   onAssetError,
+  hint,
   presentationSeed = "matching",
 }: RendererCommonProps & { content: MatchingContent; state: MatchingState }) {
   const scope = useRef<HTMLDivElement>(null);
@@ -71,7 +72,7 @@ export function MatchingGame({
                     id={item.id}
                     label={sourceLabel(item)}
                     pairing={pairing}
-                    className="matching-picture-card"
+                    className={`matching-picture-card ${hint?.taskId === item.id ? "is-hinted" : ""}`}
                   >
                     <span className="matching-card-window">
                       <GamePicture
@@ -123,9 +124,10 @@ export function MatchingGame({
                   ? sourceLabel(matchedSource)
                   : targetLabel(item);
                 const wrong =
-                  state.lastInteraction?.result === "INCORRECT" &&
-                  state.lastInteraction.actionType === "MATCH_DROP" &&
+                  state.lastInteraction?.actionType === "MATCH_DROP" &&
+                  state.lastInteraction.result === "INCORRECT" &&
                   state.lastInteraction.targetId === item.id;
+                const hinted = !done && Boolean(hint?.targetIds.includes(item.id));
                 return (
                   <button
                     key={item.id}
@@ -139,7 +141,7 @@ export function MatchingGame({
                         ? `${displayLabel}, đã ghép đúng vào ${targetLabel(item)}`
                         : `Ghép vào ${targetLabel(item)}`
                     }
-                    className={`matching-picture-card matching-target-card ${done ? "is-matched" : ""} ${pairing.hoverId === item.id ? "is-hovered" : ""} ${wrong ? "is-incorrect" : ""}`}
+                    className={`matching-picture-card matching-target-card ${done ? "is-matched" : ""} ${pairing.hoverId === item.id ? "is-hovered" : ""} ${wrong ? "is-incorrect" : ""} ${hinted ? "is-hinted" : ""}`}
                     onClick={() => pairing.drop(item.id)}
                   >
                     <span className="matching-card-window">

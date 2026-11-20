@@ -4,6 +4,29 @@ import type { TokenUsageQuery } from '@lumikids/shared';
 import type { Principal } from '../../common/security/principal.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
+/** Budget of one call (NFR-2). */
+export const LATENCY_BUDGET_MS = 30000;
+
+/** Nearest-rank percentile of ascending values. */
+function percentile(sorted: readonly number[], p: number): number | null {
+  if (!sorted.length) return null;
+  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
+}
+
+export function latencyOf(rows: readonly { durationMs: number | null; status: string }[]) {
+  const values = rows
+    .flatMap((row) => (row.durationMs === null ? [] : [row.durationMs]))
+    .sort((a, b) => a - b);
+  return {
+    measuredCalls: values.length,
+    p50Ms: percentile(values, 50),
+    p95Ms: percentile(values, 95),
+    maxMs: values.length ? values[values.length - 1] : null,
+    timeoutCalls: rows.filter((row) => row.status === 'AI_TIMEOUT').length,
+    overBudgetCalls: values.filter((value) => value > LATENCY_BUDGET_MS).length,
+  };
+}
+
 @Injectable()
 export class TokenUsageService {
   constructor(private readonly db: PrismaService) {}
@@ -14,6 +37,7 @@ export class TokenUsageService {
     status: string,
     usage?: TokenUsage | null,
     model?: string,
+    durationMs?: number,
   ) {
     return this.db.aiTokenUsage.create({
       data: {
@@ -28,6 +52,7 @@ export class TokenUsageService {
         thoughtTokens: usage?.thoughtTokens ?? null,
         cachedTokens: usage?.cachedTokens ?? null,
         totalTokens: usage?.totalTokens ?? null,
+        durationMs: durationMs === undefined ? null : Math.round(durationMs),
       },
     });
   }
@@ -87,7 +112,7 @@ export class TokenUsageService {
       userId: { in: users.map((u) => u.userId) },
       createdAt: { gte: start, lt: end },
     };
-    const [groups, items, count] = await this.db.$transaction([
+    const [groups, items, count, durations] = await this.db.$transaction([
       this.db.aiTokenUsage.groupBy({
         by: ['userId'],
         where,
@@ -110,6 +135,12 @@ export class TokenUsageService {
         },
       }),
       this.db.aiTokenUsage.count({ where }),
+      this.db.aiTokenUsage.findMany({
+        where: { ...where, durationMs: { not: null } },
+        select: { durationMs: true, status: true },
+        orderBy: { durationMs: 'asc' },
+        take: 20000,
+      }),
     ]);
     const empty = () => ({
       calls: 0,
@@ -143,6 +174,7 @@ export class TokenUsageService {
         totals[key] += a.totals[key];
     return {
       totals,
+      latency: latencyOf(durations),
       accounts,
       items: items.map((i) => ({ ...i, createdAt: i.createdAt.toISOString() })),
       pagination: {

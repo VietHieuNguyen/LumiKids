@@ -10,4 +10,10 @@ export class CurriculumRepository {
       include: { criterions: { orderBy: { displayOrder: 'asc' } } },
     });
   }
+  ageGroups() {
+    return this.prisma.ageGroup.findMany({
+      orderBy: { displayOrder: 'asc' },
+      select: { ageGroupId: true, name: true, minAge: true, maxAge: true },
+    });
+  }
 }

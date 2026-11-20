@@ -7,15 +7,16 @@ import { AssignmentApi } from "./api";
 import { AssignmentsPanel } from "./assignments-panel";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill, TabLinks } from "./classroom-shell";
 import { ageInYears, childStatusLabels, classroomStatusLabels, formatDateTime, genderLabels, localToday } from "./format";
+import { FamilyRequestsPanel } from "./family-requests-panel";
 import { GroupsPanel } from "./groups-panel";
 import { LoginCodeDialog } from "./login-code-dialog";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
 
-export type ClassroomTab = "assignments" | "children" | "groups";
+export type ClassroomTab = "assignments" | "children" | "groups" | "families";
 
 export function TeacherClassroomPage({ classId, tab }: { classId: string; tab: ClassroomTab }) {
-  const { session, loading, api, allowed, canIssueCodes, canAssign } = useClassroomSession("READ_OWN_CLASSROOMS");
+  const { session, loading, api, allowed, canIssueCodes, canAssign, canInvite } = useClassroomSession("READ_OWN_CLASSROOMS");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Tài khoản này không phụ trách lớp học.</Notice>;
   return (
@@ -26,6 +27,7 @@ export function TeacherClassroomPage({ classId, tab }: { classId: string; tab: C
       tab={tab}
       canIssueCodes={canIssueCodes}
       canAssign={canAssign}
+      canInvite={canInvite}
     />
   );
 }
@@ -36,12 +38,14 @@ function TeacherClassroom({
   tab,
   canIssueCodes,
   canAssign,
+  canInvite,
 }: {
   api: ClassroomApi;
   classId: string;
   tab: ClassroomTab;
   canIssueCodes: boolean;
   canAssign: boolean;
+  canInvite: boolean;
 }) {
   const classroom = useResource((signal) => api.myClassroom(classId, signal), classId);
   const [assignments] = useState(() => new AssignmentApi(api, classId));
@@ -79,11 +83,13 @@ function TeacherClassroom({
           { id: "assignments", label: "Bài giao", href: base },
           { id: "children", label: `Trẻ (${data.children.length})`, href: `${base}?tab=children` },
           { id: "groups", label: "Nhóm", href: `${base}?tab=groups` },
+          ...(canInvite ? [{ id: "families", label: "Phụ huynh", href: `${base}?tab=families` }] : []),
         ]}
       />
       {tab === "assignments" && <AssignmentsPanel api={assignments} classId={classId} canAssign={canAssign && active} />}
       {tab === "children" && <ChildrenTab api={api} classroom={data} canIssueCodes={canIssueCodes} onChange={classroom.replace} />}
       {tab === "groups" && <GroupsPanel api={assignments} classroom={data} canEdit={canAssign && active} />}
+      {tab === "families" && canInvite && <FamilyRequestsPanel api={api} classId={classId} className={data.className} canEdit={active} />}
     </ClassroomShell>
   );
 }

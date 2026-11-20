@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { getGameProgress } from "@lumikids/shared";
-import type { GameAction } from "@lumikids/shared";
+import { getGameProgress, isAnswerInteraction } from "@lumikids/shared";
+import type { GameAction, GameInteraction } from "@lumikids/shared";
+
+const resultOf = (event: GameInteraction | null | undefined) =>
+  event && isAnswerInteraction(event) ? event.result : undefined;
 import { MatchingGame } from "../game-runtime/components/matching-game";
 import { createGameController } from "../game-runtime/model/controller";
 import { demoAssetUrls, demoContents } from "../game-runtime/demo-content";
@@ -42,7 +45,7 @@ export function ForestPreview() {
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
       oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(next.lastInteraction?.result === "CORRECT" ? 660 : 330, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(resultOf(next.lastInteraction) === "CORRECT" ? 660 : 330, ctx.currentTime);
       gain.gain.setValueAtTime(0.06, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
       oscillator.connect(gain).connect(ctx.destination);
@@ -72,7 +75,7 @@ export function ForestPreview() {
     } catch { setNotice("Con vẫn có thể chơi ngay trên màn hình này nhé!"); }
   }
 
-  const feedback = state.completed ? "Giỏi lắm! Con tìm đủ các cặp rồi!" : state.lastInteraction?.result === "CORRECT" ? "Đúng rồi! Con tiếp tục nhé!" : state.lastInteraction ? "Gần đúng rồi, con thử bóng khác nhé!" : "Chọn con vật, rồi chạm vào bóng phù hợp";
+  const feedback = state.completed ? "Giỏi lắm! Con tìm đủ các cặp rồi!" : resultOf(state.lastInteraction) === "CORRECT" ? "Đúng rồi! Con tiếp tục nhé!" : state.lastInteraction ? "Gần đúng rồi, con thử bóng khác nhé!" : "Chọn con vật, rồi chạm vào bóng phù hợp";
 
   return <main ref={root} className="forest-preview" data-scene-status={sceneStatus}>
     <GameBackdrop className="forest-canvas" onStatus={setSceneStatus} />
@@ -89,7 +92,7 @@ export function ForestPreview() {
     </div>
     <footer className="forest-footer">
       <button className="forest-sound" onClick={toggleSound} aria-pressed={sound}><Icon name="sound" /><span>{sound ? "Tắt âm thanh" : "Bật âm thanh"}</span></button>
-      <p role="status" aria-live="polite"><span aria-hidden="true">{state.completed ? "★" : state.lastInteraction?.result === "CORRECT" ? "✓" : "✦"}</span>{notice || feedback}</p>
+      <p role="status" aria-live="polite"><span aria-hidden="true">{state.completed ? "★" : resultOf(state.lastInteraction) === "CORRECT" ? "✓" : "✦"}</span>{notice || feedback}</p>
     </footer>
     {sceneStatus === "fallback" || sceneStatus === "partial" ? <span className="forest-scene-note">{sceneStatus === "fallback" ? "Đang dùng phong cảnh tĩnh" : "Một phần trang trí 3D chưa tải được"}</span> : null}
   </main>;

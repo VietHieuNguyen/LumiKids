@@ -171,6 +171,7 @@ describe.skipIf(!testUrl)(
         fullName: 'Cô Test',
         email,
         phone: '',
+        specialization: '',
         passwordHash: 'hash-1',
       });
       cleanups.push(async () => {
@@ -184,6 +185,7 @@ describe.skipIf(!testUrl)(
           fullName: 'Trùng',
           email,
           phone: '',
+          specialization: '',
           passwordHash: 'x',
         }),
       ).rejects.toMatchObject({ code: 'P2002' });

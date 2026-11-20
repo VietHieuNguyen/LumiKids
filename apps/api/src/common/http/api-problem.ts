@@ -145,6 +145,58 @@ const problems = {
   ASSIGNMENT_CANCELLED: [409, 'Bài giao đã bị hủy.'],
   REPLAY_NOT_NEEDED: [409, 'Bài vẫn đang mở, con vào chơi luôn nhé.'],
   REPLAY_ALREADY_DECIDED: [409, 'Yêu cầu chơi lại đã được xử lý.'],
+  ACCOUNT_NOT_VERIFIED: [
+    403,
+    'Tài khoản chưa xác minh email. Hãy nhập mã xác minh đã gửi tới email.',
+  ],
+  VERIFICATION_INVALID: [422, 'Mã xác minh không đúng hoặc đã hết hạn.'],
+  VERIFICATION_LOCKED: [
+    429,
+    'Đã nhập sai quá số lần cho phép. Hãy yêu cầu gửi mã mới.',
+  ],
+  VERIFICATION_TOO_SOON: [429, 'Vừa gửi mã. Vui lòng đợi một phút rồi thử lại.'],
+  GAME_AGE_GROUP_MISSING: [
+    422,
+    'Có trò chơi chưa được gắn nhóm tuổi. Người tạo trò hoặc quản trị cần chọn nhóm tuổi trong kho trước khi giao.',
+  ],
+  ASSIGNMENT_AGE_MISMATCH: [
+    422,
+    'Có trẻ không thuộc nhóm tuổi của trò chơi (tính theo tháng tuổi tại ngày mở bài). Hãy chọn trò khác hoặc bỏ trẻ đó.',
+  ],
+  AGE_GROUP_INVALID: [422, 'Nhóm tuổi không tồn tại.'],
+  INVITE_INVALID: [
+    404,
+    'Lời mời không còn hiệu lực (sai mã, đã hết hạn, bị thu hồi hoặc đã dùng hết).',
+  ],
+  JOIN_REQUEST_PENDING: [409, 'Trẻ đã có yêu cầu đang chờ giáo viên lớp này duyệt.'],
+  JOIN_REQUEST_DECIDED: [409, 'Yêu cầu tham gia đã được xử lý.'],
+  CHILD_HAS_CLASS: [
+    409,
+    'Trẻ đang học một lớp khác. Hãy rời lớp đó trước khi xin vào lớp mới.',
+  ],
+  CONSENT_REQUIRED: [422, 'Cần đồng ý chia sẻ dữ liệu học tập với lớp.'],
+  FAMILY_CHILD_NOT_FOUND: [404, 'Không tìm thấy hồ sơ trẻ của bạn.'],
+  FAMILY_CHILD_CLASS_MANAGED: [
+    409,
+    'Trẻ đang học ở lớp; lượt giao bài do giáo viên quản lý. Rời lớp để tự chọn trò cho trẻ.',
+  ],
+  NOT_FAMILY_ENROLLMENT: [
+    409,
+    'Trẻ được nhà trường xếp lớp, phụ huynh không tự rời lớp được. Hãy liên hệ nhà trường.',
+  ],
+  LESSON_PLAN_NOT_FOUND: [404, 'Không tìm thấy giáo án.'],
+  LESSON_PLAN_CONFLICT: [
+    409,
+    'Giáo án vừa được lưu ở nơi khác. Hãy tải lại để xem bản mới nhất trước khi sửa tiếp.',
+  ],
+  LESSON_PLAN_INCOMPLETE: [
+    422,
+    'Giáo án hoàn chỉnh cần đủ tên, mục tiêu, chuẩn bị, ít nhất một hoạt động và phần đánh giá.',
+  ],
+  LESSON_PLAN_GAME_INVALID: [
+    422,
+    'Có trò chơi gắn vào hoạt động không còn trong kho. Hãy chọn lại.',
+  ],
   ENROLLMENT_CHANGED: [
     409,
     'Lớp của trẻ vừa được thay đổi. Hãy tải lại rồi thử lại.',

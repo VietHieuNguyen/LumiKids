@@ -8,7 +8,14 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 const include = {
-  activity: { include: { creator: { select: { fullName: true } } } },
+  activity: {
+    include: {
+      creator: { select: { fullName: true } },
+      ageGroup: {
+        select: { ageGroupId: true, name: true, minAge: true, maxAge: true },
+      },
+    },
+  },
   criterions: { select: { criterionCode: true } },
 } as const;
 export type LibraryVersion = Prisma.ActivityVersionGetPayload<{
@@ -52,6 +59,7 @@ export class GameLibraryRepository {
       data: {
         name: input.name,
         description: input.description,
+        ageGroupId: input.ageGroupId,
         createdBy: userId,
         saveRequestId: input.saveRequestId,
         saveFingerprint,
@@ -80,6 +88,7 @@ export class GameLibraryRepository {
       difficulty: query.difficulty,
       activity: {
         status: query.status,
+        ...(query.ageGroupId ? { ageGroupId: query.ageGroupId } : {}),
         ...(query.mine === 'true' ||
         (query.status === 'ARCHIVED' && !canManageAll)
           ? { createdBy: userId }
@@ -163,6 +172,15 @@ export class GameLibraryRepository {
         totalPages: Math.ceil(total / query.pageSize),
       },
     };
+  }
+  ageGroupExists(ageGroupId: string) {
+    return this.prisma.ageGroup.count({ where: { ageGroupId } });
+  }
+  setAgeGroup(activityId: string, ageGroupId: string) {
+    return this.prisma.activity.update({
+      where: { activityId },
+      data: { ageGroupId },
+    });
   }
   setStatus(activityId: string, status: 'ACTIVE' | 'ARCHIVED') {
     return this.prisma.activity.update({

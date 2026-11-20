@@ -59,8 +59,10 @@ const grants: Record<RoleCode, PermissionCode[]> = {
     'READ_OWN_CLASSROOMS',
     'RESET_CHILD_LOGIN_CODES',
     'ASSIGN_ACTIVITIES',
+    'MANAGE_LESSON_PLANS',
+    'MANAGE_CLASS_INVITES',
   ],
-  ROLE_GUARDIAN: ['READ_OWN_ACCOUNT'],
+  ROLE_GUARDIAN: ['READ_OWN_ACCOUNT', 'READ_GAMES', 'MANAGE_FAMILY'],
   ROLE_CHILD: [...childPermissions],
 };
 
@@ -142,6 +144,19 @@ try {
         update: {},
         create: relation,
       });
+      // Profiles that extend User (data dictionary): Teacher / Guardian.
+      if (account.role === 'ROLE_TEACHER')
+        await tx.teacher.upsert({
+          where: { userId: user.userId },
+          update: {},
+          create: { userId: user.userId },
+        });
+      if (account.role === 'ROLE_GUARDIAN')
+        await tx.guardian.upsert({
+          where: { userId: user.userId },
+          update: {},
+          create: { userId: user.userId, relationship: 'OTHER' },
+        });
       await tx.authSession.updateMany({
         where: { userId: user.userId, revokedAt: null },
         data: { revokedAt: new Date() },

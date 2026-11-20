@@ -13,6 +13,8 @@ datasource db {
 enum AccountStatus {
   ACTIVE
   DISABLED
+  /// A guardian who registered and has not entered the emailed verification code yet.
+  PENDING_VERIFICATION
 }
 
 enum RoleCode {
@@ -38,6 +40,9 @@ enum PermissionCode {
   READ_OWN_CLASSROOMS
   RESET_CHILD_LOGIN_CODES
   ASSIGN_ACTIVITIES
+  MANAGE_LESSON_PLANS
+  MANAGE_CLASS_INVITES
+  MANAGE_FAMILY
 }
 
 enum GameAssetStatus {
@@ -64,23 +69,78 @@ model User {
   assignments     ActivityAssignment[]
   replayDecisions ReplayRequest[]
   aiTokenUsage    AiTokenUsage[]
+  teacherProfile  Teacher?
+  guardianProfile Guardian?
+  verification    EmailVerification?
+  classInvites    ClassInvite[]
+  joinDecisions   ClassJoinRequest[]
+  lessonPlans     LessonPlan[]         @relation("LessonPlanCreator")
+  editedPlans     LessonPlan[]         @relation("LessonPlanEditor")
+}
+
+/// Teacher profile of a User holding ROLE_TEACHER (system.md data dictionary: Teacher extends User).
+model Teacher {
+  userId         String @id @db.Uuid
+  user           User   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  specialization String @default("") @db.VarChar(200)
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  GRANDPARENT
+  OTHER
+}
+
+/// Guardian profile of a User holding ROLE_GUARDIAN (system.md data dictionary: Guardian extends User).
+model Guardian {
+  userId       String               @id @db.Uuid
+  user         User                 @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  relationship GuardianRelationship
+  children     GuardianChild[]
+  joinRequests ClassJoinRequest[]
+  consents     SharingConsent[]
+}
+
+/// A confirmed care relationship: the guardian may manage this child's profile (BR-04).
+model GuardianChild {
+  guardianId String   @db.Uuid
+  guardian   Guardian @relation(fields: [guardianId], references: [userId], onDelete: Cascade)
+  childId    String   @db.Uuid
+  child      Child    @relation(fields: [childId], references: [childId], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([guardianId, childId])
+  @@index([childId])
+}
+
+/// Pending email verification of a self-registered account; only an HMAC of the code is kept.
+model EmailVerification {
+  userId     String   @id @db.Uuid
+  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  codeDigest String   @db.Char(64)
+  expiresAt  DateTime @db.Timestamptz(3)
+  attempts   Int      @default(0)
+  sentAt     DateTime @default(now()) @db.Timestamptz(3)
 }
 
 model AiTokenUsage {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @db.Uuid
-  user         User     @relation(fields: [userId], references: [userId], onDelete: Restrict)
-  requestId    String   @db.Uuid
-  attempt      Int
-  gameType     String   @db.VarChar(30)
-  model        String?  @db.VarChar(100)
-  status       String   @db.VarChar(60)
-  inputTokens  Int?
-  outputTokens Int?
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  requestId     String   @db.Uuid
+  attempt       Int
+  gameType      String   @db.VarChar(30)
+  model         String?  @db.VarChar(100)
+  status        String   @db.VarChar(60)
+  inputTokens   Int?
+  outputTokens  Int?
   thoughtTokens Int?
-  cachedTokens Int?
-  totalTokens  Int?
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  cachedTokens  Int?
+  totalTokens   Int?
+  /// Wall time of the call to the AI service, for latency reporting (NFR-2).
+  durationMs    Int?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([requestId, attempt])
   @@index([userId, createdAt])
@@ -114,6 +174,9 @@ model Child {
   authSessions      ChildAuthSession[]
   groupMemberships  ClassGroupMember[]
   assignments       ActivityRecipient[]
+  guardians         GuardianChild[]
+  joinRequests      ClassJoinRequest[]
+  consents          SharingConsent[]
 }
 
 model SchoolYear {
@@ -126,12 +189,14 @@ model SchoolYear {
 }
 
 model AgeGroup {
-  ageGroupId   String      @id @db.VarChar(20)
-  name         String      @unique @db.VarChar(50)
+  ageGroupId   String       @id @db.VarChar(20)
+  name         String       @unique @db.VarChar(50)
   minAge       Int
   maxAge       Int
   displayOrder Int
   classrooms   Classroom[]
+  activities   Activity[]
+  lessonPlans  LessonPlan[]
 }
 
 enum ClassroomStatus {
@@ -153,6 +218,9 @@ model Classroom {
   enrollments  ClassroomEnrollment[]
   groups       ClassGroup[]
   assignments  ActivityAssignment[]
+  invites      ClassInvite[]
+  joinRequests ClassJoinRequest[]
+  consents     SharingConsent[]
 
   @@unique([schoolYearId, className])
   @@index([status])
@@ -172,13 +240,15 @@ model ClassroomTeacher {
 /// Membership history. endedAt null = current class; the migration adds a partial unique index so a child
 /// has at most one open enrollment.
 model ClassroomEnrollment {
-  enrollmentId String    @id @default(uuid()) @db.Uuid
-  classId      String    @db.Uuid
-  classroom    Classroom @relation(fields: [classId], references: [classId], onDelete: Restrict)
-  childId      String    @db.Uuid
-  child        Child     @relation(fields: [childId], references: [childId], onDelete: Restrict)
-  startedAt    DateTime  @default(now()) @db.Timestamptz(3)
-  endedAt      DateTime? @db.Timestamptz(3)
+  enrollmentId String          @id @default(uuid()) @db.Uuid
+  classId      String          @db.Uuid
+  classroom    Classroom       @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  childId      String          @db.Uuid
+  child        Child           @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  startedAt    DateTime        @default(now()) @db.Timestamptz(3)
+  endedAt      DateTime?       @db.Timestamptz(3)
+  /// Set when the child joined through a guardian's request (family-linked enrollment).
+  consent      SharingConsent?
 
   @@index([childId, startedAt])
   @@index([classId, endedAt])
@@ -194,6 +264,7 @@ enum InteractionEventType {
   SELECT_CHOICE
   MATCH_DROP
   CLASSIFY_DROP
+  REQUEST_HINT
 }
 
 enum InteractionResult {
@@ -230,7 +301,8 @@ model InteractionEvent {
   session         PlaySession          @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
   eventType       InteractionEventType
   actionData      Json                 @db.JsonB
-  result          InteractionResult
+  /// Null for a hint request (it is not an answer).
+  result          InteractionResult?
   attemptIndex    Int
   schemaVersion   Int
   clientTimestamp DateTime             @db.Timestamptz(3)
@@ -295,6 +367,7 @@ model Skill {
   description  String
   displayOrder Int
   criterions   AssessmentCriterion[]
+  lessonPlans  LessonPlan[]
 }
 
 model AssessmentCriterion {
@@ -316,6 +389,9 @@ model Activity {
   createdBy       String            @db.Uuid
   creator         User              @relation(fields: [createdBy], references: [userId], onDelete: Restrict)
   status          ActivityStatus    @default(ACTIVE)
+  /// Target age group (FR-5.1 AC-01); null only for games saved before age groups were required.
+  ageGroupId      String?           @db.VarChar(20)
+  ageGroup        AgeGroup?         @relation(fields: [ageGroupId], references: [ageGroupId], onDelete: Restrict)
   saveRequestId   String            @db.Uuid
   saveFingerprint String            @db.Char(64)
   createdAt       DateTime          @default(now()) @db.Timestamptz(3)
@@ -341,6 +417,7 @@ model ActivityVersion {
   criterions     ActivityVersionCriterion[]
   playSessions   PlaySession[]
   assignments    ActivityAssignmentItem[]
+  lessonBlocks   LessonBlock[]
 
   @@unique([activityId, versionNumber])
   @@index([gameType, difficulty])
@@ -474,6 +551,11 @@ enum AssignmentStatus {
   CANCELLED
 }
 
+enum AssignmentSource {
+  TEACHER
+  GUARDIAN
+}
+
 enum ReplayRequestStatus {
   PENDING
   APPROVED
@@ -509,8 +591,10 @@ model ClassGroupMember {
 /// A teacher hands a class (or a group, or picked children) a set of game versions to play.
 model ActivityAssignment {
   assignmentId String                   @id @default(uuid()) @db.Uuid
-  classId      String                   @db.Uuid
-  classroom    Classroom                @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  /// TEACHER: a class assignment. GUARDIAN: a family pick for the guardian's own child (no class).
+  source       AssignmentSource         @default(TEACHER)
+  classId      String?                  @db.Uuid
+  classroom    Classroom?               @relation(fields: [classId], references: [classId], onDelete: Restrict)
   title        String                   @db.VarChar(200)
   note         String                   @default("") @db.VarChar(1000)
   createdBy    String                   @db.Uuid
@@ -529,6 +613,7 @@ model ActivityAssignment {
   recipients   ActivityRecipient[]
 
   @@index([classId, opensAt])
+  @@index([source, createdBy])
 }
 
 model ActivityAssignmentItem {
@@ -572,4 +657,125 @@ model ReplayRequest {
   grantedUntil DateTime?           @db.Timestamptz(3)
 
   @@index([recipientId, status])
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A teacher's invitation link to a class (FR-1.8, BR-14). Only an HMAC of the secret code is stored.
+model ClassInvite {
+  inviteId     String             @id @default(uuid()) @db.Uuid
+  classId      String             @db.Uuid
+  classroom    Classroom          @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  codeDigest   String             @unique @db.Char(64)
+  createdBy    String             @db.Uuid
+  creator      User               @relation(fields: [createdBy], references: [userId], onDelete: Restrict)
+  expiresAt    DateTime           @db.Timestamptz(3)
+  maxUses      Int
+  useCount     Int                @default(0)
+  revokedAt    DateTime?          @db.Timestamptz(3)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+  joinRequests ClassJoinRequest[]
+
+  @@index([classId, createdAt])
+}
+
+/// A guardian asks for their child to join a class; the consent they confirmed is stored with it (BR-15).
+model ClassJoinRequest {
+  requestId      String            @id @default(uuid()) @db.Uuid
+  inviteId       String            @db.Uuid
+  invite         ClassInvite       @relation(fields: [inviteId], references: [inviteId], onDelete: Restrict)
+  classId        String            @db.Uuid
+  classroom      Classroom         @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  childId        String            @db.Uuid
+  child          Child             @relation(fields: [childId], references: [childId], onDelete: Cascade)
+  guardianId     String            @db.Uuid
+  guardian       Guardian          @relation(fields: [guardianId], references: [userId], onDelete: Cascade)
+  status         JoinRequestStatus @default(PENDING)
+  consentVersion String            @db.VarChar(40)
+  consentScope   String[]
+  consentedAt    DateTime          @db.Timestamptz(3)
+  requestedAt    DateTime          @default(now()) @db.Timestamptz(3)
+  decidedAt      DateTime?         @db.Timestamptz(3)
+  decidedBy      String?           @db.Uuid
+  decider        User?             @relation(fields: [decidedBy], references: [userId], onDelete: Restrict)
+  consent        SharingConsent?
+
+  @@index([classId, status])
+  @@index([guardianId, requestedAt])
+}
+
+/// Consent behind a family-linked enrollment. Revoking it ends the enrollment and the teacher's access (BR-15/16).
+model SharingConsent {
+  consentId    String              @id @default(uuid()) @db.Uuid
+  requestId    String              @unique @db.Uuid
+  request      ClassJoinRequest    @relation(fields: [requestId], references: [requestId], onDelete: Restrict)
+  enrollmentId String              @unique @db.Uuid
+  enrollment   ClassroomEnrollment @relation(fields: [enrollmentId], references: [enrollmentId], onDelete: Restrict)
+  childId      String              @db.Uuid
+  child        Child               @relation(fields: [childId], references: [childId], onDelete: Cascade)
+  guardianId   String              @db.Uuid
+  guardian     Guardian            @relation(fields: [guardianId], references: [userId], onDelete: Cascade)
+  classId      String              @db.Uuid
+  classroom    Classroom           @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  version      String              @db.VarChar(40)
+  scope        String[]
+  grantedAt    DateTime            @db.Timestamptz(3)
+  revokedAt    DateTime?           @db.Timestamptz(3)
+
+  @@index([childId])
+}
+
+enum LessonPlanStatus {
+  DRAFT
+  COMPLETE
+}
+
+/// A teacher's lesson plan (UC-AI-02, manual part): four sections, the progression as ordered blocks.
+model LessonPlan {
+  lessonPlanId       String           @id @default(uuid()) @db.Uuid
+  title              String           @db.VarChar(200)
+  topic              String           @default("") @db.VarChar(200)
+  ageGroupId         String?          @db.VarChar(20)
+  ageGroup           AgeGroup?        @relation(fields: [ageGroupId], references: [ageGroupId], onDelete: Restrict)
+  skillCode          String?          @db.VarChar(20)
+  skill              Skill?           @relation(fields: [skillCode], references: [skillCode], onDelete: Restrict)
+  durationMinutes    Int?
+  objectives         String           @default("")
+  preparation        String           @default("")
+  evaluation         String           @default("")
+  status             LessonPlanStatus @default(DRAFT)
+  /// Incremented on every save; a save naming an older revision is a conflict (UC-AI-02 AC-04).
+  revision           Int              @default(1)
+  createdBy          String           @db.Uuid
+  creator            User             @relation("LessonPlanCreator", fields: [createdBy], references: [userId], onDelete: Restrict)
+  updatedBy          String           @db.Uuid
+  editor             User             @relation("LessonPlanEditor", fields: [updatedBy], references: [userId], onDelete: Restrict)
+  sourceLessonPlanId String?          @db.Uuid
+  source             LessonPlan?      @relation("LessonPlanCopies", fields: [sourceLessonPlanId], references: [lessonPlanId], onDelete: SetNull)
+  copies             LessonPlan[]     @relation("LessonPlanCopies")
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+  blocks             LessonBlock[]
+
+  @@index([createdBy, updatedAt])
+}
+
+/// One step of the progression; may link one saved game version.
+model LessonBlock {
+  blockId         String           @id @default(uuid()) @db.Uuid
+  lessonPlanId    String           @db.Uuid
+  lessonPlan      LessonPlan       @relation(fields: [lessonPlanId], references: [lessonPlanId], onDelete: Cascade)
+  position        Int
+  title           String           @db.VarChar(200)
+  instruction     String           @default("")
+  durationMinutes Int?
+  versionId       String?          @db.Uuid
+  version         ActivityVersion? @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+
+  @@unique([lessonPlanId, position])
+  @@index([versionId])
 }

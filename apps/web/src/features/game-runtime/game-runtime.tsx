@@ -9,7 +9,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { gameContentSchema, getGameProgress } from "@lumikids/shared";
+import {
+  gameContentSchema,
+  getGameProgress,
+  getHintTargets,
+  isAnswerInteraction,
+  nextHintTarget,
+} from "@lumikids/shared";
 import type { GameAction, GameContent } from "@lumikids/shared";
 import { createGameController } from "./model/controller";
 import type { RuntimeCallbacks } from "./model/controller";
@@ -105,7 +111,8 @@ function GameRun({
   }, []);
   useLayoutEffect(() => {
     controller.setCallbacks({ onInteraction: (event) => {
-      if (mode === "PLAY" && (!mascotBusy.current || mascotResult.current !== event.result)) {
+      // A hint has no result: no mascot or effect sound, only the light-up on the board.
+      if (mode === "PLAY" && isAnswerInteraction(event) && (!mascotBusy.current || mascotResult.current !== event.result)) {
         mascotBusy.current = true;
         mascotResult.current = event.result;
         setMascotEvent({ id: event.eventId, result: event.result });
@@ -162,6 +169,43 @@ function GameRun({
     onReset?.();
   }
   const last = state.lastInteraction;
+  const answer = last && isAnswerInteraction(last) ? last : null;
+  const hint =
+    last?.actionType === "REQUEST_HINT"
+      ? (getHintTargets(content).find((target) => target.taskId === last.sourceId) ?? null)
+      : null;
+  const nextHint = nextHintTarget(content, state);
+  const feedback = paused
+    ? "loading"
+    : state.completed
+      ? "complete"
+      : hint
+        ? "hint"
+        : answer?.result === "CORRECT"
+          ? "correct"
+          : answer
+            ? "incorrect"
+            : "ready";
+  const feedbackStyle = {
+    loading: "bg-amber-50 text-amber-900",
+    ready: "bg-amber-50 text-amber-900",
+    hint: "bg-sky-50 text-sky-900",
+    complete: "bg-emerald-50 text-emerald-800",
+    correct: "bg-emerald-50 text-emerald-800",
+    incorrect: "bg-rose-50 text-rose-800",
+  }[feedback];
+  const feedbackSymbol = { loading: "◌", ready: "✦", hint: "☀", complete: "★", correct: "✓", incorrect: "↻" }[feedback];
+  const feedbackText = {
+    loading: "Đang chờ ảnh sẵn sàng để tiếp tục.",
+    ready: "Con đã sẵn sàng chưa? Cùng bắt đầu nhé!",
+    hint:
+      content.gameType === "COUNTING"
+        ? "Gợi ý: con đếm lần lượt những hình đang sáng nhé!"
+        : "Gợi ý: con nhìn hình đang sáng và nơi đang sáng nhé!",
+    complete: "✓ Giỏi lắm! Con đã hoàn thành trò chơi.",
+    correct: "✓ Đúng rồi! Con tiếp tục nhé.",
+    incorrect: "↻ Chưa đúng rồi. Con thử lại nhé!",
+  }[feedback];
   return (
     <section
       ref={fullscreenTarget}
@@ -181,6 +225,18 @@ function GameRun({
             {mode === "PREVIEW" ? "Chơi thử" : "Trò chơi"} ·{" "}
             {registration.label}
           </span>
+          <button
+            type="button"
+            className="asset-button-secondary game-hint-button"
+            disabled={paused || !nextHint}
+            title={nextHint ? "Gợi ý (mỗi câu một lần)" : "Đã dùng hết gợi ý"}
+            onClick={() => nextHint && act({ actionType: "REQUEST_HINT", sourceId: nextHint.taskId })}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z" />
+            </svg>
+            <span>{nextHint ? "Gợi ý" : "Hết gợi ý"}</span>
+          </button>
           {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused || state.completed} target={fullscreenTarget} />}
           <button
             type="button"
@@ -269,47 +325,22 @@ function GameRun({
             assetRevisions,
             onAction: act,
             onAssetError,
+            hint,
           })}
         </fieldset>
       </div>
       <div
         role="status"
-        data-feedback={
-          paused
-            ? "loading"
-            : state.completed
-              ? "complete"
-              : last?.result === "CORRECT"
-                ? "correct"
-                : last
-                  ? "incorrect"
-                  : "ready"
-        }
+        data-feedback={feedback}
         aria-live="polite"
         aria-atomic="true"
-        className={`mx-5 mb-6 min-h-16 rounded-2xl px-5 py-4 text-center text-base font-semibold sm:mx-8 ${state.completed || last?.result === "CORRECT" ? "bg-emerald-50 text-emerald-800" : last ? "bg-rose-50 text-rose-800" : "bg-amber-50 text-amber-900"}`}
+        className={`mx-5 mb-6 min-h-16 rounded-2xl px-5 py-4 text-center text-base font-semibold sm:mx-8 ${feedbackStyle}`}
       >
         <span aria-hidden="true" className="game-feedback-symbol">
-          {paused
-            ? "◌"
-            : state.completed
-              ? "★"
-              : last?.result === "CORRECT"
-                ? "✓"
-                : last
-                  ? "↻"
-                  : "✦"}
+          {feedbackSymbol}
         </span>
         <span key={state.attemptCount} className="sr-only">
-          {paused
-            ? "Đang chờ ảnh sẵn sàng để tiếp tục."
-            : state.completed
-              ? "✓ Giỏi lắm! Con đã hoàn thành trò chơi."
-              : last?.result === "CORRECT"
-                ? "✓ Đúng rồi! Con tiếp tục nhé."
-                : last
-                  ? "↻ Chưa đúng rồi. Con thử lại nhé!"
-                  : "Con đã sẵn sàng chưa? Cùng bắt đầu nhé!"}
+          {feedbackText}
         </span>
       </div>
     </section>

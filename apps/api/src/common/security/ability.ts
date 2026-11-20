@@ -65,6 +65,16 @@ export function buildAbility(actor: AbilityActor): AppAbility {
         // Which classes a teacher may see is checked against ClassroomTeacher by the classrooms service.
         rules.push({ action: permission, subject: 'Classroom' });
         break;
+      case 'MANAGE_CLASS_INVITES':
+        rules.push({ action: permission, subject: 'Classroom' });
+        break;
+      case 'MANAGE_LESSON_PLANS':
+        rules.push({ action: permission, subject: 'LessonPlan' });
+        break;
+      case 'MANAGE_FAMILY':
+        // Which children a guardian may manage is checked against GuardianChild by the family service.
+        if (userId) rules.push({ action: permission, subject: 'Family' });
+        break;
     }
   }
   return createMongoAbility<AppAbility>(rules);
@@ -97,7 +107,12 @@ export function permissionSubject(
     case 'READ_OWN_CLASSROOMS':
     case 'RESET_CHILD_LOGIN_CODES':
     case 'ASSIGN_ACTIVITIES':
+    case 'MANAGE_CLASS_INVITES':
       return 'Classroom';
+    case 'MANAGE_LESSON_PLANS':
+      return 'LessonPlan';
+    case 'MANAGE_FAMILY':
+      return 'Family';
     default:
       return undefined;
   }

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { GameDifficulty, SavedGameDetail, Skill } from "@lumikids/shared";
+import type { AgeGroup, GameDifficulty, SavedGameDetail, Skill } from "@lumikids/shared";
 import type { GeneratedGame } from "../game-creation/types";
 import { GameLibraryApi, libraryError } from "./api";
 
@@ -22,6 +22,8 @@ export function SaveGamePanel({
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<Skill[]>([]);
   const [codes, setCodes] = useState<string[]>([]);
+  const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
+  const [ageGroupId, setAgeGroupId] = useState("");
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -38,11 +40,11 @@ export function SaveGamePanel({
   useEffect(() => () => operation.current?.abort(), []);
   useEffect(() => {
     const abort = new AbortController();
-    api
-      .curriculum(abort.signal)
-      .then((value) => {
+    Promise.all([api.curriculum(abort.signal), api.ageGroups(abort.signal)])
+      .then(([value, groups]) => {
         if (abort.signal.aborted) return;
         setSkills(value);
+        setAgeGroups(groups);
         setCatalogError(
           value.length ? "" : "Danh mục Chuẩn và Chỉ số chưa được thiết lập.",
         );
@@ -63,6 +65,7 @@ export function SaveGamePanel({
       !review ||
       !name.trim() ||
       !codes.length ||
+      !ageGroupId ||
       saved
     )
       return;
@@ -77,6 +80,7 @@ export function SaveGamePanel({
           name,
           description,
           difficulty,
+          ageGroupId,
           criterionCodes: codes,
           content: game.gameContent,
           previewToken: game.generation.preview.token,
@@ -154,6 +158,31 @@ export function SaveGamePanel({
                 placeholder="Mục tiêu, cách hướng dẫn hoặc lưu ý khi tổ chức…"
               />
             </label>
+            <div>
+              <h3 className="text-sm font-bold" id="save-age-heading">
+                Nhóm tuổi <span className="text-berry">*</span>
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-ink-soft">
+                Chỉ giao được cho trẻ có tháng tuổi thuộc nhóm này tại ngày mở bài.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-labelledby="save-age-heading">
+                {ageGroups.map((group) => (
+                  <label
+                    key={group.ageGroupId}
+                    className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-4 text-sm font-semibold ${ageGroupId === group.ageGroupId ? "border-leaf bg-leaf-soft text-ink" : "border-line text-ink-soft hover:bg-cream"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="age-group"
+                      className="h-4 w-4 accent-leaf"
+                      checked={ageGroupId === group.ageGroupId}
+                      onChange={() => setAgeGroupId(group.ageGroupId)}
+                    />
+                    {group.name}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div>
               <h3 className="text-sm font-bold">
                 Chỉ số đánh giá <span className="text-berry">*</span>
@@ -255,7 +284,8 @@ export function SaveGamePanel({
               !difficulty ||
               !review ||
               !name.trim() ||
-              !codes.length
+              !codes.length ||
+              !ageGroupId
             }
             onClick={() => void save()}
           >

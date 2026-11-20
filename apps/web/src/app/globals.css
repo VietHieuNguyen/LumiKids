@@ -872,6 +872,11 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 .game-picture-only > [data-feedback="correct"], .game-picture-only > [data-feedback="complete"] { color: #368f77; background: #effcf6; }
 .game-picture-only > [data-feedback="incorrect"] { color: #be7470; background: #fff1ee; }
 .game-picture-only > [data-feedback="complete"] { animation: game-star-pop .35s ease-out; }
+.game-picture-only > [data-feedback="hint"] { color: #2f6a8a; background: #eef7fc; }
+/* Hint (one per task): what the hint points at glows gently; counted pictures glow one after another. */
+.game-picture-only .is-hinted { outline: 4px solid #f2b632; outline-offset: 3px; border-radius: 18px; animation: game-hint-glow 1.6s ease-in-out 3 both; }
+@keyframes game-hint-glow { 0%, 100% { box-shadow: 0 0 0 0 rgb(242 182 50 / 0); } 50% { box-shadow: 0 0 0 10px rgb(242 182 50 / .35); } }
+.game-hint-button { gap: .4rem; }
 .game-drag-ghost { padding: 8px; border: 4px solid #efbd4c; border-radius: 17px; background: #fffef8; box-shadow: 0 8px 24px #46657b30; }
 .game-drag-picture { width: 72px; height: 72px; }
 @container game-tray (min-width: 520px) {
@@ -904,6 +909,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
 @keyframes game-star-pop { 0% { scale: .7; } 65% { scale: 1.12; } 100% { scale: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .game-picture-only .matching-card-list > *, .game-picture-only > [data-feedback="complete"] { animation: none; transition: none; }
+  .game-picture-only .is-hinted { animation: none; }
 }
 
 /* Printing a child's login card prints only the card (see features/classrooms/login-code-dialog). */

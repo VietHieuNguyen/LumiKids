@@ -27,6 +27,7 @@ describe('Saved game library (offline)', () => {
     name: 'Bé đếm hình',
     description: '',
     difficulty: 'EASY',
+    ageGroupId: 'AGE_5_6',
     criterionCodes: ['42'],
     reviewConfirmed: true,
     previewToken: 'signed-fixture',
@@ -60,6 +61,8 @@ describe('Saved game library (offline)', () => {
       description: '',
       createdBy: user.userId,
       status: 'ACTIVE',
+      ageGroupId: 'AGE_5_6',
+      ageGroup: { ageGroupId: 'AGE_5_6', name: 'Lá (5–6 tuổi)', minAge: 5, maxAge: 6 },
       saveRequestId: input.saveRequestId,
       saveFingerprint: 'fixture',
       createdAt: new Date(),
@@ -71,6 +74,7 @@ describe('Saved game library (offline)', () => {
     const repository = {
       find: vi.fn().mockResolvedValue(structuredClone(row)),
       findRequest: vi.fn().mockResolvedValue(null),
+      ageGroupExists: vi.fn().mockResolvedValue(1),
       create: vi.fn().mockResolvedValue({ versions: [{ versionId }] }),
       list: vi.fn().mockResolvedValue({
         items: [structuredClone(row)],
@@ -104,6 +108,7 @@ describe('Saved game library (offline)', () => {
       name: input.name,
       description: input.description,
       difficulty: input.difficulty,
+      ageGroupId: input.ageGroupId,
       criterionCodes: [...input.criterionCodes].sort(),
       content: input.content,
     });
