@@ -10,6 +10,8 @@ import { TeacherAccountsService } from '../src/modules/auth/teacher-accounts.ser
 import { GuardianAccountsService } from '../src/modules/auth/guardian-accounts.service.js';
 import { AccountProfileService } from '../src/modules/auth/account-profile.service.js';
 import { AdminOverviewService } from '../src/modules/admin-overview/admin-overview.service.js';
+import { SiteSettingsService } from '../src/modules/site-settings/site-settings.service.js';
+import { ClassroomsService } from '../src/modules/classrooms/classrooms.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
   stubStorageEnvironment,
@@ -43,6 +45,21 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     get: vi.fn(() => Promise.resolve({})),
     update: vi.fn(() => Promise.resolve({})),
   };
+  const site = {
+    get: vi.fn(() => Promise.resolve({ siteName: 'LumiKids' })),
+    update: vi.fn(() => Promise.resolve({})),
+    replaceLogo: vi.fn(() => Promise.resolve({})),
+    removeLogo: vi.fn(() => Promise.resolve({})),
+    logo: vi.fn(() =>
+      Promise.resolve({ body: Buffer.from('png'), mimeType: 'image/png' }),
+    ),
+  };
+  const catalogue = {
+    ageGroupUsage: vi.fn(() => Promise.resolve([])),
+    renameAgeGroup: vi.fn(() => Promise.resolve({})),
+    reorderAgeGroups: vi.fn(() => Promise.resolve([])),
+    schoolYearUsage: vi.fn(() => Promise.resolve([])),
+  };
   const guardians = {
     list: vi.fn(() => Promise.resolve([])),
     update: vi.fn(() => Promise.resolve({})),
@@ -74,6 +91,10 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .useValue(guardians)
       .overrideProvider(AccountProfileService)
       .useValue(profiles)
+      .overrideProvider(SiteSettingsService)
+      .useValue(site)
+      .overrideProvider(ClassroomsService)
+      .useValue(catalogue)
       .compile();
     app = module.createNestApplication();
     configureHttp(app);
@@ -128,7 +149,11 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .get('/api/v1/admin/guardian-accounts')
       .auth(await token(), { type: 'bearer' })
       .expect(200);
-    for (const body of [{ status: 'PENDING_VERIFICATION' }, { status: 'ACTIVE', fullName: 'x' }, {}])
+    for (const body of [
+      { status: 'PENDING_VERIFICATION' },
+      { status: 'ACTIVE', fullName: 'x' },
+      {},
+    ])
       await request(app.getHttpServer())
         .patch(`/api/v1/admin/guardian-accounts/${guardianId}`)
         .auth(await token(), { type: 'bearer' })
@@ -140,7 +165,9 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .auth(await token(), { type: 'bearer' })
       .send({ status: 'DISABLED' })
       .expect(200);
-    expect(guardians.update).toHaveBeenCalledWith(guardianId, { status: 'DISABLED' });
+    expect(guardians.update).toHaveBeenCalledWith(guardianId, {
+      status: 'DISABLED',
+    });
     const reset = await request(app.getHttpServer())
       .post(`/api/v1/admin/guardian-accounts/${guardianId}/password-reset`)
       .auth(await token(), { type: 'bearer' })
@@ -148,8 +175,90 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     expect(reset.headers['cache-control']).toBe('no-store');
   });
 
+  it('shows the branding to everyone and lets only admins change it', async () => {
+    await request(app.getHttpServer()).get('/api/v1/site-settings').expect(200);
+    const logo = await request(app.getHttpServer())
+      .get('/api/v1/site-settings/logo?v=abc')
+      .expect(200);
+    expect(logo.headers['content-type']).toMatch(/^image\/png/);
+    expect(logo.headers['x-content-type-options']).toBe('nosniff');
+    expect(logo.headers['cache-control']).toBe('public, max-age=86400');
+    await request(app.getHttpServer())
+      .patch('/api/v1/admin/site-settings')
+      .auth(await token(), { type: 'bearer' })
+      .send({ siteName: 'Hoa Sen' })
+      .expect(403);
+    actor = admin;
+    for (const body of [
+      {},
+      { siteName: '' },
+      { landingScene: 'MOON' },
+      { logoObjectKey: 'x' },
+    ])
+      await request(app.getHttpServer())
+        .patch('/api/v1/admin/site-settings')
+        .auth(await token(), { type: 'bearer' })
+        .send(body)
+        .expect(400);
+    expect(site.update).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .patch('/api/v1/admin/site-settings')
+      .auth(await token(), { type: 'bearer' })
+      .send({ siteName: ' Hoa Sen ', tagline: '' })
+      .expect(200);
+    expect(site.update).toHaveBeenCalledWith({
+      siteName: 'Hoa Sen',
+      tagline: null,
+    });
+  });
+
+  it('lets admins rename and reorder age groups but never change their ages', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/age-groups')
+      .auth(await token(), { type: 'bearer' })
+      .expect(403);
+    actor = admin;
+    for (const body of [
+      { minAge: 2 },
+      { name: 'Mầm', maxAge: 4 },
+      { name: '  ' },
+    ])
+      await request(app.getHttpServer())
+        .patch('/api/v1/admin/age-groups/AG_3_4')
+        .auth(await token(), { type: 'bearer' })
+        .send(body)
+        .expect(400);
+    expect(catalogue.renameAgeGroup).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .patch('/api/v1/admin/age-groups/AG_3_4')
+      .auth(await token(), { type: 'bearer' })
+      .send({ name: ' Mầm ' })
+      .expect(200);
+    expect(catalogue.renameAgeGroup).toHaveBeenCalledWith('AG_3_4', {
+      name: 'Mầm',
+    });
+    await request(app.getHttpServer())
+      .put('/api/v1/admin/age-groups/order')
+      .auth(await token(), { type: 'bearer' })
+      .send({ ageGroupIds: ['A', 'A'] })
+      .expect(400);
+    await request(app.getHttpServer())
+      .put('/api/v1/admin/age-groups/order')
+      .auth(await token(), { type: 'bearer' })
+      .send({ ageGroupIds: ['B', 'A'] })
+      .expect(200);
+    expect(catalogue.reorderAgeGroups).toHaveBeenCalledWith({
+      ageGroupIds: ['B', 'A'],
+    });
+  });
+
   it('lets any adult edit their own name and phone, never email or roles', async () => {
-    for (const body of [{ email: 'x@example.test' }, { roles: ['ROLE_ADMIN'] }, { fullName: '   ' }, {}])
+    for (const body of [
+      { email: 'x@example.test' },
+      { roles: ['ROLE_ADMIN'] },
+      { fullName: '   ' },
+      {},
+    ])
       await request(app.getHttpServer())
         .patch('/api/v1/auth/profile')
         .auth(await token(), { type: 'bearer' })

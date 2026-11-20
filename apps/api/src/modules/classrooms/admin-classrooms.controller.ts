@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import type { z } from 'zod';
@@ -18,6 +19,8 @@ import {
   createClassroomSchema,
   createSchoolYearSchema,
   playHistoryQuerySchema,
+  reorderAgeGroupsSchema,
+  updateAgeGroupSchema,
   transferChildSchema,
   updateChildSchema,
   updateClassroomSchema,
@@ -42,14 +45,32 @@ function parse<T extends z.ZodType>(
 export class AdminClassroomsController {
   constructor(private readonly classrooms: ClassroomsService) {}
 
+  /** Age groups in display order, with how many classes, games and lesson plans use each. */
   @Get('age-groups')
   ageGroups() {
-    return this.classrooms.listAgeGroups();
+    return this.classrooms.ageGroupUsage();
+  }
+  @Patch('age-groups/:ageGroupId')
+  renameAgeGroup(
+    @Param('ageGroupId') ageGroupId: string,
+    @Body() value: unknown,
+  ) {
+    return this.classrooms.renameAgeGroup(
+      ageGroupId,
+      parse(updateAgeGroupSchema, value, 'Tên nhóm tuổi cần 1–50 kí tự.'),
+    );
+  }
+  @Put('age-groups/order')
+  reorderAgeGroups(@Body() value: unknown) {
+    return this.classrooms.reorderAgeGroups(
+      parse(reorderAgeGroupsSchema, value, 'Thứ tự nhóm tuổi không hợp lệ.'),
+    );
   }
 
+  /** School years, newest first, with their classes and the children enrolled now. */
   @Get('school-years')
   schoolYears() {
-    return this.classrooms.listSchoolYears();
+    return this.classrooms.schoolYearUsage();
   }
   @Post('school-years')
   createSchoolYear(@Body() value: unknown) {

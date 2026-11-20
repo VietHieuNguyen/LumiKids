@@ -27,6 +27,8 @@ const PUBLIC = [
   'ChildAuthController.login',
   'ChildAuthController.refresh',
   'ChildAuthController.logout',
+  'SiteSettingsController.get',
+  'SiteSettingsController.logo',
 ];
 /** Any signed-in adult: these only ever read or change the caller's own account. */
 const OWN_ACCOUNT = ['AuthController.me'];

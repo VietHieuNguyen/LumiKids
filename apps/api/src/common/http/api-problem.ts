@@ -107,6 +107,13 @@ const problems = {
     'Kết quả thao tác không khớp với đáp án của trò chơi.',
   ],
   SCHOOL_YEAR_NAME_TAKEN: [409, 'Tên năm học đã tồn tại.'],
+  AGE_GROUP_NAME_TAKEN: [409, 'Tên nhóm tuổi đã tồn tại.'],
+  SITE_LOGO_TOO_LARGE: [413, 'Logo tối đa 512 KB.'],
+  SITE_LOGO_TYPE: [415, 'Logo cần là ảnh PNG, JPEG hoặc WebP.'],
+  AGE_GROUP_ORDER_INVALID: [
+    422,
+    'Thứ tự mới phải gồm đủ mỗi nhóm tuổi một lần. Hãy tải lại trang rồi thử lại.',
+  ],
   SCHOOL_YEAR_PERIOD_INVALID: [
     422,
     'Ngày kết thúc năm học phải sau ngày bắt đầu.',

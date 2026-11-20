@@ -67,6 +67,72 @@ export class ClassroomsRepository {
   listSchoolYears() {
     return this.prisma.schoolYear.findMany({ orderBy: { startDate: 'desc' } });
   }
+  /** Age groups with what uses them: classes (all and active), saved games, lesson plans. */
+  async ageGroupUsage() {
+    const [groups, active] = await Promise.all([
+      this.prisma.ageGroup.findMany({
+        orderBy: { displayOrder: 'asc' },
+        include: {
+          _count: {
+            select: { classrooms: true, activities: true, lessonPlans: true },
+          },
+        },
+      }),
+      this.prisma.classroom.groupBy({
+        by: ['ageGroupId'],
+        where: { status: 'ACTIVE' },
+        _count: { _all: true },
+      }),
+    ]);
+    const activeBy = new Map(
+      active.map((row) => [row.ageGroupId, row._count._all]),
+    );
+    return groups.map((group) => ({
+      ...group,
+      activeClassroomCount: activeBy.get(group.ageGroupId) ?? 0,
+    }));
+  }
+  renameAgeGroup(ageGroupId: string, name: string) {
+    return this.prisma.ageGroup.update({
+      where: { ageGroupId },
+      data: { name },
+    });
+  }
+  async reorderAgeGroups(ageGroupIds: readonly string[]) {
+    await this.prisma.$transaction(
+      ageGroupIds.map((ageGroupId, index) =>
+        this.prisma.ageGroup.update({
+          where: { ageGroupId },
+          data: { displayOrder: index + 1 },
+        }),
+      ),
+    );
+  }
+  /** School years with their classes and the children enrolled in them now. */
+  async schoolYearUsage() {
+    const [years, classes] = await Promise.all([
+      this.prisma.schoolYear.findMany({ orderBy: { startDate: 'desc' } }),
+      this.prisma.classroom.findMany({
+        select: {
+          schoolYearId: true,
+          status: true,
+          _count: { select: { enrollments: { where: { endedAt: null } } } },
+        },
+      }),
+    ]);
+    return years.map((year) => {
+      const own = classes.filter(
+        (item) => item.schoolYearId === year.schoolYearId,
+      );
+      return {
+        ...year,
+        classroomCount: own.length,
+        activeClassroomCount: own.filter((item) => item.status === 'ACTIVE')
+          .length,
+        childCount: own.reduce((sum, item) => sum + item._count.enrollments, 0),
+      };
+    });
+  }
   findSchoolYear(schoolYearId: string) {
     return this.prisma.schoolYear.findUnique({ where: { schoolYearId } });
   }
