@@ -14,7 +14,8 @@ export function configureHttp(app: INestApplication): void {
     origin: config.origins,
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'X-CSRF-Protection'],
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    // Lesson plans save with PUT and are removed with DELETE.
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   app.useGlobalPipes(
     new ValidationPipe({
