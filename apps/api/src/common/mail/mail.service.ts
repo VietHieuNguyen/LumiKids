@@ -9,6 +9,8 @@ export interface OutgoingMail {
   subject: string;
   text: string;
   html: string;
+  /** Inline images referenced from the HTML as `cid:<cid>`. */
+  inlineImages?: { cid: string; filename: string; contentBase64: string }[];
 }
 
 /** Sends mail over SMTP (Gmail by default). One transporter per process, created on first use. */
@@ -37,6 +39,17 @@ export class MailService {
       greetingTimeout: 10_000,
       socketTimeout: 15_000,
     });
-    await this.transporter.sendMail({ from: this.config.from, ...mail });
+    const { inlineImages = [], ...message } = mail;
+    await this.transporter.sendMail({
+      from: this.config.from,
+      ...message,
+      attachments: inlineImages.map((image) => ({
+        cid: image.cid,
+        filename: image.filename,
+        content: Buffer.from(image.contentBase64, 'base64'),
+        contentType: 'image/png',
+        contentDisposition: 'inline' as const,
+      })),
+    });
   }
 }

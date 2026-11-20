@@ -1,6 +1,13 @@
+import {
+  MAIL_LOGO_CID,
+  MAIL_LOGO_HEIGHT,
+  MAIL_LOGO_PNG_BASE64,
+  MAIL_LOGO_WIDTH,
+} from '../../common/mail/mail-logo.js';
+
 /**
  * The guardian verification email. Table layout with inline styles so it renders the same in Gmail,
- * Outlook and phone mail apps; no remote images (often blocked), the brand is set in type.
+ * Outlook and phone mail apps. The logo travels inline (CID) so it shows without loading remote images.
  * Colours follow the web theme: cream #f8f7f0, paper #fffdf8, ink #20382b, leaf #527b55, line #dfe2d9.
  */
 export interface VerificationMailInput {
@@ -65,8 +72,8 @@ export function verificationMail({ to, code, ttlMinutes, fullName, webUrl }: Ver
 <tr><td align="center" style="padding:32px 16px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px">
     <tr><td style="padding:0 8px 20px;font-family:${font}">
-      <span style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:50%;background:#f6c445;color:#20382b;font-weight:800;font-size:18px;text-align:center;vertical-align:middle">L</span>
-      <span style="font-size:22px;font-weight:800;color:#20382b;vertical-align:middle;padding-left:8px">Lumi<span style="color:#527b55">Kids</span></span>
+      <img src="cid:${MAIL_LOGO_CID}" width="${Math.round(MAIL_LOGO_WIDTH * 0.42)}" height="${Math.round(MAIL_LOGO_HEIGHT * 0.42)}" alt="LumiKids" style="display:inline-block;border:0;outline:none;vertical-align:middle">
+      <span style="font-size:22px;font-weight:800;color:#20382b;vertical-align:middle;padding-left:10px">Lumi<span style="color:#036e66">Kids</span></span>
     </td></tr>
     <tr><td bgcolor="#fffdf8" style="background:#fffdf8;border:1px solid #dfe2d9;border-radius:20px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -107,5 +114,11 @@ export function verificationMail({ to, code, ttlMinutes, fullName, webUrl }: Ver
 </body>
 </html>`;
 
-  return { to, subject: `${code} là mã xác minh LumiKids của bạn`, text, html };
+  return {
+    to,
+    subject: `${code} là mã xác minh LumiKids của bạn`,
+    text,
+    html,
+    inlineImages: [{ cid: MAIL_LOGO_CID, filename: 'lumikids-logo.png', contentBase64: MAIL_LOGO_PNG_BASE64 }],
+  };
 }

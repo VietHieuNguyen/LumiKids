@@ -56,6 +56,8 @@ describe('email verification delivery', () => {
     expect(mail.html).toContain('15 phút');
     expect(mail.html).toContain('Xin chào Lan,');
     expect(mail.html).toContain('http://localhost:3000/verify-email?email=a%2Bb%40example.test');
+    expect(mail.html).toContain(`cid:${mail.inlineImages[0].cid}`);
+    expect(mail.inlineImages[0].contentBase64.length).toBeGreaterThan(1000);
   });
   it('escapes names so a crafted full name cannot inject markup', () => {
     const mail = verificationMail({ to: 'x@example.test', code: '000111', ttlMinutes: 15, fullName: 'Lan <script>alert(1)</script>' });
