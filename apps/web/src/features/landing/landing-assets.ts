@@ -25,6 +25,8 @@ export const LANDING_ASSETS = {
   /** Arctic globe v8 (source/arctic/globe-v8) with puffins, the valley bear and a Quaternius husky added. */
   arctic: "/models/landing/arctic.glb",
   arcticPoster: "/models/landing/arctic-poster.webp",
+  /** Tuna and dolphin with swim clips, from source/arctic/fish (built by source/arctic/build-sea-life.py). */
+  arcticSeaLife: "/models/landing/arctic-sea-life.glb",
   gameImages: {
     shadowMatch: { subject: "/game-demo/cat.svg", shadow: "/game-demo/cat-shadow.svg", other: "/game-demo/dog-shadow.svg" },
     counting: { item: "/game-demo/apple.svg" },

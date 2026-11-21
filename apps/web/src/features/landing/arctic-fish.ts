@@ -1,3 +1,4 @@
+import { ARCTIC_HOLDS, ARCTIC_POINTS, arcticShotAt } from "./arctic-path";
 import type { Vec3 } from "./camera-path";
 
 /** One fish milling round its school: a circle about the school's radial axis, with a gentle bob. */
@@ -12,7 +13,12 @@ export type Swimmer = {
   /** Angular speed in rad/s (sign = turning direction). */
   speed: number;
   bobPhase: number;
+  /** How far it rises and sinks while swimming. */
+  bob: number;
 };
+
+/** The shape of a school: ring radius, thickness, and (optionally) its speed range in rad/s and bob height. */
+export type SchoolShape = { radius: readonly [number, number]; depth: number; speed?: readonly [number, number]; bob?: number };
 
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scale = (a: Vec3, k: number): Vec3 => [a[0] * k, a[1] * k, a[2] * k];
@@ -32,7 +38,8 @@ function random(seed: number): () => number {
 }
 
 /** A school of `count` fish round `center`, deterministic for a seed (so renders never reshuffle). */
-export function makeSchool(center: Vec3, count: number, seed: number, shape: { radius: readonly [number, number]; depth: number }): Swimmer[] {
+export function makeSchool(center: Vec3, count: number, seed: number, shape: SchoolShape): Swimmer[] {
+  const [slow, fast] = shape.speed ?? [0.35, 0.6];
   const axis = unit(center);
   const side = unit(cross(axis, Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
   const other = cross(axis, side);
@@ -46,8 +53,9 @@ export function makeSchool(center: Vec3, count: number, seed: number, shape: { r
       axis,
       offset: add(scale(side, Math.cos(angle) * radius), scale(other, Math.sin(angle) * radius)),
       lift: (next() - 0.5) * shape.depth,
-      speed: turn * (0.35 + next() * 0.25),
+      speed: turn * (slow + next() * (fast - slow)),
       bobPhase: next() * Math.PI * 2,
+      bob: shape.bob ?? 0.025,
     };
   });
 }
@@ -61,10 +69,39 @@ function turnAbout(v: Vec3, axis: Vec3, angle: number): Vec3 {
 /** Where a fish is at `t` seconds, which way its nose points and which way its back points (globe-local). */
 export function swimPose(fish: Swimmer, t: number): { position: Vec3; forward: Vec3; up: Vec3 } {
   const around = turnAbout(fish.offset, fish.axis, fish.speed * t);
-  const bob = 0.025 * Math.sin(t * 1.7 + fish.bobPhase);
+  const bob = fish.bob * Math.sin(t * 1.7 + fish.bobPhase);
   const position = add(add(fish.center, around), scale(fish.axis, fish.lift + bob));
   const forward = scale(unit(cross(fish.axis, around)), Math.sign(fish.speed) || 1);
   const radial = unit(position);
   const up = unit(add(radial, scale(forward, -dot(radial, forward))));
   return { position, forward, up };
 }
+
+/** Level a heading on the sphere: back to the surface (`radial`), nose along what is left of `heading`. */
+export function uprightOn(heading: Vec3, radial: Vec3): { forward: Vec3; up: Vec3 } {
+  const up = unit(radial);
+  const forward = unit(add(heading, scale(up, -dot(heading, up))));
+  return { forward, up };
+}
+
+/** The underwater stage seen by the dive camera: the goldfish school, the way the camera looks (`ahead`), across it, and up. */
+const SCHOOL = ARCTIC_POINTS.fishSchool;
+const UP = unit(SCHOOL);
+const AHEAD = unit(add(add(ARCTIC_POINTS.orca, scale(SCHOOL, -1)), scale(UP, -dot(add(ARCTIC_POINTS.orca, scale(SCHOOL, -1)), UP))));
+const ACROSS = cross(UP, AHEAD);
+const at = (ahead: number, across: number, up: number): Vec3 => add(add(add(SCHOOL, scale(AHEAD, ahead)), scale(ACROSS, across)), scale(UP, up));
+
+/** A spot in the underwater shot's own frame: `ahead` along the view, then right and up on screen. */
+function inView(ahead: number, right: number, up: number): Vec3 {
+  const shot = arcticShotAt((ARCTIC_HOLDS.summitHold[0] + ARCTIC_HOLDS.summitHold[1]) / 2);
+  const look = unit(add(shot.target, scale(shot.position, -1)));
+  const screenRight = unit(cross(look, shot.up));
+  const screenUp = cross(screenRight, look);
+  return add(add(add(shot.position, scale(look, ahead)), scale(screenRight, right)), scale(screenUp, up));
+}
+
+/** The other sea life round the goldfish: a tuna school a little deeper and a few dolphins higher up, all slow. */
+export const ARCTIC_SEA = {
+  tuna: { center: at(0.9, -0.35, -0.4), count: 9, shape: { radius: [0.4, 0.9], depth: 0.35, speed: [0.18, 0.3], bob: 0.03 } },
+  dolphins: { center: inView(2.1, 0.35, 0.5), count: 3, shape: { radius: [0.35, 0.55], depth: 0.2, speed: [0.12, 0.2], bob: 0.09 } },
+} as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;

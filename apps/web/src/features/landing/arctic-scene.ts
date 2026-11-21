@@ -2,8 +2,9 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ARCTIC_GLOBE, ARCTIC_POINTS, arcticViewAt, arcticWarmth } from "./arctic-path";
-import { makeSchool, swimPose } from "./arctic-fish";
+import { ARCTIC_SEA, makeSchool, swimPose, uprightOn } from "./arctic-fish";
 import type { Swimmer } from "./arctic-fish";
 import { pickFriend } from "./arctic-pick";
 import type { PickSphere } from "./arctic-pick";
@@ -64,6 +65,11 @@ export class ArcticStage implements LandingStage {
   private orca: THREE.Mesh | null = null;
   /** Every fish (the file's and the extra clones) with its swim path, in globe-local space. */
   private readonly swimmers: { mesh: THREE.Mesh; swim: Swimmer; parentFromRoot: THREE.Matrix4; parentTurn: THREE.Quaternion }[] = [];
+  /** Tuna and dolphins (built in code), each following its own slow swim path in globe-local space. */
+  private readonly seaLife: { body: THREE.Group; mixer: THREE.AnimationMixer | null; swim: Swimmer; kind: "tuna" | "dolphins"; phase: number }[] = [];
+  /** The orca's swim wrapper (so its greeting hop, which owns the orca's own transform, is untouched). */
+  private orcaSwim: { group: THREE.Group; base: THREE.Vector3; forward: THREE.Vector3; up: THREE.Vector3; reach: number } | null = null;
+  private readonly yawQuat = new THREE.Quaternion();
   private bubbles: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial> | null = null;
   private readonly bubbleRise: number[] = [];
   private readonly basis = new THREE.Matrix4();
@@ -74,6 +80,7 @@ export class ArcticStage implements LandingStage {
   private readonly fog = new THREE.FogExp2("#1f6f8c", 0);
   private readonly spinQuat = new THREE.Quaternion();
   private readonly yAxis = new THREE.Vector3(0, 1, 0);
+  private readonly zAxis = new THREE.Vector3(0, 0, 1);
   private spinAngle = 0;
   private mixer: THREE.AnimationMixer | null = null;
   private bear: Friend | null = null;
@@ -117,7 +124,11 @@ export class ArcticStage implements LandingStage {
   async load(onReady: () => void): Promise<{ missing: string[] }> {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await loader.loadAsync(LANDING_ASSETS.arctic);
+    // The sea life is extra: the globe still opens if its file fails.
+    const [gltf, sea] = await Promise.all([
+      loader.loadAsync(LANDING_ASSETS.arctic),
+      loader.loadAsync(LANDING_ASSETS.arcticSeaLife).catch(() => null),
+    ]);
     if (this.disposed) return { missing: [] };
     const root = gltf.scene;
     this.globe.add(root);
@@ -131,6 +142,8 @@ export class ArcticStage implements LandingStage {
         if (object.name === "SM_Orca_below_surface" && object.morphTargetInfluences?.length) this.orca = object;
       }
     });
+    // Upright before the friends record their rest pose.
+    this.uprightOrca(root);
     for (const [prefix, id, height] of FRIEND_NODES) {
       root.traverse((object) => {
         if (!object.name.startsWith(prefix) || this.friends.some((f) => f.object === object)) return;
@@ -143,6 +156,7 @@ export class ArcticStage implements LandingStage {
     }
 
     this.addSchools(root);
+    if (sea) this.addSeaLife(root, sea.scene, sea.animations);
     this.addBubbles(root);
 
     const husky = root.getObjectByName("ARC_Husky");
@@ -208,6 +222,108 @@ export class ArcticStage implements LandingStage {
     }
   }
 
+  /**
+   * The orca came lying on its side (so the globe's outside showed its profile); under water beside the
+   * upright goldfish it looked capsized. Turn it to swim level, back to the surface, keeping its heading.
+   */
+  private uprightOrca(root: THREE.Object3D): void {
+    const orca = this.orca;
+    const parent = orca?.parent;
+    if (!orca || !parent) return;
+    root.updateMatrixWorld(true);
+    const rootInverse = root.matrixWorld.clone().invert();
+    const inRoot = (object: THREE.Object3D) => {
+      const position = new THREE.Vector3();
+      const quaternion = new THREE.Quaternion();
+      const size = new THREE.Vector3();
+      rootInverse.clone().multiply(object.matrixWorld).decompose(position, quaternion, size);
+      return { position, quaternion, size };
+    };
+    const own = inRoot(orca);
+    const holder = inRoot(parent);
+    const heading = new THREE.Vector3(1, 0, 0).applyQuaternion(own.quaternion);
+    const radial = own.position.clone().normalize();
+    const level = uprightOn([heading.x, heading.y, heading.z], [radial.x, radial.y, radial.z]);
+    const forward = new THREE.Vector3(...level.forward);
+    const up = new THREE.Vector3(...level.up);
+    this.basis.makeBasis(forward, up, new THREE.Vector3().crossVectors(forward, up));
+    const toParent = holder.quaternion.clone().invert();
+    const group = new THREE.Group();
+    group.name = "OrcaSwim";
+    group.position.copy(orca.position);
+    parent.add(group);
+    group.add(orca);
+    orca.position.set(0, 0, 0);
+    orca.quaternion.setFromRotationMatrix(this.basis).premultiply(toParent);
+    orca.updateMatrixWorld(true);
+    this.orcaSwim = {
+      group,
+      base: group.position.clone(),
+      forward: forward.applyQuaternion(toParent),
+      up: up.applyQuaternion(toParent),
+      reach: 1 / (holder.size.x || 1),
+    };
+  }
+
+  /** A slow glide back and forth with a gentle rise and a hint of a turn. */
+  private updateOrca(timeSeconds: number): void {
+    const swim = this.orcaSwim;
+    if (!swim) return;
+    const glide = Math.sin(timeSeconds * 0.22);
+    swim.group.position.copy(swim.base)
+      .addScaledVector(swim.forward, 0.14 * glide * swim.reach)
+      .addScaledVector(swim.up, 0.04 * Math.sin(timeSeconds * 0.5) * swim.reach);
+    swim.group.quaternion.setFromAxisAngle(swim.up, 0.05 * Math.cos(timeSeconds * 0.22));
+  }
+
+  /**
+   * A school of tuna and a few dolphins round the goldfish (models from source/arctic/fish), slow and calm,
+   * fewer on lite devices. Each is a rigged copy playing its own swim clip, out of step with the others.
+   */
+  private addSeaLife(root: THREE.Object3D, sea: THREE.Object3D, clips: THREE.AnimationClip[]): void {
+    const kinds = [["tuna", "SEA_Tuna", "Tuna_Swim", 21, 0.7], ["dolphins", "SEA_Dolphin", "Dolphin_Swim", 5, 0.55]] as const;
+    for (const [kind, node, clipName, seed, pace] of kinds) {
+      const template = sea.getObjectByName(node);
+      if (!template) continue;
+      const clip = clips.find((c) => c.name === clipName) ?? null;
+      const spec = ARCTIC_SEA[kind];
+      const count = this.lite ? Math.ceil(spec.count / 2) : spec.count;
+      makeSchool(spec.center, count, seed, spec.shape).forEach((swim, index) => {
+        const model = cloneSkinned(template);
+        model.traverse((object) => { object.frustumCulled = false; });
+        const body = new THREE.Group();
+        body.add(model);
+        body.scale.setScalar(0.9 + ((index * 7) % 5) * 0.05);
+        root.add(body);
+        let mixer: THREE.AnimationMixer | null = null;
+        if (clip) {
+          mixer = new THREE.AnimationMixer(model);
+          const action = mixer.clipAction(clip);
+          action.timeScale = pace * (0.9 + ((index * 3) % 4) * 0.06);
+          action.play();
+          action.time = (index * 0.37) % clip.duration;
+        }
+        this.seaLife.push({ body, mixer, swim, kind, phase: index * 1.3 });
+      });
+    }
+    this.updateSeaLife(0, 0);
+  }
+
+  private updateSeaLife(timeSeconds: number, dt: number): void {
+    for (const { body, mixer, swim, kind, phase } of this.seaLife) {
+      const pose = swimPose(swim, timeSeconds);
+      body.position.set(...pose.position);
+      this.fwd.set(...pose.forward);
+      this.upv.set(...pose.up);
+      this.side.crossVectors(this.fwd, this.upv);
+      this.basis.makeBasis(this.fwd, this.upv, this.side);
+      body.quaternion.setFromRotationMatrix(this.basis);
+      // Dolphins rise and dip a little as they swim.
+      if (kind === "dolphins") body.quaternion.multiply(this.yawQuat.setFromAxisAngle(this.zAxis, 0.08 * Math.sin(timeSeconds * 0.9 + phase)));
+      mixer?.update(dt);
+    }
+  }
+
   /** Little bubbles drifting up to the surface around the near school; seen from just above and under water. */
   private addBubbles(root: THREE.Object3D): void {
     const count = 80;
@@ -220,7 +336,7 @@ export class ArcticStage implements LandingStage {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ color: "#e8fbff", size: 0.045, transparent: true, opacity: 0.75, depthWrite: false, sizeAttenuation: true });
+    const material = new THREE.PointsMaterial({ color: "#e8fbff", size: 0.06, map: bubbleTexture(), transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true });
     this.bubbles = new THREE.Points(geometry, material);
     this.bubbles.frustumCulled = false;
     root.add(this.bubbles);
@@ -472,6 +588,8 @@ export class ArcticStage implements LandingStage {
         if (tail.length > 1) tail[1] = Math.max(0, -w);
       }
       this.updateSwimmers(timeSeconds);
+      this.updateSeaLife(timeSeconds, dt);
+      this.updateOrca(timeSeconds);
       if (!this.lite) this.updateBubbles(dt);
       this.updateFriends(timeSeconds);
       const bear = this.bear;
@@ -497,7 +615,7 @@ export class ArcticStage implements LandingStage {
     return [...this.camera.position.toArray(), ...this.lookTarget.toArray()];
   }
 
-  describe(): { position: number[]; target: number[]; fov: number; friends: number; fish: number; orcaTail: boolean } {
+  describe(): { position: number[]; target: number[]; fov: number; friends: number; fish: number; orcaTail: boolean; seaLife: number } {
     return {
       position: this.camera.position.toArray(),
       target: this.lookTarget.toArray(),
@@ -505,14 +623,16 @@ export class ArcticStage implements LandingStage {
       friends: this.friends.length,
       fish: this.fish.length,
       orcaTail: (this.orca?.morphTargetInfluences?.length ?? 0) >= 2,
+      seaLife: this.seaLife.length,
     };
   }
 
   dispose(): void {
     this.disposed = true;
     this.mixer?.stopAllAction();
+    for (const { mixer } of this.seaLife) mixer?.stopAllAction();
     this.scene.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
         object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) {
@@ -528,4 +648,29 @@ export class ArcticStage implements LandingStage {
     this.scene.environment?.dispose();
     this.renderer.dispose();
   }
+}
+
+/** A round bubble sprite: a bright rim, a clear middle and a small highlight. */
+function bubbleTexture(): THREE.Texture | null {
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  const ring = context.createRadialGradient(32, 32, 10, 32, 32, 30);
+  ring.addColorStop(0, "rgba(255,255,255,0.12)");
+  ring.addColorStop(0.78, "rgba(255,255,255,0.35)");
+  ring.addColorStop(0.92, "rgba(255,255,255,0.95)");
+  ring.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = ring;
+  context.beginPath();
+  context.arc(32, 32, 31, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "rgba(255,255,255,0.9)";
+  context.beginPath();
+  context.arc(23, 22, 5, 0, Math.PI * 2);
+  context.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }

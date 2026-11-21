@@ -232,3 +232,49 @@ test("arctic fish swim round their school: steady orbit, nose along the path, ba
   // Same seed, same school (no flicker between renders); different seed, different school.
   assert.deepEqual(makeSchool(ARCTIC_POINTS.fishSchool, 3, 7, { radius: [0.5, 1.3], depth: 0.5 }), school.slice(0, 3));
 });
+
+test("arctic sea: the tuna and the dolphins swim under water, in front of the underwater camera, slower than the goldfish", async () => {
+  const { makeSchool, swimPose, ARCTIC_SEA } = await import("../src/features/landing/arctic-fish.ts");
+  const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const view = arcticShotAt((STORY.summitHold[0] + STORY.summitHold[1]) / 2);
+  const look = unitOf(view.target.map((t, i) => t - view.position[i]));
+  for (const kind of ["tuna", "dolphins"]) {
+    const spec = ARCTIC_SEA[kind];
+    const school = makeSchool(spec.center, spec.count, 3, spec.shape);
+    for (const fish of school) {
+      assert.ok(Math.abs(fish.speed) <= spec.shape.speed[1] + 1e-9 && spec.shape.speed[1] < 0.35, `${kind} swims gently`);
+      for (const t of [0, 3, 7, 12]) {
+        const { position } = swimPose(fish, t);
+        assert.ok(Math.hypot(...position) < ARCTIC_GLOBE.radius - 0.25, `${kind} stays under water`);
+      }
+    }
+    const toCentre = unitOf(spec.center.map((c, i) => c - view.position[i]));
+    assert.ok(dot(toCentre, look) > Math.cos((24 * Math.PI) / 180), `${kind} in the underwater view`);
+  }
+});
+
+test("arctic sea: a swimmer turned upright keeps its heading and puts its back to the surface", async () => {
+  const { uprightOn } = await import("../src/features/landing/arctic-fish.ts");
+  const radial = [0, 0.6, 0.8];
+  const { forward, up } = uprightOn([0.2, 0.9, -0.1], radial);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  assert.ok(Math.abs(dot(up, radial) - 1) < 1e-9, "back to the surface");
+  assert.ok(Math.abs(dot(forward, radial)) < 1e-9, "level");
+  const heading = [0.2, 0.9, -0.1].map((x) => x / Math.hypot(0.2, 0.9, -0.1));
+  assert.ok(dot(forward, heading) > 0.8, "heading kept, only levelled");
+});
+
+test("arctic sea life: the tuna and dolphin from the fish models, each a swim-ready rig in its own node", async () => {
+  const { readFileSync, statSync } = await import("node:fs");
+  const file = new URL("../public/models/landing/arctic-sea-life.glb", import.meta.url);
+  const bytes = readFileSync(file);
+  const jsonLength = bytes.readUInt32LE(12);
+  const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
+  const names = gltf.nodes.map((node) => node.name);
+  for (const name of ["SEA_Tuna", "SEA_Dolphin"]) assert.ok(names.includes(name), `${name} node`);
+  assert.deepEqual(gltf.animations.map((clip) => clip.name).sort(), ["Dolphin_Swim", "Tuna_Swim"]);
+  assert.equal(gltf.skins.length, 2, "both are skinned, so the swim clip bends the body");
+  assert.ok(statSync(file).size < 600_000, "small enough for the landing page");
+  assert.ok(!names.includes("Icosphere"), "stray helper mesh removed");
+});
