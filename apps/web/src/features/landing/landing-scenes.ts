@@ -12,4 +12,9 @@ export const LANDING_SCENES: Record<LandingScene, { label: string; description: 
     description: "Thung lũng xanh với cây cầu, hồ nước và các bạn thú.",
     poster: LANDING_ASSETS.poster,
   },
+  ARCTIC: {
+    label: "Bắc Cực",
+    description: "Quả cầu Bắc Cực với bạn gấu, chim puffin và lửa trại.",
+    poster: LANDING_ASSETS.arcticPoster,
+  },
 };

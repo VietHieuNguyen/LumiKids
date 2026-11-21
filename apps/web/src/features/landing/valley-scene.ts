@@ -11,6 +11,8 @@ import { createSharedUniforms, patchSurface, setTerrainLite, surfaceForMaterial,
 import type { FernUniforms, SharedUniforms, SurfaceKind } from "./valley-materials";
 import { clamp, lerp } from "./scroll-math";
 
+import type { LandingStage } from "./landing-stage";
+
 export type StageQuality = "high" | "low";
 
 export type ScreenAnchor = { x: number; y: number; visible: boolean };
@@ -153,7 +155,7 @@ function makeContactShadowTexture(): THREE.Texture {
  * Owns the Three.js renderer, the valley, Rabbit/Bear and the scroll-driven camera.
  * The React layer only feeds progress/pointer and reads screen anchors back.
  */
-export class ValleyStage {
+export class ValleyStage implements LandingStage {
   readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 160);
