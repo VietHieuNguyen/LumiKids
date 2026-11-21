@@ -14,7 +14,8 @@ const MAX_PATTERN_ITEMS = 4;
 /**
  * Pictures for a PATTERN game, chosen without a model call: the animals/objects the prompt names
  * (in prompt order), then pictures that look alike (same assetSet, then visualStyle) up to `wanted`.
- * One picture per objectType; shadows and backgrounds never. Throws when fewer than `needed`.
+ * One picture per objectType; shadows and backgrounds never. Throws when a named animal has no
+ * usable picture, or when fewer than `needed` are found.
  */
 export function pickPatternAssets(
   prompt: string,
@@ -39,7 +40,9 @@ export function pickPatternAssets(
   };
   for (const objectType of requestedObjectTypes(prompt, usable)) {
     const asset = usable.find((candidate) => matchesObjectType(candidate, objectType));
-    if (asset) take(asset);
+    // A named animal without a usable picture must not be swapped for another one silently.
+    if (!asset) throw new ApiProblem('PATTERN_ASSETS_INSUFFICIENT');
+    take(asset);
   }
   const anchor = picked[0] ?? usable[0];
   const affinity = (asset: CandidateAsset) => {

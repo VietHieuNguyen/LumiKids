@@ -9,6 +9,7 @@ import { GamePicture } from "./game-picture";
 import { PlayBoard, PlayStep } from "./play-board";
 import { usePointerPairing } from "./use-pointer-pairing";
 import { patternCellSize } from "../model/pattern-layout";
+import { createTapGuard } from "../model/tap-guard";
 
 const BLANK_ID = "pattern-blank";
 /** How long a solved row stays on screen (bounce + filled blank) before the next row appears. */
@@ -43,9 +44,11 @@ export function PatternGame({
   const sequence = solvedRow ?? current;
 
   const scope = useRef<HTMLDivElement>(null);
+  const rowPanel = useRef<HTMLElement>(null);
   const [viewport, setViewport] = useState({ width: 1024, height: 768 });
   useEffect(() => {
-    const element = scope.current;
+    // Measure the row's own content box, so panel padding/border never push cells out.
+    const element = rowPanel.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) =>
       setViewport({ width: entry.contentRect.width, height: window.innerHeight }),
@@ -58,8 +61,8 @@ export function PatternGame({
       onAction({ actionType: "FILL_PATTERN", sourceId: sequence.id, targetId: itemId });
   };
   const pairing = usePointerPairing(scope, (itemId) => fill(itemId));
-  // A drag ends with a click event too; it must not fill the blank a second time.
-  const justDragged = useRef(false);
+  // A drag must not also fill through its click, and must never swallow the next tap.
+  const [tapGuard] = useState(createTapGuard);
   // A wrong card shakes once per wrong answer event.
   const [settledEventId, setSettledEventId] = useState<string | null>(null);
   const wrongEvent =
@@ -109,7 +112,7 @@ export function PatternGame({
             />
           ))}
         </ol>
-        <section className="play-panel pattern-row-panel" aria-label="Dãy hình">
+        <section ref={rowPanel} className="play-panel pattern-row-panel" aria-label="Dãy hình">
           <PlayStep number={1}>Con nhìn dãy hình nhé!</PlayStep>
           <div className={`pattern-row ${solvedRow ? "is-solved" : ""}`} key={sequence.id}>
             {sequence.cells.map((itemId, index) => (
@@ -146,17 +149,16 @@ export function PatternGame({
                 data-wrong={wrongId === itemId || undefined}
                 disabled={Boolean(solvedRow) || state.completed}
                 aria-label={`Chọn ${items.get(itemId)?.label ?? "hình"}`}
-                onPointerDown={(event) => pairing.pointerDown(event, itemId)}
-                onPointerMove={pairing.pointerMove}
-                onPointerUp={(event) => {
-                  justDragged.current = pairing.drag !== null;
-                  pairing.pointerUp(event);
+                onPointerDown={(event) => {
+                  tapGuard.down();
+                  pairing.pointerDown(event, itemId);
                 }}
+                onPointerMove={pairing.pointerMove}
+                onPointerUp={(event) => tapGuard.up(pairing.pointerUp(event))}
                 onPointerCancel={pairing.pointerCancel}
-                onClick={() => {
+                onClick={(event) => {
                   // A tap fills the blank directly: one step for small hands.
-                  if (justDragged.current) justDragged.current = false;
-                  else fill(itemId);
+                  if (tapGuard.click(event.detail)) fill(itemId);
                 }}
               >
                 {picture(itemId, "pattern-picture")}

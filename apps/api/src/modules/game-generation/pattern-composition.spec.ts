@@ -36,6 +36,11 @@ describe('pickPatternAssets', () => {
       expect.objectContaining({ publicCode: 'PATTERN_ASSETS_INSUFFICIENT' }),
     );
   });
+  it('throws when an animal named in the prompt has no usable picture', () => {
+    expect(() => pickPatternAssets('dãy mèo và thỏ', [rabbit, pig, chick], 2)).toThrow(
+      expect.objectContaining({ publicCode: 'PATTERN_ASSETS_INSUFFICIENT' }),
+    );
+  });
   it('never picks a shadow picture', () => {
     const picked = pickPatternAssets('dãy thỏ', [rabbitShadow, rabbit, chick], 2);
     expect(picked.map((asset) => asset.id)).not.toContain(rabbitShadow.id);

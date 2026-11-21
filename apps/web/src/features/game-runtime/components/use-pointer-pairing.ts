@@ -65,9 +65,10 @@ export function usePointerPairing(
     setDrag({ sourceId: current.sourceId, x: event.clientX, y: event.clientY });
     setHoverId(targetAt(event.clientX, event.clientY));
   }
-  function pointerUp(event: PointerEvent<HTMLButtonElement>) {
+  /** Returns true when the gesture was a drag (read from the live gesture, not render state). */
+  function pointerUp(event: PointerEvent<HTMLButtonElement>): boolean {
     const current = gesture.current;
-    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current || current.pointerId !== event.pointerId) return false;
     const target = current.dragging
       ? targetAt(event.clientX, event.clientY)
       : null;
@@ -77,6 +78,7 @@ export function usePointerPairing(
       setSelectedId(null);
       if (target) onDrop(current.sourceId, target);
     }
+    return current.dragging;
   }
   function pointerCancel(event: PointerEvent<HTMLButtonElement>) {
     if (gesture.current?.pointerId !== event.pointerId) return;
