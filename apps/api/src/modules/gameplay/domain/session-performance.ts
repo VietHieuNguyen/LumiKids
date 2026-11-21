@@ -12,7 +12,7 @@ const COUNTING_ITEM_ID = 'counting-question';
 /**
  * Items (nhiệm vụ) of a version, from the content — never from the events.
  * COUNTING = one question; MATCHING = one item per pair (keyed by its source);
- * CLASSIFICATION = one item per object to place.
+ * CLASSIFICATION = one item per object to place; PATTERN = one item per sequence.
  */
 export function scoredItemIds(content: GameContent): string[] {
   switch (content.gameType) {
@@ -22,6 +22,8 @@ export function scoredItemIds(content: GameContent): string[] {
       return content.pairs.map((pair) => pair.sourceId);
     case 'CLASSIFICATION':
       return content.items.map((item) => item.id);
+    case 'PATTERN':
+      return content.sequences.map((sequence) => sequence.id);
   }
 }
 

@@ -4,6 +4,7 @@ import {
   countingContentV2StructureSchema,
   matchingContentStructureSchema,
   classificationContentV2StructureSchema,
+  patternContentStructureSchema,
 } from "@lumikids/shared";
 import type { GameType } from "@lumikids/shared";
 
@@ -93,7 +94,9 @@ const structures = {
   COUNTING: countingContentV2StructureSchema,
   MATCHING: matchingContentStructureSchema,
   CLASSIFICATION: classificationContentV2StructureSchema,
-};
+  // PATTERN is composed in Nest without a model call; listed so the map stays exhaustive.
+  PATTERN: patternContentStructureSchema,
+} satisfies Record<GameType, z.ZodType>;
 // Generated from the actual shared Zod structures; cross-field refinements stay in NestJS.
 export function gameResponseSchema(
   gameType: GameType,

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   MAX_INTERACTIONS_PER_SESSION,
   applyGameAction,
+  buildPatternContent,
   createInitialState,
   gameContentSchema,
 } from '@lumikids/shared';
@@ -283,5 +284,61 @@ describe('hint events', () => {
         incoming: [{ ...events[0], result: 'CORRECT' } as unknown as GameInteraction],
       }),
     ).toThrow();
+  });
+});
+
+describe('PATTERN replay', () => {
+  const pattern = buildPatternContent({
+    items: ['a', 'b', 'c'].map((id) => ({ id, assetId: asset() })),
+    rules: ['ABC'],
+    sequenceCount: 3,
+    seed: 'replay',
+  });
+  const [s1, s2, s3] = pattern.sequences;
+  const wrong = (choiceIds: string[], correct: string) =>
+    choiceIds.find((id) => id !== correct)!;
+
+  it('completes after every sequence is filled in order', () => {
+    const events = play(pattern, [
+      { actionType: 'FILL_PATTERN', sourceId: s1.id, targetId: s1.correctItemId },
+      { actionType: 'FILL_PATTERN', sourceId: s2.id, targetId: s2.correctItemId },
+      { actionType: 'FILL_PATTERN', sourceId: s3.id, targetId: s3.correctItemId },
+    ]);
+    expect(replaySession(pattern, events).completed).toBe(true);
+  });
+
+  it('rejects a claimed CORRECT for a wrong picture', () => {
+    const [first, second] = play(pattern, [
+      { actionType: 'FILL_PATTERN', sourceId: s1.id, targetId: s1.correctItemId },
+      { actionType: 'FILL_PATTERN', sourceId: s2.id, targetId: wrong(s2.choiceIds, s2.correctItemId) },
+    ]);
+    expect(
+      ruleCode(() =>
+        appendInteractions({
+          content: pattern,
+          status: 'IN_PROGRESS',
+          existing: [first],
+          incoming: [{ ...second, result: 'CORRECT' } as GameInteraction],
+        }),
+      ),
+    ).toBe('INTERACTION_RESULT_MISMATCH');
+  });
+
+  it('rejects an answer for a sequence that is not current', () => {
+    const [first] = play(pattern, [
+      { actionType: 'FILL_PATTERN', sourceId: s1.id, targetId: s1.correctItemId },
+    ]);
+    expect(
+      ruleCode(() =>
+        appendInteractions({
+          content: pattern,
+          status: 'IN_PROGRESS',
+          existing: [],
+          incoming: [
+            { ...first, sourceId: s2.id, targetId: s2.correctItemId } as GameInteraction,
+          ],
+        }),
+      ),
+    ).toBe('INTERACTION_INVALID');
   });
 });
