@@ -385,3 +385,155 @@ test("interaction validates result, event ID, timestamp, attemptIndex and contra
     true,
   );
 });
+
+// ---- PATTERN (Chỉ số 46) ----
+import {
+  patternContentSchema,
+  buildPatternContent,
+} from "../dist/index.js";
+
+const pattern = () => example("pattern");
+const patternItems = ["a", "b", "c", "d"].map((id, index) => ({
+  id,
+  assetId: `7c1a9a10-0000-4000-8000-00000000000${index + 1}`,
+}));
+
+test("pattern example is valid", () => {
+  assert.equal(patternContentSchema.safeParse(pattern()).success, true);
+  assert.equal(gameContentSchema.safeParse(pattern()).success, true);
+});
+test("pattern rejects cells that break the rule", () => {
+  const value = pattern();
+  value.sequences[0].cells = ["bunny", "chick", "chick", "bunny"];
+  assertInvalid(patternContentSchema, value, "sequences.0.cells");
+});
+test("pattern rejects wrong correct item", () => {
+  const value = pattern();
+  value.sequences[0].correctItemId = "bunny";
+  assertInvalid(patternContentSchema, value, "sequences.0.correctItemId");
+});
+test("pattern rejects correct item missing from choices", () => {
+  const value = pattern();
+  value.sequences[1].choiceIds = ["pig", "chick"];
+  assertInvalid(patternContentSchema, value, "sequences.1.choiceIds");
+});
+test("pattern rejects too few cells", () => {
+  const value = pattern();
+  value.sequences[1].cells = ["bunny", "chick", "pig", "bunny", "chick"];
+  value.sequences[1].correctItemId = "pig";
+  assertInvalid(patternContentSchema, value, "sequences.1.cells");
+});
+test("pattern rejects duplicate assetId across items", () => {
+  const value = pattern();
+  value.items[1].assetId = value.items[0].assetId;
+  assertInvalid(patternContentSchema, value, "items.1.assetId");
+});
+test("FILL_PATTERN interaction parses only with a targetId", () => {
+  const event = {
+    schemaVersion: 1,
+    eventId: "2d7f0f5e-8f1d-4f39-9d0e-8f0a3a3c2b11",
+    sourceId: "seq-1",
+    targetId: "chick",
+    timestamp: "2026-11-21T08:00:00Z",
+    attemptIndex: 1,
+    result: "CORRECT",
+    actionType: "FILL_PATTERN",
+  };
+  assert.equal(gameInteractionSchema.safeParse(event).success, true);
+  const { targetId, ...missing } = event;
+  assertInvalid(gameInteractionSchema, missing);
+});
+test("buildPatternContent is deterministic for a seed", () => {
+  const input = { items: patternItems, rules: ["AB", "ABC"], sequenceCount: 5, seed: "s1" };
+  assert.deepEqual(buildPatternContent(input), buildPatternContent(input));
+  assert.notDeepEqual(
+    buildPatternContent(input).sequences,
+    buildPatternContent({ ...input, seed: "another-seed" }).sequences,
+  );
+});
+test("buildPatternContent output validates for every rule", () => {
+  for (const rule of ["AB", "AAB", "ABB", "ABC", "AABB", "ABCD"]) {
+    const content = buildPatternContent({ items: patternItems, rules: [rule], sequenceCount: 5, seed: rule });
+    const parsed = patternContentSchema.safeParse(content);
+    assert.equal(parsed.success, true, `${rule}: ${JSON.stringify(parsed.error?.issues)}`);
+    assert.equal(content.sequences.length, 5);
+    for (const sequence of content.sequences)
+      assert.equal(sequence.choiceIds.length, rule === "AB" ? 2 : 3);
+  }
+});
+test("buildPatternContent throws when ABCD gets 3 items", () => {
+  assert.throws(
+    () => buildPatternContent({ items: patternItems.slice(0, 3), rules: ["ABCD"], sequenceCount: 5, seed: "x" }),
+    /PATTERN_ASSETS_INSUFFICIENT/,
+  );
+});
+test("pattern asset ids are the item asset ids", () => {
+  const content = buildPatternContent({ items: patternItems, rules: ["ABCD"], sequenceCount: 3, seed: "x" });
+  assert.deepEqual(getGameContentAssetIds(content).sort(), patternItems.map((item) => item.assetId).sort());
+});
+
+// ---- PATTERN engine ----
+import {
+  applyGameAction,
+  createInitialState,
+  getGameProgress,
+  getHintTargets,
+  canRequestHint,
+} from "../dist/index.js";
+
+let eventCounter = 0;
+function play(content, state, action) {
+  eventCounter += 1;
+  return applyGameAction(content, state, action, {
+    eventId: `2d7f0f5e-8f1d-4f39-9d0e-${String(eventCounter).padStart(12, "0")}`,
+    timestamp: "2026-11-21T08:00:00Z",
+  });
+}
+const fill = (sourceId, targetId) => ({ actionType: "FILL_PATTERN", sourceId, targetId });
+
+test("pattern: correct fill solves the current sequence", () => {
+  const content = pattern();
+  const next = play(content, createInitialState(content), fill("seq-1", "chick"));
+  assert.equal(next.interaction.result, "CORRECT");
+  assert.deepEqual(next.state.solvedSequenceIds, ["seq-1"]);
+  assert.deepEqual(getGameProgress(content, next.state), { correct: 1, total: 3 });
+});
+test("pattern: wrong fill is INCORRECT and does not advance", () => {
+  const content = pattern();
+  const next = play(content, createInitialState(content), fill("seq-1", "bunny"));
+  assert.equal(next.interaction.result, "INCORRECT");
+  assert.deepEqual(next.state.solvedSequenceIds, []);
+  assert.equal(next.state.attemptCount, 1);
+});
+test("pattern: action on a later sequence is ignored", () => {
+  const content = pattern();
+  const initial = createInitialState(content);
+  const next = play(content, initial, fill("seq-2", "bunny"));
+  assert.equal(next.interaction, null);
+  assert.equal(next.state.attemptCount, 0);
+});
+test("pattern: choice not offered in the sequence is ignored", () => {
+  const content = pattern();
+  const next = play(content, createInitialState(content), fill("seq-1", "pig"));
+  assert.equal(next.interaction, null);
+});
+test("pattern: completes after all sequences", () => {
+  const content = pattern();
+  let state = createInitialState(content);
+  let last;
+  for (const [sequence, item] of [["seq-1", "chick"], ["seq-2", "bunny"], ["seq-3", "pig"]]) {
+    last = play(content, state, fill(sequence, item));
+    state = last.state;
+  }
+  assert.equal(last.completedNow, true);
+  assert.equal(state.completed, true);
+});
+test("pattern: hint targets first period cells and not solved sequences", () => {
+  const content = pattern();
+  const targets = getHintTargets(content);
+  assert.deepEqual(targets[0], { taskId: "seq-1", targetIds: ["seq-1:cell:0", "seq-1:cell:1"] });
+  assert.deepEqual(targets[2].targetIds, ["seq-3:cell:0", "seq-3:cell:1", "seq-3:cell:2"]);
+  const solved = play(content, createInitialState(content), fill("seq-1", "chick")).state;
+  assert.equal(canRequestHint(content, solved, "seq-1"), false);
+  assert.equal(canRequestHint(content, solved, "seq-2"), true);
+});

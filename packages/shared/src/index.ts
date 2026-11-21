@@ -65,6 +65,21 @@ export type {
   GameContentV1,
 } from "./game-content/game-content.schema.js";
 export {
+  PATTERN_RULE_UNITS,
+  patternContentSchema,
+  patternContentStructureSchema,
+  patternLetterCount,
+  patternRuleSchema,
+  patternSequenceSchema,
+} from "./game-content/pattern.schema.js";
+export type {
+  PatternContent,
+  PatternRule,
+  PatternSequence,
+} from "./game-content/pattern.schema.js";
+export { buildPatternContent } from "./game-content/pattern-builder.js";
+export type { BuildPatternInput } from "./game-content/pattern-builder.js";
+export {
   getGameContentAssetIds,
   getGameContentAssetIssues,
 } from "./game-content/asset-references.js";
@@ -78,6 +93,7 @@ export {
   countingInteractionSchema,
   matchingInteractionSchema,
   classificationInteractionSchema,
+  patternInteractionSchema,
   hintInteractionSchema,
   gameInteractionSchema,
   isAnswerInteraction,
@@ -105,6 +121,7 @@ export type {
   CountingInteraction,
   MatchingInteraction,
   ClassificationInteraction,
+  PatternInteraction,
   HintInteraction,
   AnswerInteraction,
   GameInteraction,
@@ -116,12 +133,14 @@ export {
   getGameProgress,
 } from "./game-runtime/engine.js";
 export { canRequestHint, getHintTargets, nextHintTarget } from "./game-runtime/hint.js";
+export { currentPatternSequence, patternHintCellIds } from "./game-runtime/pattern.js";
 export type { HintTarget } from "./game-runtime/hint.js";
 export type {
   GameAction,
   CountingState,
   MatchingState,
   ClassificationState,
+  PatternState,
   GameState,
   GameProgress,
   GameCompletion,

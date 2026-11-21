@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "gameType": "PATTERN",
+  "instruction": "Con hãy tìm hình tiếp theo cho đúng quy tắc nhé!",
+  "items": [
+    { "id": "bunny", "assetId": "7c1a9a10-0000-4000-8000-000000000001", "label": "Thỏ" },
+    { "id": "chick", "assetId": "7c1a9a10-0000-4000-8000-000000000002", "label": "Gà con" },
+    { "id": "pig", "assetId": "7c1a9a10-0000-4000-8000-000000000003", "label": "Heo" }
+  ],
+  "sequences": [
+    {
+      "id": "seq-1",
+      "rule": "AB",
+      "cells": ["bunny", "chick", "bunny", "chick", "bunny"],
+      "choiceIds": ["chick", "bunny"],
+      "correctItemId": "chick"
+    },
+    {
+      "id": "seq-2",
+      "rule": "ABC",
+      "cells": ["bunny", "chick", "pig", "bunny", "chick", "pig"],
+      "choiceIds": ["pig", "bunny", "chick"],
+      "correctItemId": "bunny"
+    },
+    {
+      "id": "seq-3",
+      "rule": "AAB",
+      "cells": ["pig", "pig", "chick", "pig", "pig", "chick"],
+      "choiceIds": ["chick", "pig", "bunny"],
+      "correctItemId": "pig"
+    }
+  ],
+  "completionRule": "ALL_SEQUENCES_COMPLETED"
+}
