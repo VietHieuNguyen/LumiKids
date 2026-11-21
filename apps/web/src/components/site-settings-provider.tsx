@@ -12,11 +12,13 @@ interface SiteSettingsValue {
   settings: SiteSettings;
   /** Absolute URL of the uploaded logo, or null for the built-in mark. */
   logoUrl: string | null;
+  /** True once the saved settings arrived or the request gave up, so a page can wait before picking a 3D scene. */
+  ready: boolean;
   /** After an admin saves: show the new branding at once, without a reload. */
   replace: (settings: SiteSettings) => void;
 }
 
-const SiteSettingsContext = createContext<SiteSettingsValue>({ settings: builtIn, logoUrl: null, replace: () => undefined });
+const SiteSettingsContext = createContext<SiteSettingsValue>({ settings: builtIn, logoUrl: null, ready: true, replace: () => undefined });
 
 /**
  * Public branding (name, logo, landing scene). Pages render the built-in LumiKids branding first and
@@ -24,6 +26,8 @@ const SiteSettingsContext = createContext<SiteSettingsValue>({ settings: builtIn
  */
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<SiteSettings>(builtIn);
+  // Without an API there is nothing to wait for.
+  const [ready, setReady] = useState(() => !apiOrigin());
   useEffect(() => {
     const origin = apiOrigin();
     if (!origin) return;
@@ -33,8 +37,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       .then((envelope: unknown) => {
         const parsed = siteSettingsSchema.safeParse((envelope as { data?: unknown } | null)?.data);
         if (parsed.success) setSettings(parsed.data);
+        setReady(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!controller.signal.aborted) setReady(true);
+      });
     return () => controller.abort();
   }, []);
   const logoUrl = settings.logoPath ? `${apiOrigin()}${settings.logoPath}` : null;
@@ -44,7 +51,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     if (icon) icon.href = logoUrl ?? "/brand/lumikids-logo.png";
   }, [logoUrl]);
   const replace = useCallback((next: SiteSettings) => setSettings(next), []);
-  const value = useMemo(() => ({ settings, logoUrl, replace }), [settings, logoUrl, replace]);
+  const value = useMemo(() => ({ settings, logoUrl, ready, replace }), [settings, logoUrl, ready, replace]);
   return <SiteSettingsContext.Provider value={value}>{children}</SiteSettingsContext.Provider>;
 }
 

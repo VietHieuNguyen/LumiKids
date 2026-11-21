@@ -90,3 +90,17 @@ test("arctic warmth rises to full at the campfire and never falls before it", ()
     last = w;
   }
 });
+
+test("arctic path: close shots keep the local ground level (camera up = surface normal), wide shots keep world up", () => {
+  const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const vista = arcticShotAt(0);
+  assert.ok(dot(vista.up, [0, 1, 0]) > 0.99, "vista up");
+  for (const hold of [STORY.pondHold, STORY.charactersHold, STORY.cabinHold]) {
+    const shot = arcticShotAt(hold[0]);
+    assert.ok(dot(shot.up, unitOf(shot.target)) > 0.95, `up follows the ground at ${hold[0]}`);
+    // Seen at an angle, not from straight above: the view direction is well off the surface normal.
+    const view = unitOf(shot.target.map((t, i) => t - shot.position[i]));
+    assert.ok(Math.abs(dot(view, unitOf(shot.target))) < 0.8, `oblique view at ${hold[0]}`);
+  }
+});

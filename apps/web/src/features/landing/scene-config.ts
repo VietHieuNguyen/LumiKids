@@ -3,6 +3,7 @@ import { LANDING_ASSETS } from "./landing-assets";
 import type { CharacterId } from "./landing-assets";
 import { LANDING_COPY } from "./landing-copy";
 import type { LandingStageClass } from "./landing-stage";
+import type { FriendId } from "./valley-scene";
 
 /** Everything on the landing page that differs between 3D scenes; overlay timings are shared. */
 export type LandingSceneConfig = {
@@ -24,6 +25,8 @@ export type LandingSceneConfig = {
     /** Bubble text when an animal is tapped, keyed by the id the stage reports. */
     friends: Readonly<Record<string, string>>;
   };
+  /** Which built-in synth voice (landing-audio) each tappable animal uses when sound is on. */
+  voices: Readonly<Record<string, FriendId>>;
   /** Imported only when this scene is shown, so the other scene's code and models never load. */
   loadStage: () => Promise<LandingStageClass>;
 };
@@ -43,6 +46,7 @@ const VALLEY: LandingSceneConfig = {
     credits: LANDING_COPY.footer.credits,
     friends: LANDING_COPY.friends,
   },
+  voices: { duck: "duck", frog: "frog", deer: "deer", elephant: "elephant", rabbit: "rabbit", bear: "bear", dog: "dog" },
   loadStage: () => import("./valley-scene").then((module) => module.ValleyStage),
 };
 
@@ -70,8 +74,8 @@ const ARCTIC: LandingSceneConfig = {
       husky: "Gâu gâu!",
     },
   },
-  // Replaced by the real ArcticStage import (plan Task 5); until then the page falls back to the poster.
-  loadStage: () => Promise.reject(new Error("ArcticStage is not built yet")),
+  voices: { bear: "bear", polarBear: "bear", husky: "dog", fox: "deer", seal: "duck", puffin: "duck", orca: "elephant" },
+  loadStage: () => import("./arctic-scene").then((module) => module.ArcticStage),
 };
 
 const CONFIGS: Record<LandingScene, LandingSceneConfig> = { VALLEY, ARCTIC };
