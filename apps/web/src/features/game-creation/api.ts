@@ -67,6 +67,8 @@ const messages: Record<string, string> = {
   AI_PROVIDER_ERROR: "Dịch vụ AI đang gặp lỗi. Vui lòng thử lại sau.",
   GENERATION_BUSY:
     "Yêu cầu tạo trò chơi trước vẫn đang xử lý. Vui lòng chờ một chút.",
+  PATTERN_ASSETS_INSUFFICIENT:
+    "Thư viện chưa đủ hình để tạo dãy theo quy tắc này. Hãy nêu tên con vật/đồ vật có trong thư viện (ví dụ: thỏ, gà con, heo) hoặc chọn quy tắc ít hình hơn.",
   PREVIEW_ACCESS_EXPIRED:
     "Quyền tải ảnh cho bản chơi thử này đã hết hạn. Hãy tạo lại trò chơi.",
 };
@@ -108,6 +110,12 @@ export function validateGameRequest(
       400,
       "INVALID_INPUT",
     );
+  if (value.gameType === "PATTERN")
+    return {
+      gameType: value.gameType,
+      prompt,
+      pattern: value.pattern ?? { rules: ["AB"], sequenceCount: 5 },
+    };
   return { gameType: value.gameType, prompt };
 }
 export function parseGeneratedGame(
@@ -130,8 +138,12 @@ export function parseGeneratedGame(
     typeof meta.model !== "string" ||
     !meta.model ||
     meta.model.length > 100 ||
+    typeof meta.attempts !== "number" ||
     !Number.isInteger(meta.attempts) ||
-    (meta.attempts !== 1 && meta.attempts !== 2) ||
+    // PATTERN is composed without a model call (0 attempts); model-generated types use 1–2.
+    (expectedType === "PATTERN"
+      ? meta.attempts !== 0
+      : meta.attempts !== 1 && meta.attempts !== 2) ||
     meta.reviewRequired !== true ||
     !validDate(meta.validatedAt) ||
     !Array.isArray(meta.warnings) ||

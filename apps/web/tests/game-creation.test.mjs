@@ -95,7 +95,7 @@ test("authorization follows generation permission, never role alone", () => {
       true,
     );
 });
-test("creator renders three choices, prompt limit, samples, disabled empty submission and draft notice", () => {
+test("creator renders four choices, prompt limit, samples, disabled empty submission and draft notice", () => {
   const api = new GameGenerationApi(
     "fixture",
     "http://api.example.test",
@@ -110,12 +110,12 @@ test("creator renders three choices, prompt limit, samples, disabled empty submi
     }),
   );
   assert.match(html, /Thiết kế trò chơi bằng AI/);
-  assert.equal((html.match(/type="radio"/g) ?? []).length, 3);
+  assert.equal((html.match(/type="radio"/g) ?? []).length, 4);
   assert.match(html, new RegExp(`maxLength="${MAX_GAME_PROMPT_LENGTH}"`, "i"));
   assert.match(html, /Tạo trò chơi từ mô tả/);
   assert.match(html, /disabled=""/);
   assert.match(html, /có thể mất khi tải lại hoặc rời trang/);
-  assert.equal(gameCreationOptions.length, 3);
+  assert.equal(gameCreationOptions.length, 4);
 });
 test("invalid prompt and unsupported type are rejected before network", async () => {
   const api = new GameGenerationApi("fixture", "http://api.example.test", () =>
@@ -485,4 +485,49 @@ test("missing/inactive assets and expired preview proof appear as existing Previ
     );
     resolver.stop();
   }
+});
+
+// ---- PATTERN ----
+const patternInput = {
+  gameType: "PATTERN",
+  prompt: "dãy thỏ và gà con",
+  pattern: { rules: ["AB"], sequenceCount: 5 },
+};
+function patternResult() {
+  const value = result("pattern");
+  value.generation = { ...value.generation, model: "deterministic", attempts: 0, warnings: [] };
+  return value;
+}
+test("PATTERN request sends its rule options; other types never send them", async () => {
+  const bodies = [];
+  const api = new GameGenerationApi("t", "http://api.example.test", async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return Response.json(envelope(bodies.length === 1 ? patternResult() : result()));
+  });
+  await api.generate(patternInput);
+  await api.generate({ ...input, pattern: { rules: ["AB"], sequenceCount: 5 } });
+  assert.deepEqual(bodies[0], patternInput);
+  assert.equal("pattern" in bodies[1], false);
+});
+test("a deterministic PATTERN preview (0 model attempts) is accepted", () => {
+  const parsed = parseGeneratedGame(patternResult(), "PATTERN");
+  assert.equal(parsed.gameContent.gameType, "PATTERN");
+  assert.equal(parsed.generation.attempts, 0);
+  // Model-generated types still need 1–2 attempts.
+  const counting = result();
+  counting.generation.attempts = 0;
+  assert.throws(() => parseGeneratedGame(counting, "COUNTING"), { code: "INVALID_RESPONSE" });
+});
+test("PATTERN_ASSETS_INSUFFICIENT has its own message", async () => {
+  const api = new GameGenerationApi("t", "http://api.example.test", async () =>
+    Response.json({ success: false, code: "PATTERN_ASSETS_INSUFFICIENT", message: "x" }, { status: 422 }),
+  );
+  await assert.rejects(api.generate(patternInput), (error) => {
+    assert.equal(error.code, "PATTERN_ASSETS_INSUFFICIENT");
+    assert.match(error.message, /chưa đủ hình/);
+    return true;
+  });
+});
+test("creator offers the PATTERN option", () => {
+  assert.ok(gameCreationOptions.some((option) => option.type === "PATTERN"));
 });

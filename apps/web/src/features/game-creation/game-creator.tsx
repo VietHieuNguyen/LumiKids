@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { FormEvent } from "react";
 import { getClassificationCorrectGroupIds } from "@lumikids/shared";
-import type { GameDifficulty, GameType } from "@lumikids/shared";
+import type { GameDifficulty, GameType, PatternRule } from "@lumikids/shared";
 import { GamePreview } from "../game-preview/game-preview";
 import { GameGenerationApi } from "./api";
 import { createGameCreationController } from "./controller";
@@ -20,6 +20,7 @@ import { GameLibraryApi } from "../game-library/api";
 import { SaveGamePanel } from "../game-library/save-game-panel";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
 import { CreatorIllustration } from "./creator-illustration";
+import { PatternOptions } from "./pattern-options";
 
 export const gameCreationOptions: {
   type: GameType;
@@ -47,6 +48,12 @@ export const gameCreationOptions: {
     example:
       "Tạo trò chơi phân loại 6 quả bóng gồm 3 quả đỏ và 3 quả xanh dương vào hai nhóm tương ứng.",
   },
+  {
+    type: "PATTERN",
+    label: "Sắp xếp theo quy tắc",
+    description: "Tìm hình tiếp theo của dãy lặp lại. Không dùng AI, tạo ngay.",
+    example: "Dãy thỏ và gà con",
+  },
 ];
 interface GameCreatorProps {
   libraryApi?: GameLibraryApi | null;
@@ -62,6 +69,8 @@ export function GameCreator({
 }: GameCreatorProps) {
   const [gameType, setGameType] = useState<GameType>("COUNTING");
   const [prompt, setPrompt] = useState("");
+  const [patternRules, setPatternRules] = useState<PatternRule[]>(["AB"]);
+  const [sequenceCount, setSequenceCount] = useState(5);
   const [touched, setTouched] = useState(false);
   const promptDialog = useRef<HTMLDialogElement>(null);
   const workspace = useRef<HTMLDivElement>(null);
@@ -124,7 +133,13 @@ export function GameCreator({
     event.preventDefault();
     setTouched(true);
     if (!invalid)
-      void controller.generate({ gameType, prompt }).then((success) => {
+      void controller
+        .generate(
+          gameType === "PATTERN"
+            ? { gameType, prompt, pattern: { rules: patternRules, sequenceCount } }
+            : { gameType, prompt },
+        )
+        .then((success) => {
         if (success) promptDialog.current?.close();
       });
   }
@@ -319,6 +334,14 @@ export function GameCreator({
                     >
                       Gợi ý: chỉ đếm bóng đỏ giữa các màu
                     </button>
+                  )}
+                  {gameType === "PATTERN" && (
+                    <PatternOptions
+                      rules={patternRules}
+                      onRulesChange={setPatternRules}
+                      sequenceCount={sequenceCount}
+                      onSequenceCountChange={setSequenceCount}
+                    />
                   )}
                   <p className="mt-2 text-xs leading-5 text-ink-soft">
                     Gợi ý cần có ảnh phù hợp trong thư viện. Nếu thiếu học liệu,

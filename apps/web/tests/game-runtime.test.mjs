@@ -498,3 +498,12 @@ test("published snapshots/events cannot be mutated by a consuming component", ()
   }, TypeError);
   assert.equal(controller.getState().completed, false);
 });
+
+// ---- PATTERN layout ----
+import { patternCellSize } from "../src/features/game-runtime/model/pattern-layout.ts";
+test("patternCellSize fits 8 cells plus the blank on iPad portrait and landscape", () => {
+  assert.equal(patternCellSize({ width: 768, height: 1024 }, 8), 81);
+  assert.equal(patternCellSize({ width: 1024, height: 768 }, 8), 110);
+  assert.equal(patternCellSize({ width: 320, height: 600 }, 8), 64);
+  assert.equal(patternCellSize({ width: 1600, height: 1000 }, 4), 160);
+});

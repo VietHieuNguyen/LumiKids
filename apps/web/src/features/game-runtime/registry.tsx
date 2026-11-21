@@ -4,6 +4,7 @@ import type { GameRendererProps } from "./components/types";
 import { CountingGame } from "./components/counting-game";
 import { MatchingGame } from "./components/matching-game";
 import { ClassificationGame } from "./components/classification-game";
+import { PatternGame } from "./components/pattern-game";
 
 // A small exhaustive registry; each renderer receives its own narrowed content/state.
 export const gameRegistry = {
@@ -32,6 +33,14 @@ export const gameRegistry = {
       )
         throw new Error("Classification renderer received incompatible state.");
       return <ClassificationGame {...props} content={content} state={state} />;
+    },
+  },
+  PATTERN: {
+    label: "Sắp xếp theo quy tắc",
+    render: ({ content, state, ...props }: GameRendererProps) => {
+      if (content.gameType !== "PATTERN" || state.gameType !== "PATTERN")
+        throw new Error("Pattern renderer received incompatible state.");
+      return <PatternGame {...props} content={content} state={state} />;
     },
   },
 } satisfies Record<
