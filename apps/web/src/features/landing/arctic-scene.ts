@@ -470,9 +470,11 @@ export class ArcticStage implements LandingStage {
     // A finger-sized sphere round each animal (like the valley); the globe body hides the far side.
     const spheres: PickSphere[] = this.friends.map((friend) => {
       const center = friend.object.getWorldPosition(new THREE.Vector3());
-      center.addScaledVector(center.clone().normalize(), friend.height * 0.5);
+      // The orca is long and swims under the water: its sphere sits on its body and covers all of it.
+      const underwater = friend.id === "orca";
+      if (!underwater) center.addScaledVector(center.clone().normalize(), friend.height * 0.5);
       const distance = center.distanceTo(this.camera.position);
-      return { center, radius: Math.max(friend.height * 0.62, distance * 0.022) };
+      return { center, radius: Math.max(friend.height * (underwater ? 1.25 : 0.62), distance * 0.022), underwater };
     });
     const index = pickFriend(this.raycaster.ray, spheres, ARCTIC_GLOBE.radius - 0.05);
     return index === null ? null : this.friends[index];

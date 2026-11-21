@@ -99,24 +99,37 @@ function inView(ahead: number, right: number, up: number): Vec3 {
   return add(add(add(shot.position, scale(look, ahead)), scale(screenRight, right)), scale(screenUp, up));
 }
 
+/** A point `depth` below the surface in the direction of a spot on the globe. */
+const underSea = (spot: Vec3, depth = 0.7): Vec3 => {
+  const k = (ARCTIC_GLOBE.radius - depth) / Math.hypot(...spot);
+  return [spot[0] * k, spot[1] * k, spot[2] * k];
+};
+
 /**
- * Where each group swims in the underwater shot, spread over the picture: the dolphins in the open water above
- * the orca, the goldfish to the left, the tuna low on the right and two manta rays gliding underneath. All but the
+ * The middle of the globe as the page opens (the side the hero camera looks at), nudged a touch up and right
+ * on screen so the dolphins are not hidden behind the orca when the camera dives under the water.
+ */
+function heroMiddle(): Vec3 {
+  const hero = arcticShotAt(0);
+  const side = unit(add(hero.position, scale(hero.target, -1)));
+  const right = unit(cross(hero.up, side));
+  const up = cross(side, right);
+  return add(add(side, scale(right, 0.1)), scale(up, 0.1));
+}
+
+/**
+ * Where each group swims in the underwater shot, spread over the picture: the dolphins right in the
+ * middle of the globe as the page opens (under the water by the orca), the goldfish to the left, the tuna low on the left and two manta rays gliding deep and far beyond the dolphins. All but the
  * goldfish are slow. The goldfish `count` is how many extra copies join the file's fish by the orca; most goldfish
  * swim in the open water instead (ARCTIC_OPEN_WATER).
  */
 export const ARCTIC_SEA = {
   goldfish: { center: inView(2.3, -0.85, 0.3), count: 6, shape: { radius: [0.45, 1.25], depth: 0.9 } },
   tuna: { center: inView(2.6, -1.0, -0.55), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
-  dolphins: { center: inView(3.2, 0.9, 0.55), count: 3, shape: { radius: [0.68, 0.7], depth: 0.2, speed: [0.12, 0.16], bob: 0.09, evenly: true } },
-  mantas: { center: inView(5.0, 0.0, -1.4), count: 2, shape: { radius: [0.8, 0.85], depth: 0.15, speed: [0.08, 0.1], bob: 0.05, evenly: true } },
+  dolphins: { center: underSea(heroMiddle(), 0.8), count: 3, shape: { radius: [0.65, 0.66], depth: 0.2, speed: [0.12, 0.16], bob: 0.09, evenly: true } },
+  mantas: { center: inView(6.5, 0.1, -2.0), count: 2, shape: { radius: [0.8, 0.85], depth: 0.15, speed: [0.08, 0.1], bob: 0.05, evenly: true } },
 } as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;
 
-/** A point `depth` below the surface in the direction of a spot on the globe. */
-const underSea = (spot: Vec3, depth = 0.7): Vec3 => {
-  const k = (ARCTIC_GLOBE.radius - depth) / Math.hypot(...spot);
-  return [spot[0] * k, spot[1] * k, spot[2] * k];
-};
 
 /**
  * Small goldfish schools in the open water round the rest of the globe (found in the blend's clearest water),

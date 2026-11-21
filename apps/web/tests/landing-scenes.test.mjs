@@ -163,7 +163,12 @@ test("arctic picking: generous spheres, nearest wins, the globe hides what is be
   assert.equal(pickFriend(ray, [under], 5), null, "inside the globe is not tappable");
   const side = new THREE.Ray(new THREE.Vector3(9, 0, 20), new THREE.Vector3(0, 0, -1));
   assert.equal(pickFriend(side, [{ center: new THREE.Vector3(9, 0, -3), radius: 0.5 }], 5), 0, "behind but beside the globe stays tappable");
+  // A swimmer under the near surface (the orca) is seen through the water, so it is tappable; one under the far side is not.
+  assert.equal(pickFriend(ray, [{ ...under, underwater: true }], 5), 0, "a swimmer under the near surface is tappable");
+  assert.equal(pickFriend(ray, [{ center: new THREE.Vector3(0, 0, -3.9), radius: 1, underwater: true }], 5), null, "a swimmer under the far side is not");
+  assert.equal(pickFriend(ray, [{ ...under, underwater: true }, front], 5), 1, "an animal on the ice in front still wins");
 });
+
 
 test("arctic underwater view is level: the surface is at the top of the screen and the camera looks across the school", () => {
   const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
@@ -268,10 +273,11 @@ test("arctic sea: goldfish, tuna, dolphins and manta rays spread over the underw
   const look = unitOf(view.target.map((t, i) => t - view.position[i]));
   const toScreen = (point) => unitOf(point.map((c, i) => c - view.position[i]));
   // The dolphins swim in the middle of the picture; the other groups spread round it, not in one corner.
-  // The dolphins swim in the open water above the orca, clear of its body.
-  const screenUp = view.up;
-  assert.ok(dot(toScreen(ARCTIC_SEA.dolphins.center), screenUp) > dot(toScreen(ARCTIC_POINTS.orca), screenUp) + 0.08, "dolphins above the orca");
-  assert.ok(Math.acos(dot(toScreen(ARCTIC_SEA.dolphins.center), toScreen(ARCTIC_POINTS.orca))) * 180 / Math.PI > 12, "dolphins clear of the orca");
+  // The dolphins swim right in the middle of the globe as the page opens (the hero camera's side of the globe).
+  const hero = arcticShotAt(0);
+  const heroSide = unitOf(hero.position.map((c, i) => c - hero.target[i]));
+  assert.ok(dot(unitOf(ARCTIC_SEA.dolphins.center), heroSide) > Math.cos((9 * Math.PI) / 180), "dolphins in the middle of the globe at the top of the page");
+  assert.ok(Math.acos(dot(toScreen(ARCTIC_SEA.dolphins.center), toScreen(ARCTIC_POINTS.orca))) * 180 / Math.PI > 11, "under water the dolphins are not hidden behind the orca");
   // The tuna swim on the left half, clear of the orca in the middle.
   const screenRight = unitOf([look[1] * view.up[2] - look[2] * view.up[1], look[2] * view.up[0] - look[0] * view.up[2], look[0] * view.up[1] - look[1] * view.up[0]]);
   assert.ok(dot(toScreen(ARCTIC_SEA.tuna.center), screenRight) < -0.2, "tuna on the left");

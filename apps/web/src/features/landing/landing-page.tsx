@@ -549,7 +549,7 @@ export function LandingPage() {
         setMissing(config.characterIds.filter((id) => !valley?.hasCharacter(id)));
         if (result.missing.length) console.warn("[LumiKids landing] Thiếu mô hình:", result.missing.join(", "));
         const debug = new URLSearchParams(window.location.search).has("debug");
-        if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
+        if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), friendAt: (x: number, y: number) => valley?.friendAt(x, y), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
       } catch (error) {
         console.error(`[LumiKids landing] Không tải được cảnh 3D: ${config.mainAsset}`, error);
         if (!disposed) fallBack("load-failed");
