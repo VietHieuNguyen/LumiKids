@@ -498,3 +498,35 @@ test("published snapshots/events cannot be mutated by a consuming component", ()
   }, TypeError);
   assert.equal(controller.getState().completed, false);
 });
+
+// ---- PATTERN layout ----
+import { patternCellSize, PATTERN_GAP } from "../src/features/game-runtime/model/pattern-layout.ts";
+import { createTapGuard } from "../src/features/game-runtime/model/tap-guard.ts";
+test("patternCellSize keeps cells + gaps inside the row width", () => {
+  for (const width of [716, 600, 880, 1000]) {
+    for (const cells of [4, 6, 8]) {
+      const size = patternCellSize({ width, height: 1024 }, cells);
+      assert.ok(size * (cells + 1) + PATTERN_GAP * cells <= width, `${width}px, ${cells} cells → ${size}`);
+    }
+  }
+});
+test("tap guard: a drag swallows only its own click, never the next tap", () => {
+  const guard = createTapGuard();
+  guard.down();
+  guard.up(true); // touch drag: browser sends no click afterwards
+  guard.down();
+  guard.up(false);
+  assert.equal(guard.click(1), true);
+  guard.down();
+  guard.up(true);
+  assert.equal(guard.click(1), false);
+  guard.down();
+  guard.up(true);
+  assert.equal(guard.click(0), true, "keyboard activation always fills");
+});
+test("patternCellSize fits 8 cells plus the blank on iPad portrait and landscape", () => {
+  assert.equal(patternCellSize({ width: 768, height: 1024 }, 8), 80);
+  assert.equal(patternCellSize({ width: 1024, height: 768 }, 8), 108);
+  assert.equal(patternCellSize({ width: 320, height: 600 }, 8), 48);
+  assert.equal(patternCellSize({ width: 1600, height: 1000 }, 4), 160);
+});

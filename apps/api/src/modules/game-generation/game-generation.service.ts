@@ -1,6 +1,6 @@
 import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { appendFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import {
@@ -15,9 +15,13 @@ import type {
 } from '@lumikids/ai-client';
 import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import {
+  buildPatternContent,
   getGameContentAssetIds,
   getGameContentAssetIssues,
+  patternContentSchema,
+  patternLetterCount,
 } from '@lumikids/shared';
+import type { PatternRule } from '@lumikids/shared';
 import aiConfig from '../../common/config/ai.config.js';
 import { ApiProblem } from '../../common/http/api-problem.js';
 import { buildAbility } from '../../common/security/ability.js';
@@ -31,6 +35,7 @@ import {
 } from './asset-selection.js';
 import { validateGeneratedContent } from './game-validation.js';
 import { normalizeHabitatAnswers } from './habitat-validation.js';
+import { pickPatternAssets } from './pattern-composition.js';
 
 @Injectable()
 export class GameGenerationService {
@@ -58,6 +63,9 @@ export class GameGenerationService {
     let validationErrors: string[] = [];
     let validationStage: 'NEST' | 'AI_GATEWAY' | undefined;
     try {
+      // PATTERN is composed deterministically from whitelisted pictures: no model call, no tokens.
+      if (input.gameType === 'PATTERN')
+        return await this.composePattern(user, input, requestId);
       if (!this.config.url || !this.config.token)
         throw new ApiProblem('AI_NOT_CONFIGURED');
       checkRequestedLimits(input.gameType, input.prompt);
@@ -190,6 +198,61 @@ export class GameGenerationService {
         }
       }
     }
+  }
+
+  private async composePattern(
+    user: Principal,
+    input: GenerateGameInput,
+    requestId: string,
+  ) {
+    const rules: PatternRule[] = input.pattern?.rules ?? ['AB'];
+    const sequenceCount = input.pattern?.sequenceCount ?? 5;
+    const needed = Math.max(...rules.map(patternLetterCount));
+    const wanted = rules.some((rule) => rule !== 'AB') ? 3 : 2;
+    const active = (
+      await this.assets.generationCandidates(user, searchTerms(input.prompt))
+    )
+      .filter((row) => row.status === 'ACTIVE')
+      .map(toCandidate);
+    const picked = pickPatternAssets(input.prompt, active, needed, wanted);
+    // Seeded by the request itself so the same request previews the same sequences.
+    const seed = createHash('sha256')
+      .update(
+        [input.prompt, rules.join(','), String(sequenceCount)]
+          .concat(picked.map((asset) => asset.id))
+          .join('|'),
+      )
+      .digest('hex');
+    const content = patternContentSchema.parse(
+      buildPatternContent({
+        items: picked.map((asset, index) => ({
+          id: `item-${index + 1}`,
+          assetId: asset.id,
+          label: asset.name.slice(0, 120),
+        })),
+        rules,
+        sequenceCount,
+        seed,
+      }),
+    );
+    const current = await this.assets.generationAssets(
+      user,
+      picked.map((asset) => asset.id),
+    );
+    if (getGameContentAssetIssues(content, current).length)
+      throw new ApiProblem('ASSETS_CHANGED');
+    return {
+      gameType: input.gameType,
+      gameContent: content,
+      generation: {
+        requestId,
+        model: 'deterministic',
+        attempts: 0,
+        reviewRequired: true,
+        warnings: [] as string[],
+        validatedAt: new Date().toISOString(),
+      },
+    };
   }
 
   private async generateTracked(

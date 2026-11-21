@@ -52,7 +52,7 @@ services/ai/.venv/Scripts/python.exe -B -m pytest services/ai -p no:cacheprovide
 - Web → Nest → FastAPI → Gemini; Web không gọi FastAPI/Gemini trực tiếp. Python không sở hữu DB nghiệp vụ.
 
 ## Business invariants
-- GameContent canonical ở shared; COUNTING/CLASSIFICATION hỗ trợ v1/v2, MATCHING v1. Không tạo contract song song.
+- GameContent canonical ở shared; COUNTING/CLASSIFICATION hỗ trợ v1/v2, MATCHING v1, PATTERN v1 (Chỉ số 46, sinh xác định không gọi model; event `FILL_PATTERN`). Không tạo contract song song.
 - Asset ID UUID khác local item/group/choice ID; một ảnh được dùng nhiều instance.
 - COUNTING trả đáp án số; v2 đếm đúng tập countedItemIds theo ALL/COLOR/OBJECT_TYPE, giữ hình gây nhiễu.
 - MATCHING one-to-one đầy đủ; bóng dùng matchKey, trưởng thành/con non dùng familyKey + animalType + lifeStage.

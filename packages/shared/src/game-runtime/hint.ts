@@ -1,6 +1,7 @@
 import { getClassificationCorrectGroupIds } from "../game-content/classification.schema.js";
 import type { GameContent } from "../game-content/game-content.schema.js";
 import type { GameState } from "./types.js";
+import { patternHintCellIds } from "./pattern.js";
 
 /**
  * What a hint points at. COUNTING: the task is the question (named by its correct choice);
@@ -24,6 +25,8 @@ function solvedTaskIds(content: GameContent, state: GameState): Set<string> {
       return new Set(state.gameType === "MATCHING" ? state.matches.map((pair) => pair.sourceId) : []);
     case "CLASSIFICATION":
       return new Set(state.gameType === "CLASSIFICATION" ? state.placements.map((placed) => placed.itemId) : []);
+    case "PATTERN":
+      return new Set(state.gameType === "PATTERN" ? state.solvedSequenceIds : []);
   }
 }
 
@@ -36,6 +39,8 @@ export function getHintTargets(content: GameContent): HintTarget[] {
       return content.pairs.map((pair) => ({ taskId: pair.sourceId, targetIds: [pair.targetId] }));
     case "CLASSIFICATION":
       return content.items.map((item) => ({ taskId: item.id, targetIds: getClassificationCorrectGroupIds(item) }));
+    case "PATTERN":
+      return content.sequences.map((sequence) => ({ taskId: sequence.id, targetIds: patternHintCellIds(sequence) }));
   }
 }
 

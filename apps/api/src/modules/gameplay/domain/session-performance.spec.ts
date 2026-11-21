@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   applyGameAction,
+  buildPatternContent,
   createInitialState,
   gameContentSchema,
 } from '@lumikids/shared';
@@ -9,6 +10,7 @@ import type {
   GameAction,
   GameContent,
   GameInteraction,
+  PatternSequence,
 } from '@lumikids/shared';
 import {
   CRITERION_SCORE_RULE_VERSION,
@@ -341,5 +343,51 @@ describe('hints (ce-score-v2)', () => {
     expect(() =>
       criterionScore(perf({ firstAttemptCorrectCount: 5, hintCorrectCount: 2 })),
     ).toThrow(CriterionPerformanceInvalidError);
+  });
+});
+
+describe('PATTERN scoring', () => {
+  const pattern = buildPatternContent({
+    items: ['a', 'b', 'c'].map((id) => ({ id, assetId: asset() })),
+    rules: ['AB', 'ABC'],
+    sequenceCount: 5,
+    seed: 'scoring',
+  });
+  const [s1, s2, s3, s4, s5] = pattern.sequences;
+  const fill = (sequence: PatternSequence, correct = true): GameAction => ({
+    actionType: 'FILL_PATTERN',
+    sourceId: sequence.id,
+    targetId: correct
+      ? sequence.correctItemId
+      : sequence.choiceIds.find((id) => id !== sequence.correctItemId)!,
+  });
+
+  it('scores each sequence once as F, R or H', () => {
+    const events = play(pattern, [
+      fill(s1),
+      fill(s2, false),
+      fill(s2),
+      { actionType: 'REQUEST_HINT', sourceId: s3.id },
+      fill(s3),
+      fill(s4),
+      fill(s5),
+    ]);
+    const result = computeSessionPerformance({
+      content: pattern,
+      events,
+      criterionCode: '46',
+      startedAt,
+      endedAt,
+    });
+    expect(result.totalItemCount).toBe(5);
+    expect(result.criterionPerformance).toMatchObject({
+      totalScoredItems: 5,
+      finalizedScoredItems: 5,
+      firstAttemptCorrectCount: 3,
+      retryCorrectCount: 1,
+      hintCorrectCount: 1,
+    });
+    // (3 + 0.5 + 0.25) / 5 × 100
+    expect(criterionScore(result.criterionPerformance!)).toBeCloseTo(75, 6);
   });
 });

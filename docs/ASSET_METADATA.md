@@ -71,3 +71,13 @@ Tạo trò chơi đếm 5 con sư tử, chọn đáp án từ 4, 5 và 6. Dùng 
 ```
 
 Khởi động lại API và AI Service để nạp logic/prompt mới. Build shared khi dùng package dist. Kiểm tra kiểu dữ liệu/lint có thể chạy offline; không gọi Gemini nếu chưa được người dùng cho phép. Không thay auth, quyền Library, preview proof, database hoặc nội dung GameContent contract.
+
+## Bộ LUMI_PASTEL_01 (con vật 3D pastel)
+
+Nguồn: `infra/asset-packs/lumi-pastel-01/` (`lumi-pastel-01.blend`, `webp/`, `manifest.json`). 8 con vật cùng phong cách gấu linh vật: thỏ, gà con, heo, mèo, ếch, cá, gấu, voi; `assetSet: LUMI_PASTEL_01`, `visualStyle: CARTOON_2D` (chưa có giá trị CARTOON_3D trong `ASSET_VISUAL_STYLES`), aliases tiếng Việt. Tải vào MinIO/DB qua API quản trị (không ghi DB trực tiếp):
+
+```bash
+node infra/asset-packs/upload-pack.mjs infra/asset-packs/lumi-pastel-01
+```
+
+Script hỏi tài khoản có `MANAGE_GAME_ASSETS` (mật khẩu ẩn, không lưu/in), bỏ qua ảnh đã có cùng tên + assetSet nên chạy lại an toàn.

@@ -30,6 +30,12 @@ export const classificationInteractionSchema = z.strictObject({
   actionType: z.literal("CLASSIFY_DROP"),
   targetId: gameElementIdSchema,
 });
+/** PATTERN: sourceId names the sequence (the task), targetId the picture put in the blank. */
+export const patternInteractionSchema = z.strictObject({
+  ...eventShape,
+  actionType: z.literal("FILL_PATTERN"),
+  targetId: gameElementIdSchema,
+});
 /**
  * The child asked for a hint on one task. sourceId names the task: the correct choice of a COUNTING
  * question, the source of a MATCHING pair, the item of a CLASSIFICATION game. It is not an answer, so it
@@ -43,6 +49,7 @@ export const gameInteractionSchema = z.discriminatedUnion("actionType", [
   countingInteractionSchema,
   matchingInteractionSchema,
   classificationInteractionSchema,
+  patternInteractionSchema,
   hintInteractionSchema,
 ]);
 export type CountingInteraction = z.infer<typeof countingInteractionSchema>;
@@ -50,6 +57,7 @@ export type MatchingInteraction = z.infer<typeof matchingInteractionSchema>;
 export type ClassificationInteraction = z.infer<
   typeof classificationInteractionSchema
 >;
+export type PatternInteraction = z.infer<typeof patternInteractionSchema>;
 export type HintInteraction = z.infer<typeof hintInteractionSchema>;
 export type GameInteraction = z.infer<typeof gameInteractionSchema>;
 /** An event that is an answer (has a result), as opposed to a hint request. */

@@ -285,6 +285,7 @@ function Usage({ api, admin }: { api: ClassroomApi; admin: boolean }) {
                               COUNTING: "Đếm số",
                               MATCHING: "Ghép cặp",
                               CLASSIFICATION: "Phân loại",
+                              PATTERN: "Sắp xếp theo quy tắc",
                             } as Record<string, string>
                           )[i.gameType] ?? i.gameType}
                           <p className="text-xs text-ink-soft">

@@ -7,6 +7,8 @@ const tracks: Record<GameContent["gameType"], string> = {
   CLASSIFICATION: "/audio/game/classification.mp3",
   MATCHING: "/audio/game/matching.mp3",
   COUNTING: "/audio/game/counting.mp3",
+  // No dedicated track yet: the calm matching loop suits sequence play.
+  PATTERN: "/audio/game/matching.mp3",
 };
 
 /** Child play only: quiet looping music, unlocked by an interaction when autoplay is blocked. */

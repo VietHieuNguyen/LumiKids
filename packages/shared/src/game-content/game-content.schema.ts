@@ -15,12 +15,17 @@ import {
   classificationContentV2Schema,
   classificationContentV2StructureSchema,
 } from "./classification.schema.js";
+import {
+  patternContentSchema,
+  patternContentStructureSchema,
+} from "./pattern.schema.js";
 
 /** Structure only: useful for distinguishing malformed JSON from inconsistent answers. */
 const gameContentV1StructureSchema = z.discriminatedUnion("gameType", [
   countingContentStructureSchema,
   matchingContentStructureSchema,
   classificationContentStructureSchema,
+  patternContentStructureSchema,
 ]);
 
 /** Use this at trust boundaries: validates structure AND task/answer consistency. */
@@ -28,6 +33,7 @@ export const gameContentV1Schema = z.discriminatedUnion("gameType", [
   countingContentSchema,
   matchingContentSchema,
   classificationContentSchema,
+  patternContentSchema,
 ]);
 
 export const gameContentStructureSchema = z.union([

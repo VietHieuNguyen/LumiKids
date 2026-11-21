@@ -7,6 +7,7 @@ import type { GameContent } from "../game-content/game-content.schema.js";
 import { evaluateCounting } from "./counting.js";
 import { evaluateMatching } from "./matching.js";
 import { evaluateClassification } from "./classification.js";
+import { evaluatePattern } from "./pattern.js";
 import { canRequestHint } from "./hint.js";
 import type {
   ActionEvaluation,
@@ -26,6 +27,8 @@ export function createInitialState(content: GameContent): GameState {
       return { ...base, gameType: "MATCHING", matches: [] };
     case "CLASSIFICATION":
       return { ...base, gameType: "CLASSIFICATION", placements: [] };
+    case "PATTERN":
+      return { ...base, gameType: "PATTERN", solvedSequenceIds: [] };
   }
 }
 
@@ -73,6 +76,11 @@ export function getGameProgress(
               ).length
             : 0,
       };
+    case "PATTERN":
+      return {
+        total: content.sequences.length,
+        correct: state.gameType === "PATTERN" ? state.solvedSequenceIds.length : 0,
+      };
   }
 }
 
@@ -86,6 +94,7 @@ export function checkCompletion(
     case "CORRECT_CHOICE":
     case "ALL_PAIRS_CORRECT":
     case "ALL_ITEMS_CLASSIFIED_CORRECTLY":
+    case "ALL_SEQUENCES_COMPLETED":
       return progress.correct === progress.total;
   }
 }
@@ -133,6 +142,10 @@ export function applyGameAction(
     case "CLASSIFICATION":
       if (state.gameType === "CLASSIFICATION")
         evaluation = evaluateClassification(content, state, action);
+      break;
+    case "PATTERN":
+      if (state.gameType === "PATTERN")
+        evaluation = evaluatePattern(content, state, action);
       break;
   }
   if (!evaluation) return ignored;

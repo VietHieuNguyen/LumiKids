@@ -204,6 +204,8 @@ function GameRun({
     hint:
       content.gameType === "COUNTING"
         ? "Gợi ý: con đếm lần lượt những hình đang sáng nhé!"
+        : content.gameType === "PATTERN"
+          ? "Gợi ý: những hình đang sáng lặp lại thành nhịp. Con đọc theo nhịp rồi tìm hình tiếp theo nhé!"
         : "Gợi ý: con nhìn hình đang sáng và nơi đang sáng nhé!",
     complete: "✓ Giỏi lắm! Con đã hoàn thành trò chơi.",
     correct: "✓ Đúng rồi! Con tiếp tục nhé.",

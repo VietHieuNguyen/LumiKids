@@ -4,6 +4,7 @@ import type {
   CountingInteraction,
   MatchingInteraction,
   ClassificationInteraction,
+  PatternInteraction,
   GameInteraction,
   HintInteraction,
 } from "../game-content/interaction.schema.js";
@@ -12,6 +13,7 @@ export type GameAction =
   | Pick<CountingInteraction, "actionType" | "sourceId">
   | Pick<MatchingInteraction, "actionType" | "sourceId" | "targetId">
   | Pick<ClassificationInteraction, "actionType" | "sourceId" | "targetId">
+  | Pick<PatternInteraction, "actionType" | "sourceId" | "targetId">
   | Pick<HintInteraction, "actionType" | "sourceId">;
 
 interface BaseState {
@@ -34,7 +36,11 @@ export interface ClassificationState extends BaseState {
   gameType: "CLASSIFICATION";
   placements: readonly { itemId: string; groupId: string }[];
 }
-export type GameState = CountingState | MatchingState | ClassificationState;
+export interface PatternState extends BaseState {
+  gameType: "PATTERN";
+  solvedSequenceIds: readonly string[];
+}
+export type GameState = CountingState | MatchingState | ClassificationState | PatternState;
 export interface GameProgress {
   correct: number;
   total: number;

@@ -31,6 +31,8 @@ export function getGameContentAssetIds(content: GameContent): string[] {
           ),
         ]),
       ];
+    case "PATTERN":
+      return [...new Set(content.items.map((item) => item.assetId))];
   }
 }
 
