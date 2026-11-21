@@ -100,7 +100,7 @@ function inView(ahead: number, right: number, up: number): Vec3 {
  */
 export const ARCTIC_SEA = {
   goldfish: { center: inView(2.3, -0.85, 0.3), count: 0, shape: { radius: [0.45, 1.25], depth: 0.9 } },
-  tuna: { center: inView(2.9, 1.0, -0.5), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
+  tuna: { center: inView(2.6, -1.0, -0.55), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
   dolphins: { center: inView(2.6, 0, 0.1), count: 3, shape: { radius: [0.45, 0.75], depth: 0.25, speed: [0.12, 0.2], bob: 0.09 } },
-  mantas: { center: inView(3.6, -0.55, -1.0), count: 2, shape: { radius: [0.7, 1.1], depth: 0.2, speed: [0.08, 0.12], bob: 0.05 } },
+  mantas: { center: inView(3.6, 0.9, -0.95), count: 2, shape: { radius: [0.7, 1.1], depth: 0.2, speed: [0.08, 0.12], bob: 0.05 } },
 } as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;

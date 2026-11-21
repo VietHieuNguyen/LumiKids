@@ -242,6 +242,10 @@ test("arctic sea: goldfish, tuna, dolphins and manta rays spread over the underw
   const toScreen = (point) => unitOf(point.map((c, i) => c - view.position[i]));
   // The dolphins swim in the middle of the picture; the other groups spread round it, not in one corner.
   assert.ok(dot(toScreen(ARCTIC_SEA.dolphins.center), look) > Math.cos((5 * Math.PI) / 180), "dolphins in the middle");
+  // The tuna swim on the left half, clear of the orca in the middle.
+  const screenRight = unitOf([look[1] * view.up[2] - look[2] * view.up[1], look[2] * view.up[0] - look[0] * view.up[2], look[0] * view.up[1] - look[1] * view.up[0]]);
+  assert.ok(dot(toScreen(ARCTIC_SEA.tuna.center), screenRight) < -0.2, "tuna on the left");
+  assert.ok(Math.acos(dot(toScreen(ARCTIC_SEA.tuna.center), toScreen(ARCTIC_POINTS.orca))) * 180 / Math.PI > 15, "tuna clear of the orca");
   const kinds = ["goldfish", "tuna", "dolphins", "mantas"];
   for (let i = 0; i < kinds.length; i += 1) {
     for (let j = i + 1; j < kinds.length; j += 1) {
