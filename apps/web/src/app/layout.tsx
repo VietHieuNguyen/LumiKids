@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "@/features/game-runtime/components/correct-answer-mascot.css";
+import "@/features/game-runtime/components/game-completion.css";
 import "@/features/game-runtime/environment/forest-gameplay.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { SiteSettingsProvider } from "@/components/site-settings-provider";

@@ -1,6 +1,8 @@
-.correct-mascot { --mascot-peek: -4%; position: fixed; z-index: 80; top: 50%; right: 0; width: clamp(240px, 25vw, 380px); height: min(56dvh, 440px); transform: translateY(-50%); pointer-events: none; user-select: none; }
-.correct-mascot[data-side="left"] { right: auto; left: 0; transform: translateY(-50%) scaleX(-1); }
-.correct-mascot[data-side="left"] .correct-mascot-bear { transform: scaleX(-1); }
+/* Keep the artwork's outer bush tucked beyond the edge while the bear peeks in. */
+.correct-mascot { --mascot-peek: 18%; --mascot-offscreen: 110%; --mascot-bounce: -7px; position: fixed; z-index: 80; top: 50%; right: 0; width: clamp(240px, 25vw, 380px); height: min(56dvh, 440px); transform: translateY(-50%); pointer-events: none; user-select: none; }
+/* The incorrect artwork already faces inward from the left. Move it without mirroring it. */
+.correct-mascot[data-side="left"] { --mascot-peek: -12%; --mascot-offscreen: -110%; --mascot-bounce: 7px; right: auto; left: 0; max-width: 51dvh; }
+.correct-mascot[data-side="left"] .correct-mascot-bear { object-position: left center; }
 .correct-mascot * { pointer-events: none; }
 .correct-mascot-slide { position: relative; width: 100%; height: 100%; animation: correct-mascot-slide 1900ms both; }
 .correct-mascot-bear { display: block; width: 100%; height: 100%; object-fit: contain; transform-origin: 65% 75%; animation: correct-mascot-happy 1000ms 400ms ease-in-out both; }
@@ -12,11 +14,11 @@
 .correct-mascot-confetti i:nth-child(4n + 3) { background: #bfe6d4; }
 .correct-mascot-confetti i:nth-child(4n) { background: #d7c8ee; }
 @keyframes correct-mascot-slide {
-  0% { transform: translateX(110%); animation-timing-function: ease-out; }
-  17% { transform: translateX(calc(var(--mascot-peek, 18%) - 7px)); animation-timing-function: ease-in-out; }
+  0% { transform: translateX(var(--mascot-offscreen)); animation-timing-function: ease-out; }
+  17% { transform: translateX(calc(var(--mascot-peek, 18%) + var(--mascot-bounce))); animation-timing-function: ease-in-out; }
   21% { transform: translateX(var(--mascot-peek, 18%)); }
   81.58% { transform: translateX(var(--mascot-peek, 18%)); animation-timing-function: ease-in; }
-  100% { transform: translateX(110%); }
+  100% { transform: translateX(var(--mascot-offscreen)); }
 }
 @keyframes correct-mascot-happy { 0%, 100% { rotate: 0deg; } 25% { rotate: -3deg; } 60% { rotate: 2deg; } }
 @keyframes correct-mascot-confetti {
@@ -24,7 +26,7 @@
   15%, 55% { opacity: 1; }
   100% { opacity: 0; transform: translate(calc(var(--x) + var(--drift)), calc(var(--y) + 60px)) rotate(var(--turn)); }
 }
-@media (max-width: 600px) { .correct-mascot { width: clamp(160px, 43vw, 220px); height: min(42dvh, 280px); } .correct-mascot-confetti i { width: 7px; height: 10px; } }
+@media (max-width: 600px) { .correct-mascot { width: clamp(160px, 43vw, 220px); height: min(42dvh, 280px); } .correct-mascot[data-side="left"] { max-width: 38dvh; } .correct-mascot-confetti i { width: 7px; height: 10px; } }
 @media (prefers-reduced-motion: reduce) {
   .correct-mascot-slide { transform: translateX(var(--mascot-peek, 18%)); animation: correct-mascot-fade 1900ms both; }
   .correct-mascot-bear { animation: none; }

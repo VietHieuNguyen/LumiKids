@@ -32,6 +32,7 @@ import { GameSymbol } from "./components/game-symbol";
 import { GameBackdrop } from "./environment/game-backdrop";
 import { GameMusic } from "./components/game-music";
 import { CorrectAnswerMascot } from "./components/correct-answer-mascot";
+import { GameCompletion } from "./components/game-completion";
 
 export interface GameRuntimeProps extends RuntimeCallbacks {
   content: GameContent;
@@ -43,6 +44,7 @@ export interface GameRuntimeProps extends RuntimeCallbacks {
   defaultExpanded?: boolean;
   onAssetError?: AssetErrorHandler;
   onReset?: () => void;
+  completionHref?: string;
 }
 
 function useGameFullscreen(defaultExpanded: boolean) {
@@ -93,6 +95,7 @@ function GameRun({
   onComplete,
   onReset,
   onAssetError,
+  completionHref = "/child/games",
 }: GameRuntimeProps) {
   const {
     target: fullscreenTarget,
@@ -218,7 +221,8 @@ function GameRun({
       }
       className={`game-picture-only overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${fullscreenActive ? "is-expanded" : ""} ${content.gameType === "CLASSIFICATION" ? "game-runtime-classification" : `game-runtime-playful game-runtime-${content.gameType.toLowerCase()}`}`}
     >
-      {mascotEvent && <CorrectAnswerMascot key={mascotEvent.id} result={mascotEvent.result} onDone={dismissMascot} />}
+      {mode === "PLAY" && state.completed && <GameCompletion continueHref={completionHref} />}
+      {mascotEvent && !state.completed && <CorrectAnswerMascot key={mascotEvent.id} result={mascotEvent.result} onDone={dismissMascot} />}
       <header className="border-b border-slate-100 px-5 py-6 sm:px-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -237,7 +241,7 @@ function GameRun({
             </svg>
             <span>{nextHint ? "Gợi ý" : "Hết gợi ý"}</span>
           </button>
-          {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused || state.completed} target={fullscreenTarget} />}
+          {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused} target={fullscreenTarget} />}
           <button
             type="button"
             className="asset-button-secondary"

@@ -193,7 +193,83 @@ describe('recipientProgress', () => {
 });
 
 describe('AssignmentsService — teacher', () => {
-  it('R-01: rejects a recipient outside the game age group, by months on the opening day', async () => {
+  it.each([
+    [3, 4, '2023-11-12', true],
+    [3, 4, '2022-11-12', true],
+    [3, 4, '2021-11-12', true],
+    [4, 5, '2023-11-12', false],
+    [4, 5, '2022-11-12', true],
+    [4, 5, '2021-11-12', true],
+    [5, 6, '2023-11-12', false],
+    [5, 6, '2022-11-12', false],
+    [5, 6, '2021-11-12', true],
+    [4, 5, '2022-11-13', false],
+  ])(
+    'game %i–%i with birthday %s: eligible=%s',
+    async (minAge, maxAge, dob, eligible) => {
+      const { service, repository, classId, an, v1, dobs } = setup();
+      dobs.set(an, new Date(`${dob}T00:00:00.000Z`));
+      repository.playableVersions.mockResolvedValueOnce([
+        {
+          ...version(v1),
+          activity: {
+            ...version(v1).activity,
+            ageGroup: { name: 'Age group', minAge, maxAge },
+          },
+        },
+      ]);
+      const result = service.create(teacher, classId, {
+        title: 'A',
+        note: '',
+        dueAt: null,
+        versionIds: [v1],
+        target: { type: 'CHILDREN', childIds: [an] },
+      });
+      if (eligible) {
+        await expect(result).resolves.toBeDefined();
+        expect(repository.create).toHaveBeenCalledOnce();
+      } else {
+        await expect(result).rejects.toMatchObject(
+          problem('ASSIGNMENT_AGE_MISMATCH'),
+        );
+        expect(repository.create).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it('checks every recipient against every game, including future openings in Vietnam', async () => {
+    const { service, repository, an, binh, v1, v2, dobs } = setup();
+    dobs.set(an, new Date('2021-11-21T00:00:00.000Z'));
+    dobs.set(binh, new Date('2022-11-21T00:00:00.000Z'));
+    repository.playableVersions.mockImplementation(async (ids: string[]) =>
+      ids.map((id) => ({
+        ...version(id),
+        activity: {
+          ...version(id).activity,
+          ageGroup: {
+            name: 'Age group',
+            minAge: id === v1 ? 4 : 5,
+            maxAge: id === v1 ? 5 : 6,
+          },
+        },
+      })),
+    );
+    const opensAt = new Date('2026-11-20T17:00:00.000Z'); // November 21 in Vietnam.
+    await expect(
+      service.requireAgeFit([v1], [an, binh], opensAt),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.requireAgeFit([v1, v2], [an, binh], opensAt),
+    ).rejects.toMatchObject(problem('ASSIGNMENT_AGE_MISMATCH'));
+    await expect(
+      service.requireAgeFit([v1, v2], [an], opensAt),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.requireAgeFit([v1], [binh], new Date('2026-11-20T16:59:00.000Z')),
+    ).rejects.toMatchObject(problem('ASSIGNMENT_AGE_MISMATCH'));
+  });
+
+  it('rejects a recipient below the minimum playing age, by months on the opening day', async () => {
     const { service, repository, classId, an, v1, dobs } = setup();
     // 59 months on 2026-11-12: still "Chồi", one month short of "Lá".
     dobs.set(an, new Date('2021-12-01T00:00:00.000Z'));
@@ -204,18 +280,24 @@ describe('AssignmentsService — teacher', () => {
       versionIds: [v1],
       target: { type: 'CHILDREN' as const, childIds: [an] },
     };
-    await expect(service.create(teacher, classId, input)).rejects.toMatchObject({
-      publicCode: 'ASSIGNMENT_AGE_MISMATCH',
-    });
+    await expect(service.create(teacher, classId, input)).rejects.toMatchObject(
+      {
+        publicCode: 'ASSIGNMENT_AGE_MISMATCH',
+      },
+    );
     // The birthday on the opening day counts: born 2021-11-12 → exactly 60 months.
     dobs.set(an, new Date('2021-11-12T00:00:00.000Z'));
-    await expect(service.create(teacher, classId, input)).resolves.toBeDefined();
+    await expect(
+      service.create(teacher, classId, input),
+    ).resolves.toBeDefined();
     repository.playableVersions.mockResolvedValueOnce([
       { ...version(v1), activity: { ...version(v1).activity, ageGroup: null } },
     ] as never);
-    await expect(service.create(teacher, classId, input)).rejects.toMatchObject({
-      publicCode: 'GAME_AGE_GROUP_MISSING',
-    });
+    await expect(service.create(teacher, classId, input)).rejects.toMatchObject(
+      {
+        publicCode: 'GAME_AGE_GROUP_MISSING',
+      },
+    );
   });
 
   it('snapshots recipients for the whole class, a group or picked children', async () => {

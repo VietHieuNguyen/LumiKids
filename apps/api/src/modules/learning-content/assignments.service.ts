@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  ageGroupAccepts,
   ageInMonths,
   assignmentState,
   canStart,
@@ -62,8 +61,9 @@ export class AssignmentsService {
   ) {}
 
   /**
-   * R-01: every game must have an age group, and every recipient's age in months on the opening day
-   * (Vietnam date) must fall in it. Games must still be ACTIVE in the library.
+   * Every game must have an age group. Its lower bound is the minimum playing age;
+   * older children may also play. Compare whole months on the opening day in Vietnam.
+   * Games must still be ACTIVE in the library.
    */
   async requireAgeFit(
     versionIds: readonly string[],
@@ -80,7 +80,7 @@ export class AssignmentsService {
     const children = await this.repository.childDobs(childIds);
     for (const child of children) {
       const months = ageInMonths(child.dob.toISOString().slice(0, 10), day);
-      if (groups.some((group) => group && !ageGroupAccepts(group, months)))
+      if (groups.some((group) => group && months < group.minAge * 12))
         throw new ApiProblem('ASSIGNMENT_AGE_MISMATCH');
     }
   }
