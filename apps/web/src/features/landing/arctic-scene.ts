@@ -68,7 +68,6 @@ export class ArcticStage implements LandingStage {
   /** Tuna and dolphins (built in code), each following its own slow swim path in globe-local space. */
   private readonly seaLife: { body: THREE.Group; mixer: THREE.AnimationMixer | null; swim: Swimmer; kind: "tuna" | "dolphins" | "mantas"; phase: number }[] = [];
   /** The orca's swim wrapper (so its greeting hop, which owns the orca's own transform, is untouched). */
-  private seaRoot: THREE.Object3D | null = null;
   private orcaSwim: { group: THREE.Group; base: THREE.Vector3; forward: THREE.Vector3; up: THREE.Vector3; reach: number } | null = null;
   private readonly yawQuat = new THREE.Quaternion();
   private bubbles: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial> | null = null;
@@ -330,31 +329,7 @@ export class ArcticStage implements LandingStage {
         this.seaLife.push({ body, mixer, swim, kind, phase: index * 1.3 });
       });
     }
-    this.seaRoot = root;
-    this.placeDolphins();
     this.updateSeaLife(0, 0);
-  }
-
-  /**
-   * Put the dolphins in the middle of the picture for this screen. The underwater shot is framed off-centre on
-   * wide screens (room for the copy) and centred on tall ones, so the spot is found from the real camera:
-   * a point a little above the screen centre, 2.6 in front of the lens at the underwater hold.
-   */
-  private placeDolphins(): void {
-    const root = this.seaRoot;
-    const dolphins = this.seaLife.filter((swimmer) => swimmer.kind === "dolphins");
-    if (!root || dolphins.length === 0) return;
-    const spin = this.spinAngle;
-    this.spinAngle = 0;
-    this.poseCamera((ARCTIC_HOLDS.summitHold[0] + ARCTIC_HOLDS.summitHold[1]) / 2, 0, 0);
-    this.spinAngle = spin;
-    this.camera.updateMatrixWorld();
-    this.camera.updateProjectionMatrix();
-    this.globe.updateMatrixWorld(true);
-    const spot = new THREE.Vector3(0, 0.08, 0.5).unproject(this.camera).sub(this.camera.position).setLength(2.6).add(this.camera.position);
-    root.worldToLocal(spot);
-    const school = makeSchool([spot.x, spot.y, spot.z], dolphins.length, 5, ARCTIC_SEA.dolphins.shape);
-    dolphins.forEach((dolphin, index) => { dolphin.swim = school[index]; });
   }
 
   private updateSeaLife(timeSeconds: number, dt: number): void {
@@ -531,7 +506,6 @@ export class ArcticStage implements LandingStage {
     this.desktop = desktop;
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(this.width, this.height, false);
-    this.placeDolphins();
   }
 
   private poseCamera(p: number, parallaxX: number, parallaxY: number): void {

@@ -17,8 +17,11 @@ export type Swimmer = {
   bob: number;
 };
 
-/** The shape of a school: ring radius, thickness, and (optionally) its speed range in rad/s and bob height. */
-export type SchoolShape = { radius: readonly [number, number]; depth: number; speed?: readonly [number, number]; bob?: number };
+/**
+ * The shape of a school: ring radius, thickness, and (optionally) its speed range in rad/s and bob height.
+ * `evenly` spaces the swimmers round the ring at one radius and one speed, so big animals never catch each other up.
+ */
+export type SchoolShape = { radius: readonly [number, number]; depth: number; speed?: readonly [number, number]; bob?: number; evenly?: boolean };
 
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scale = (a: Vec3, k: number): Vec3 => [a[0] * k, a[1] * k, a[2] * k];
@@ -45,15 +48,18 @@ export function makeSchool(center: Vec3, count: number, seed: number, shape: Sch
   const other = cross(axis, side);
   const next = random(seed);
   const turn = next() < 0.5 ? -1 : 1;
-  return Array.from({ length: count }, () => {
-    const angle = next() * Math.PI * 2;
-    const radius = shape.radius[0] + next() * (shape.radius[1] - shape.radius[0]);
+  const start = next() * Math.PI * 2;
+  const shared = slow + next() * (fast - slow);
+  const middle = (shape.radius[0] + shape.radius[1]) / 2;
+  return Array.from({ length: count }, (_, index) => {
+    const angle = shape.evenly ? start + (index * Math.PI * 2) / count : next() * Math.PI * 2;
+    const radius = shape.evenly ? middle : shape.radius[0] + next() * (shape.radius[1] - shape.radius[0]);
     return {
       center,
       axis,
       offset: add(scale(side, Math.cos(angle) * radius), scale(other, Math.sin(angle) * radius)),
       lift: (next() - 0.5) * shape.depth,
-      speed: turn * (slow + next() * (fast - slow)),
+      speed: turn * (shape.evenly ? shared : slow + next() * (fast - slow)),
       bobPhase: next() * Math.PI * 2,
       bob: shape.bob ?? 0.025,
     };
@@ -94,15 +100,15 @@ function inView(ahead: number, right: number, up: number): Vec3 {
 }
 
 /**
- * Where each group swims in the underwater shot, spread over the picture: the dolphins in the middle, the
- * goldfish to the left, the tuna low on the right and two manta rays gliding underneath. All but the
+ * Where each group swims in the underwater shot, spread over the picture: the dolphins in the open water above
+ * the orca, the goldfish to the left, the tuna low on the right and two manta rays gliding underneath. All but the
  * goldfish are slow.
  */
 export const ARCTIC_SEA = {
   goldfish: { center: inView(2.3, -0.85, 0.3), count: 0, shape: { radius: [0.45, 1.25], depth: 0.9 } },
   tuna: { center: inView(2.6, -1.0, -0.55), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
-  dolphins: { center: inView(2.6, 0, 0.1), count: 3, shape: { radius: [0.45, 0.75], depth: 0.25, speed: [0.12, 0.2], bob: 0.09 } },
-  mantas: { center: inView(3.6, 0.9, -0.95), count: 2, shape: { radius: [0.7, 1.1], depth: 0.2, speed: [0.08, 0.12], bob: 0.05 } },
+  dolphins: { center: inView(3.2, 0.9, 0.55), count: 3, shape: { radius: [0.68, 0.7], depth: 0.2, speed: [0.12, 0.16], bob: 0.09, evenly: true } },
+  mantas: { center: inView(5.0, 0.0, -1.4), count: 2, shape: { radius: [0.8, 0.85], depth: 0.15, speed: [0.08, 0.1], bob: 0.05, evenly: true } },
 } as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;
 
 /** A point `depth` below the surface in the direction of a spot on the globe. */

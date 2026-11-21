@@ -265,7 +265,10 @@ test("arctic sea: goldfish, tuna, dolphins and manta rays spread over the underw
   const look = unitOf(view.target.map((t, i) => t - view.position[i]));
   const toScreen = (point) => unitOf(point.map((c, i) => c - view.position[i]));
   // The dolphins swim in the middle of the picture; the other groups spread round it, not in one corner.
-  assert.ok(dot(toScreen(ARCTIC_SEA.dolphins.center), look) > Math.cos((5 * Math.PI) / 180), "dolphins in the middle");
+  // The dolphins swim in the open water above the orca, clear of its body.
+  const screenUp = view.up;
+  assert.ok(dot(toScreen(ARCTIC_SEA.dolphins.center), screenUp) > dot(toScreen(ARCTIC_POINTS.orca), screenUp) + 0.08, "dolphins above the orca");
+  assert.ok(Math.acos(dot(toScreen(ARCTIC_SEA.dolphins.center), toScreen(ARCTIC_POINTS.orca))) * 180 / Math.PI > 12, "dolphins clear of the orca");
   // The tuna swim on the left half, clear of the orca in the middle.
   const screenRight = unitOf([look[1] * view.up[2] - look[2] * view.up[1], look[2] * view.up[0] - look[0] * view.up[2], look[0] * view.up[1] - look[1] * view.up[0]]);
   assert.ok(dot(toScreen(ARCTIC_SEA.tuna.center), screenRight) < -0.2, "tuna on the left");
@@ -289,6 +292,20 @@ test("arctic sea: goldfish, tuna, dolphins and manta rays spread over the underw
     }
     const toCentre = unitOf(spec.center.map((c, i) => c - view.position[i]));
     assert.ok(dot(toCentre, look) > Math.cos((24 * Math.PI) / 180), `${kind} in the underwater view`);
+  }
+});
+
+test("arctic sea: dolphins and manta rays keep their distance from each other and from one another's group", async () => {
+  const { makeSchool, swimPose, ARCTIC_SEA } = await import("../src/features/landing/arctic-fish.ts");
+  const gap = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const dolphins = makeSchool(ARCTIC_SEA.dolphins.center, ARCTIC_SEA.dolphins.count, 5, ARCTIC_SEA.dolphins.shape);
+  const mantas = makeSchool(ARCTIC_SEA.mantas.center, ARCTIC_SEA.mantas.count, 9, ARCTIC_SEA.mantas.shape);
+  for (let t = 0; t < 120; t += 0.5) {
+    const d = dolphins.map((f) => swimPose(f, t).position);
+    const m = mantas.map((f) => swimPose(f, t).position);
+    for (let i = 0; i < d.length; i += 1) for (let j = i + 1; j < d.length; j += 1) assert.ok(gap(d[i], d[j]) > 1.1, `dolphins ${gap(d[i], d[j]).toFixed(2)} apart at ${t}s`);
+    for (let i = 0; i < m.length; i += 1) for (let j = i + 1; j < m.length; j += 1) assert.ok(gap(m[i], m[j]) > 1.5, `mantas ${gap(m[i], m[j]).toFixed(2)} apart at ${t}s`);
+    for (const a of d) for (const b of m) assert.ok(gap(a, b) > 1.4, `a dolphin and a manta ${gap(a, b).toFixed(2)} apart at ${t}s`);
   }
 });
 

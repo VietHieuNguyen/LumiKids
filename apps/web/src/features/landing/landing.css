@@ -662,6 +662,20 @@
   --title-accent: #1f7fc0;
   --title-glow: rgba(226, 240, 250, 0.95);
 }
+/* Buttons in the same sea blue as the title's second line, white text, a deeper blue lip. */
+.lk-root[data-scene="ARCTIC"] .lk-cta,
+.lk-root[data-scene="ARCTIC"] .lk-cardPlay {
+  background: var(--title-accent); color: #fff;
+}
+.lk-root[data-scene="ARCTIC"] .lk-cta {
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.28) inset, 0 4px 0 #145a8a, 0 10px 22px rgba(31, 127, 192, 0.28);
+}
+.lk-root[data-scene="ARCTIC"] .lk-cta:hover,
+.lk-root[data-scene="ARCTIC"] .lk-cardPlay:hover { background: #1a70aa; }
+.lk-root[data-scene="ARCTIC"] .lk-cta:active {
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.28) inset, 0 1px 0 #145a8a, 0 4px 10px rgba(31, 127, 192, 0.22);
+}
+.lk-root[data-scene="ARCTIC"] .lk-cardPlay { box-shadow: 0 3px 0 #145a8a; }
 .lk-root[data-scene="ARCTIC"] .lk-sky {
   background:
     radial-gradient(38% 30% at 80% 14%, rgba(255, 246, 222, 0.95), rgba(255, 238, 205, 0.35) 45%, transparent 72%),
