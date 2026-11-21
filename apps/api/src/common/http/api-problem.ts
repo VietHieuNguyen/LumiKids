@@ -26,6 +26,10 @@ const problems = {
     422,
     'Chưa xác định được đối tượng hoặc màu cần đếm. Hãy nêu rõ loại hình hoặc màu cần đếm giữa các hình khác.',
   ],
+  PATTERN_ASSETS_INSUFFICIENT: [
+    422,
+    'Kho chưa đủ hình phù hợp để tạo dãy theo quy tắc này. Hãy nêu tên con vật/đồ vật có trong thư viện hoặc chọn quy tắc ít hình hơn.',
+  ],
   PREVIEW_ACCESS_EXPIRED: [
     410,
     'Quyền đọc ảnh cho bản chơi thử đã hết hạn. Hãy tạo lại trò chơi.',

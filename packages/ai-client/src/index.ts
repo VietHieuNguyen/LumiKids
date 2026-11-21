@@ -5,13 +5,25 @@ import {
   matchingContentStructureSchema,
   classificationContentV2StructureSchema,
   patternContentStructureSchema,
+  patternRuleSchema,
 } from "@lumikids/shared";
 import type { GameType } from "@lumikids/shared";
 
-export const generateGameSchema = z.strictObject({
+const generateGameShape = z.strictObject({
   gameType: gameTypeSchema,
   prompt: z.string().trim().min(1).max(2000),
 });
+/** PATTERN options chosen by the adult; PATTERN is composed in Nest and never sent to the AI service. */
+export const patternGenerationOptionsSchema = z.strictObject({
+  rules: z.array(patternRuleSchema).min(1).max(3),
+  sequenceCount: z.number().int().min(3).max(6).default(5),
+});
+export const generateGameSchema = generateGameShape
+  .extend({ pattern: patternGenerationOptionsSchema.optional() })
+  .refine((input) => input.gameType === "PATTERN" || input.pattern === undefined, {
+    path: ["pattern"],
+    message: "Pattern options are only accepted for PATTERN.",
+  });
 export type GenerateGameInput = z.infer<typeof generateGameSchema>;
 export const candidateAssetSchema = z.strictObject({
   id: z.uuid(),
@@ -29,7 +41,7 @@ export const candidateAssetSchema = z.strictObject({
   ),
 });
 export type CandidateAsset = z.infer<typeof candidateAssetSchema>;
-export const aiRequestSchema = generateGameSchema.extend({
+export const aiRequestSchema = generateGameShape.extend({
   requestId: z.uuid(),
   candidates: z.array(candidateAssetSchema).min(1).max(40),
   responseSchema: z.record(z.string(), z.unknown()),

@@ -5,6 +5,7 @@ import {
   generateGameSchema,
 } from '@lumikids/ai-client';
 import type { CandidateAsset } from '@lumikids/ai-client';
+import { patternContentSchema } from '@lumikids/shared';
 import { GameGenerationService } from './game-generation.service.js';
 import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import { GameAssetService } from '../game-assets/game-asset.service.js';
@@ -552,5 +553,79 @@ describe('GameGenerationService (no DB, storage or Gemini calls)', () => {
     ).rejects.toMatchObject({ publicCode: 'GENERATION_BUSY' });
     finish({ gameContent: counting(), model: 'fixture' });
     await expect(first).resolves.toBeDefined();
+  });
+});
+
+describe('PATTERN generation (no model call)', () => {
+  const tracked = { record: vi.fn() };
+  const assets = { generationCandidates: vi.fn(), generationAssets: vi.fn() };
+  const ai = { generate: vi.fn() };
+  const user = {
+    ...adminFixture,
+    permissions: ['GENERATE_GAME_CONTENT' as const],
+  };
+  const animalRow = (id: string, objectType: string, aliases: string[]): GenerationAssetRow => ({
+    id,
+    name: aliases[0],
+    objectType,
+    tags: [],
+    attributes: { category: 'ANIMAL', aliases, assetSet: 'LUMI_PASTEL_01' },
+    status: 'ACTIVE',
+  });
+  const rows = [
+    animalRow('9c0c1f0e-0000-4000-8000-000000000001', 'RABBIT', ['thỏ']),
+    animalRow('9c0c1f0e-0000-4000-8000-000000000002', 'CHICK', ['gà con']),
+    animalRow('9c0c1f0e-0000-4000-8000-000000000003', 'PIG', ['heo']),
+  ];
+  const request = {
+    gameType: 'PATTERN' as const,
+    prompt: 'dãy thỏ và gà con',
+    pattern: { rules: ['AB' as const], sequenceCount: 5 },
+  };
+  let service: GameGenerationService;
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    assets.generationCandidates.mockResolvedValue(rows);
+    assets.generationAssets.mockImplementation(async (_user, ids: string[]) =>
+      rows.filter((asset) => ids.includes(asset.id)),
+    );
+    // No AI configuration needed: PATTERN never reaches the AI service.
+    service = new GameGenerationService(
+      assets as unknown as GameAssetService,
+      { url: '', token: '', timeoutMs: 25000, requestDeadlineMs: 30000 },
+      ai as unknown as AiClient,
+      tracked as unknown as TokenUsageService,
+    );
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('composes valid content without calling the model or recording tokens', async () => {
+    const result = await service.generate(user, request);
+    expect(ai.generate).not.toHaveBeenCalled();
+    expect(tracked.record).not.toHaveBeenCalled();
+    expect(patternContentSchema.safeParse(result.gameContent).success).toBe(true);
+    expect(result.generation).toMatchObject({ model: 'deterministic', attempts: 0, reviewRequired: true });
+    const content = patternContentSchema.parse(result.gameContent);
+    expect(content.sequences).toHaveLength(5);
+    expect(content.items.map((item) => item.assetId)).toEqual([rows[0].id, rows[1].id]);
+  });
+  it('returns the same content for the same request', async () => {
+    const first = await service.generate(user, request);
+    const second = await service.generate(user, request);
+    expect(second.gameContent).toEqual(first.gameContent);
+  });
+  it('rejects pictures that became inactive before returning', async () => {
+    assets.generationAssets.mockResolvedValue([{ ...rows[0], status: 'INACTIVE' }, rows[1]]);
+    await expect(service.generate(user, request)).rejects.toMatchObject({ publicCode: 'ASSETS_CHANGED' });
+  });
+  it('accepts the pattern option only for PATTERN requests', () => {
+    expect(generateGameSchema.safeParse(request).success).toBe(true);
+    expect(
+      generateGameSchema.safeParse({ ...request, gameType: 'COUNTING' }).success,
+    ).toBe(false);
+    expect(
+      generateGameSchema.safeParse({ ...request, pattern: { rules: [], sequenceCount: 5 } }).success,
+    ).toBe(false);
   });
 });
