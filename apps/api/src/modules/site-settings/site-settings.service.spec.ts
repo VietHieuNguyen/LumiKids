@@ -56,6 +56,12 @@ describe('SiteSettingsService', () => {
     });
   });
 
+  it('accepts the ARCTIC landing scene and returns it', async () => {
+    const { service } = setup();
+    await service.update({ landingScene: 'ARCTIC' });
+    expect((await service.get()).landingScene).toBe('ARCTIC');
+  });
+
   it('saves the name and tagline', async () => {
     const { service } = setup();
     expect(

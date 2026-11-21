@@ -1,10 +1,33 @@
+import { ARCTIC_GLOBE, arcticShotAt } from "./arctic-path";
 import type { FriendId } from "./valley-scene";
 
 /**
- * Optional valley soundscape, synthesised with the Web Audio API: running water, a few birds and a short
- * toy-like call for each animal. Nothing is downloaded and nothing plays until the visitor turns sound on
- * (the context is created from that click, as browsers require).
+ * Optional landing soundscape, synthesised with the Web Audio API. The valley has running water and birds;
+ * the North Pole has wind, waves and gulls, muffled with bubbles once the camera dives. Each animal has a
+ * short toy-like call. Nothing is downloaded and nothing plays until the visitor turns sound on (the context
+ * is created from that click, as browsers require).
  */
+
+export type Ambience = "valley" | "arctic";
+/** The built-in calls: the valley animals' plus the North Pole's. */
+export type VoiceId = FriendId | "seal" | "orca" | "walrus" | "puffin" | "fox";
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const smooth01 = (v: number) => v * v * (3 - 2 * v);
+
+/**
+ * How loud each North Pole layer is along the story (0..1), from where the camera is: wind high above the
+ * globe, waves close to the ice, and "under" while the camera is below the surface (as the fog does).
+ */
+export function arcticSoundLevels(p: number): { wind: number; waves: number; under: number } {
+  const shot = arcticShotAt(p);
+  const r = Math.hypot(...shot.position);
+  const above = r - ARCTIC_GLOBE.radius;
+  const under = smooth01(clamp01(-above / 0.35));
+  const wind = (1 - under) * clamp01(0.35 + (0.65 * above) / 12);
+  const waves = clamp01((1 - under) * clamp01(1 - (above - 0.5) / 6) + 0.5 * under);
+  return { wind, waves, under };
+}
 
 type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
 
@@ -29,23 +52,31 @@ export function audioSupported(): boolean {
   return Boolean(window.AudioContext ?? (window as AudioWindow).webkitAudioContext);
 }
 
-export class ValleyAudio {
+export class LandingAudio {
   private readonly ctx: AudioContext;
   private readonly master: GainNode;
+  /** Valley stream, or the North Pole waves. */
   private readonly water: GainNode;
+  private readonly wind: GainNode | null = null;
+  /** Everything passes through this low-pass; it closes when the camera is under water. */
+  private readonly muffle: BiquadFilterNode;
   private readonly noise: AudioBuffer;
   private birdTimer = 0;
   private progress = 0;
   private level = -1;
   private disposed = false;
 
-  constructor() {
+  constructor(private readonly ambience: Ambience = "valley") {
     const Context = window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
     if (!Context) throw new Error("Web Audio is not available");
     this.ctx = new Context();
     this.master = this.ctx.createGain();
     this.master.gain.value = 0;
-    this.master.connect(this.ctx.destination);
+    this.muffle = this.ctx.createBiquadFilter();
+    this.muffle.type = "lowpass";
+    this.muffle.frequency.value = 18000;
+    this.muffle.Q.value = 0.4;
+    this.master.connect(this.muffle).connect(this.ctx.destination);
 
     // Three seconds of soft (low-passed) noise, shared by the water loop and the dog's bark.
     const length = Math.floor(this.ctx.sampleRate * 3);
@@ -55,6 +86,27 @@ export class ValleyAudio {
     for (let i = 0; i < length; i += 1) {
       smooth += (Math.random() * 2 - 1 - smooth) * 0.35;
       data[i] = smooth;
+    }
+
+    if (ambience === "arctic") {
+      // Waves: deep, slowly washing noise. Wind: a breathy band that drifts in pitch, with a faint whistle.
+      this.water = this.ctx.createGain();
+      this.water.gain.value = 0;
+      this.loopNoise(1.0, this.filter("lowpass", 620, 0.5, this.water), 0.11, 0.07);
+      this.water.connect(this.master);
+      this.wind = this.ctx.createGain();
+      this.wind.gain.value = 0;
+      const gust = this.filter("bandpass", 520, 0.9, this.wind);
+      const drift = this.ctx.createOscillator();
+      drift.frequency.value = 0.07;
+      const driftDepth = this.ctx.createGain();
+      driftDepth.gain.value = 260;
+      drift.connect(driftDepth).connect(gust.frequency);
+      drift.start();
+      this.loopNoise(0.6, gust, 0.05, 0.05);
+      this.loopNoise(1.7, this.filter("bandpass", 1900, 9, this.wind), 0.09, 0.03);
+      this.wind.connect(this.master);
+      return;
     }
 
     const source = this.ctx.createBufferSource();
@@ -80,6 +132,23 @@ export class ValleyAudio {
     swell.start();
   }
 
+  /** A looping noise source (offset into the shared buffer) into `into`, swelling slowly by `swellDepth`. */
+  private loopNoise(offset: number, into: AudioNode, swellRate: number, swellDepth: number): void {
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.noise;
+    source.loop = true;
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0.85;
+    const swell = this.ctx.createOscillator();
+    swell.frequency.value = swellRate;
+    const depth = this.ctx.createGain();
+    depth.gain.value = swellDepth * 6;
+    swell.connect(depth).connect(gain.gain);
+    source.connect(gain).connect(into);
+    source.start(0, offset);
+    swell.start();
+  }
+
   /** Fade in and start the birds. Call from the click that turns sound on. */
   async start(): Promise<void> {
     if (this.disposed) return;
@@ -99,9 +168,20 @@ export class ValleyAudio {
     window.setTimeout(() => { if (!this.disposed && !this.birdTimer) void this.ctx.suspend(); }, 500);
   }
 
-  /** Follow the scroll story (0–1): water swells near the falls. */
+  /** Follow the scroll story (0–1): water swells near the falls; at the North Pole, wind, waves and the dive. */
   setProgress(p: number): void {
     this.progress = p;
+    if (this.ambience === "arctic") {
+      const { wind, waves, under } = arcticSoundLevels(p);
+      const key = wind * 7 + waves * 3 + under * 11;
+      if (Math.abs(key - this.level) < 0.03) return;
+      this.level = key;
+      const t = this.ctx.currentTime;
+      this.wind?.gain.setTargetAtTime(0.12 * wind, t, 0.6);
+      this.water.gain.setTargetAtTime(0.15 * waves, t, 0.6);
+      this.muffle.frequency.setTargetAtTime(18000 * Math.pow(420 / 18000, under), t, 0.35);
+      return;
+    }
     const level = waterLevel(p);
     if (Math.abs(level - this.level) < 0.02) return;
     this.level = level;
@@ -111,6 +191,18 @@ export class ValleyAudio {
   private scheduleBird(): void {
     // Birds thin out as the evening comes.
     const evening = this.progress > 0.88;
+    if (this.ambience === "arctic") {
+      // Gulls now and then above the water; under it, little bursts of bubbles instead.
+      const under = arcticSoundLevels(this.progress).under > 0.5;
+      const wait = under ? 1400 + Math.random() * 2200 : 5000 + Math.random() * 7000;
+      this.birdTimer = window.setTimeout(() => {
+        if (this.disposed) return;
+        if (arcticSoundLevels(this.progress).under > 0.5) this.bubbles();
+        else this.gull(evening ? 0.6 : 1);
+        this.scheduleBird();
+      }, wait);
+      return;
+    }
     const wait = (evening ? 6000 : 2400) + Math.random() * (evening ? 7000 : 4600);
     this.birdTimer = window.setTimeout(() => {
       if (this.disposed) return;
@@ -137,6 +229,43 @@ export class ValleyAudio {
       const f = base * (1 + (Math.random() - 0.5) * 0.18);
       this.tone("sine", [[t, f], [t + 0.035, f * 1.28], [t + 0.085, f * 0.94]], [[t, 0], [t + 0.012, 1], [t + 0.09, 0]], out);
     }
+  }
+
+  /** A gull far off: two or three falling "kyow" calls. */
+  private gull(loudness: number): void {
+    const out = this.panned(0.05 * loudness);
+    const cry = this.filter("bandpass", 1500, 2.2, out);
+    const calls = 2 + Math.floor(Math.random() * 2);
+    const base = 1250 + Math.random() * 350;
+    for (let i = 0; i < calls; i += 1) {
+      const t = this.ctx.currentTime + 0.02 + i * 0.32;
+      this.tone("sawtooth", [[t, base * 1.25], [t + 0.07, base * 1.35], [t + 0.26, base * 0.82]], [[t, 0], [t + 0.03, 0.8], [t + 0.2, 0.5], [t + 0.27, 0]], cry, { rate: 11, depth: 25 });
+    }
+  }
+
+  /** A few bubbles rising: short sine blips gliding up. */
+  private bubbles(): void {
+    const out = this.panned(0.09);
+    const count = 3 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i += 1) {
+      const t = this.ctx.currentTime + 0.02 + i * (0.05 + Math.random() * 0.09);
+      const f = 320 + Math.random() * 380;
+      this.tone("sine", [[t, f], [t + 0.07, f * 2.3]], [[t, 0], [t + 0.008, 0.9], [t + 0.075, 0]], out);
+    }
+  }
+
+  /** A gain into the master, panned somewhere between left and right when the browser can. */
+  private panned(gain: number): GainNode {
+    const out = this.ctx.createGain();
+    out.gain.value = gain;
+    if (typeof this.ctx.createStereoPanner === "function") {
+      const pan = this.ctx.createStereoPanner();
+      pan.pan.value = Math.random() * 1.6 - 0.8;
+      out.connect(pan).connect(this.master);
+    } else {
+      out.connect(this.master);
+    }
+    return out;
   }
 
   /** One oscillator with a pitch contour and a gain envelope (both as [time, value] points). */
@@ -173,7 +302,7 @@ export class ValleyAudio {
   }
 
   /** A short, friendly call when an animal is tapped. */
-  voice(id: FriendId): void {
+  voice(id: VoiceId): void {
     if (this.disposed || this.ctx.state !== "running") return;
     const t = this.ctx.currentTime + 0.02;
     const out = this.ctx.createGain();
@@ -231,6 +360,46 @@ export class ValleyAudio {
         const pitch = [[t, 760], [t + 0.12, 980], [t + 0.36, 690]] as const;
         this.tone("triangle", pitch, [[t, 0], [t + 0.03, 0.55], [t + 0.3, 0.35], [t + 0.4, 0]], nose, { rate: 9, depth: 30 });
         this.tone("sine", pitch.map(([time, f]) => [time, f * 2] as const), [[t, 0], [t + 0.03, 0.15], [t + 0.38, 0]], nose);
+        break;
+      }
+      case "seal": {
+        // Two honking barks, "ồ ồ".
+        const snout = this.filter("bandpass", 820, 2.4, out);
+        for (const start of [t, t + 0.27]) {
+          this.tone("square", [[start, 310], [start + 0.05, 340], [start + 0.2, 215]], [[start, 0], [start + 0.02, 0.6], [start + 0.21, 0]], snout);
+        }
+        break;
+      }
+      case "orca": {
+        // A bright whistle that rises and curls back, then a quick click train.
+        const pitch = [[t, 1100], [t + 0.25, 2300], [t + 0.5, 1700], [t + 0.7, 2100]] as const;
+        this.tone("sine", pitch, [[t, 0], [t + 0.05, 0.4], [t + 0.6, 0.3], [t + 0.75, 0]], out, { rate: 6, depth: 60 });
+        for (let i = 0; i < 6; i += 1) {
+          const c = t + 0.82 + i * 0.045;
+          this.tone("square", [[c, 2600], [c + 0.01, 1900]], [[c, 0], [c + 0.002, 0.25], [c + 0.012, 0]], out);
+        }
+        break;
+      }
+      case "walrus": {
+        // A long, deep, bubbly grunt.
+        const chest = this.filter("lowpass", 420, 0.9, out);
+        const pitch = [[t, 105], [t + 0.25, 128], [t + 0.7, 92]] as const;
+        this.tone("sawtooth", pitch, [[t, 0], [t + 0.06, 0.8], [t + 0.55, 0.6], [t + 0.75, 0]], chest, { rate: 17, depth: 9 });
+        break;
+      }
+      case "puffin": {
+        // A soft, purring chuckle.
+        const throat = this.filter("bandpass", 700, 1.8, out);
+        for (const start of [t, t + 0.3]) {
+          this.tone("triangle", [[start, 250], [start + 0.12, 300], [start + 0.24, 230]], [[start, 0], [start + 0.03, 0.55], [start + 0.25, 0]], throat, { rate: 32, depth: 40 });
+        }
+        break;
+      }
+      case "fox": {
+        // Two quick, high yips.
+        for (const start of [t, t + 0.18]) {
+          this.tone("triangle", [[start, 880], [start + 0.05, 1450], [start + 0.12, 1100]], [[start, 0], [start + 0.01, 0.5], [start + 0.13, 0]], out);
+        }
         break;
       }
       case "bear": {

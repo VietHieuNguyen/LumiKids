@@ -4,7 +4,7 @@ import { z } from "zod";
  * 3D scenes the landing page can show. Adding a scene means a new value here plus its entry in the
  * web landing scene registry; the API only stores the chosen key.
  */
-export const landingSceneSchema = z.enum(["VALLEY"]);
+export const landingSceneSchema = z.enum(["VALLEY", "ARCTIC"]);
 
 export const siteSettingsSchema = z.object({
   siteName: z.string(),

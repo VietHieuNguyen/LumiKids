@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Small static SVG illustrations and a poster that cross-fades with the WebGL canvas; next/image adds no benefit here. */
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -9,13 +9,16 @@ import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
 import { useSiteSettings } from "@/components/site-settings-provider";
 import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
-import { ValleyAudio, audioSupported } from "./landing-audio";
+import { LandingAudio, audioSupported } from "./landing-audio";
 import { LANDING_ASSETS } from "./landing-assets";
 import type { CharacterId } from "./landing-assets";
 import { GAME_CARD_TYPES, HOTSPOTS, LANDING_COPY } from "./landing-copy";
 import { loginHref } from "@/lib/safe-return-path";
 import { clamp, easeInOutCubic, seg, smooth } from "./scroll-math";
-import type { FriendId, ValleyStage } from "./valley-scene";
+import type { LandingStage } from "./landing-stage";
+import { landingSceneConfig } from "./scene-config";
+import { chooseLandingScene, SCENE_MEMORY_KEY } from "./landing-scene-choice";
+import type { LandingScene } from "@lumikids/shared";
 import "./landing.css";
 
 type StageMode = "loading" | "live" | "static";
@@ -23,14 +26,11 @@ type StageMode = "loading" | "live" | "static";
 /** The game runtime is only downloaded when a visitor opens a sample game. */
 const LandingDemo = dynamic(() => import("./landing-demo"), { ssr: false });
 
-/** The five kinds of animal to find in the valley, in the order their dots are shown. */
-const QUEST: readonly FriendId[] = ["duck", "frog", "deer", "elephant", "rabbit", "bear", "dog"];
 type NavTarget = (typeof LANDING_COPY.nav.links)[number]["target"];
 
 /** Scroll progress that each nav target lands on inside the pinned story. */
 const NAV_PROGRESS: Record<Exclude<NavTarget, "games">, number> = { explore: 0.41, teacher: 0.61 };
-const CHARACTER_IDS: readonly CharacterId[] = ["rabbit", "bear"];
-/** Hotspots are clickable only while Rabbit and Bear are framed. */
+/** Hotspots are clickable only while the scene's characters are framed. */
 const INTERACTION_ZONE = [STORY.charactersHold[0], 0.48] as const;
 
 /**
@@ -149,8 +149,36 @@ function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
   );
 }
 
+const ignoreStorageEvents = () => () => undefined;
+function readRememberedScene(): string | null {
+  try {
+    return window.localStorage.getItem(SCENE_MEMORY_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function LandingPage() {
-  const { siteName, tagline: siteTagline } = useSiteSettings().settings;
+  const { settings: siteSettings, ready: settingsReady, fromApi: settingsFromApi } = useSiteSettings();
+  const { siteName, tagline: siteTagline } = siteSettings;
+  // The 3D scene, its copy and quest come from the admin's choice. It is fixed once per page view
+  // (the saved settings, or the last known scene if the API misses its deadline), so only one stage loads.
+  const remembered = useSyncExternalStore(ignoreStorageEvents, readRememberedScene, () => null);
+  const [scene, setScene] = useState<LandingScene | null>(null);
+  const nextScene = chooseLandingScene({ locked: scene, ready: settingsReady, fromApi: settingsFromApi, fromSettings: siteSettings.landingScene, remembered });
+  if (nextScene !== scene) setScene(nextScene);
+  useEffect(() => {
+    // Remember the admin's latest choice, as a fallback for a visit when the API is slow or down.
+    if (!settingsFromApi) return;
+    try {
+      window.localStorage.setItem(SCENE_MEMORY_KEY, siteSettings.landingScene);
+    } catch {
+      // Private mode or blocked storage: the next visit simply waits for the settings again.
+    }
+  }, [settingsFromApi, siteSettings.landingScene]);
+  const sceneReady = scene !== null;
+  const config = landingSceneConfig(scene ?? siteSettings.landingScene);
+  const quest = config.quest;
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const storyRef = useRef<HTMLElement>(null);
@@ -174,7 +202,7 @@ export function LandingPage() {
   const progressValue = useRef(0);
   const openCardRef = useRef<CharacterId | null>(null);
   const sayRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<ValleyAudio | null>(null);
+  const audioRef = useRef<LandingAudio | null>(null);
   const soundOnRef = useRef(false);
 
   const [mode, setMode] = useState<StageMode>("loading");
@@ -184,7 +212,7 @@ export function LandingPage() {
   const [missing, setMissing] = useState<CharacterId[]>([]);
   const [soundOn, setSoundOn] = useState(false);
   const [canSound, setCanSound] = useState(false);
-  const [found, setFound] = useState<readonly FriendId[]>([]);
+  const [found, setFound] = useState<readonly string[]>([]);
   const [demo, setDemo] = useState<GameType | null>(null);
 
   useEffect(() => { openCardRef.current = openCard; }, [openCard]);
@@ -201,7 +229,7 @@ export function LandingPage() {
     const story = storyRef.current;
     const stage = stageRef.current;
     const canvas = canvasRef.current;
-    if (!story || !stage || !canvas) return;
+    if (!story || !stage || !canvas || !sceneReady) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const staticMode = reduceMotion.matches || !supportsWebGL() || rememberedFallback();
@@ -221,11 +249,11 @@ export function LandingPage() {
     const appleTouch = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
     const lowPower = (!appleTouch && (nav.hardwareConcurrency ?? 8) <= 4) || (nav.deviceMemory ?? 8) <= 4;
 
-    let valley: ValleyStage | null = null;
+    let valley: LandingStage | null = null;
     let raf = 0;
     let running = false;
     let inView = true;
-    let last = performance.now();
+    let last = 0; // set by start() before the first frame
     let pCam = 0;
     let storyTop = 0;
     let travel = 1;
@@ -349,7 +377,7 @@ export function LandingPage() {
       const armed = p >= INTERACTION_ZONE[0] && p <= INTERACTION_ZONE[1];
       setLayer(encounterRef.current, encounterIn * (1 - pinsOut), `translate3d(0, ${((1 - encounterIn) * 18).toFixed(2)}px, 0)`);
       const anchors: Partial<Record<CharacterId, { x: number; y: number }>> = {};
-      CHARACTER_IDS.forEach((id, index) => {
+      config.characterIds.forEach((id, index) => {
         const pin = pinRefs.current[id];
         if (!pin) return;
         const pinIn = smooth(seg(p, 0.315 + index * 0.012, 0.348 + index * 0.012));
@@ -483,11 +511,12 @@ export function LandingPage() {
       const rect = stage.getBoundingClientRect();
       const hit = valley.poke(event.clientX - rect.left, event.clientY - rect.top);
       if (!hit) return;
-      if (soundOnRef.current) audioRef.current?.voice(hit.id);
+      const voice = config.voices[hit.id];
+      if (soundOnRef.current && voice) audioRef.current?.voice(voice);
       setFound((current) => (current.includes(hit.id) ? current : [...current, hit.id]));
       const bubble = sayRef.current;
       if (!bubble) return;
-      bubble.textContent = LANDING_COPY.friends[hit.id];
+      bubble.textContent = config.copy.friends[hit.id] ?? "";
       bubble.style.left = `${clamp(hit.x, 70, width - 70).toFixed(1)}px`;
       bubble.style.top = `${clamp(hit.y, 120, height - 60).toFixed(1)}px`;
       // Restart the pop animation even when the same animal is tapped again.
@@ -505,7 +534,7 @@ export function LandingPage() {
 
     void (async () => {
       try {
-        const { ValleyStage: Stage } = await import("./valley-scene");
+        const Stage = await config.loadStage();
         if (disposed) return;
         valley = new Stage(canvas, lowPower ? "low" : "high");
         measure();
@@ -517,12 +546,12 @@ export function LandingPage() {
         if (disposed) return;
         // Judge speed only after loading and shader compiles, which are one-off costs.
         window.setTimeout(() => { warm = true; }, 600);
-        setMissing(CHARACTER_IDS.filter((id) => !valley?.hasCharacter(id)));
+        setMissing(config.characterIds.filter((id) => !valley?.hasCharacter(id)));
         if (result.missing.length) console.warn("[LumiKids landing] Thiếu mô hình:", result.missing.join(", "));
         const debug = new URLSearchParams(window.location.search).has("debug");
-        if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
+        if (debug) (window as unknown as { __lumi?: unknown }).__lumi = { describe: () => valley?.describe(), friendAt: (x: number, y: number) => valley?.friendAt(x, y), sample: (p: number) => valley?.sample(p), progress: () => progressValue.current, ready: () => firstFrame };
       } catch (error) {
-        console.error(`[LumiKids landing] Không tải được thung lũng 3D: ${LANDING_ASSETS.valley}`, error);
+        console.error(`[LumiKids landing] Không tải được cảnh 3D: ${config.mainAsset}`, error);
         if (!disposed) fallBack("load-failed");
       }
     })();
@@ -557,7 +586,7 @@ export function LandingPage() {
       document.removeEventListener("visibilitychange", onVisibility);
       valley?.dispose();
     };
-  }, []);
+  }, [sceneReady, config]);
 
   // The nav CTA reads "skip" until the games section reaches the middle of the screen.
   useEffect(() => {
@@ -597,7 +626,7 @@ export function LandingPage() {
     const next = !soundOnRef.current;
     if (next) {
       try {
-        audioRef.current ??= new ValleyAudio();
+        audioRef.current ??= new LandingAudio(config.ambience);
         audioRef.current.setProgress(progressValue.current);
         void audioRef.current.start();
       } catch {
@@ -608,7 +637,7 @@ export function LandingPage() {
     }
     soundOnRef.current = next;
     setSoundOn(next);
-  }, []);
+  }, [config.ambience]);
 
   const goTo = (target: NavTarget) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
     setMenuOpen(false);
@@ -630,10 +659,10 @@ export function LandingPage() {
     window.scrollTo({ top: top + travel * NAV_PROGRESS[target], behavior });
   };
 
-  const rootStyle = { "--poster": `url(${LANDING_ASSETS.poster})` } as CSSProperties;
+  const rootStyle = (sceneReady ? { "--poster": `url(${config.poster})` } : {}) as CSSProperties;
 
   return (
-    <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} style={rootStyle}>
+    <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} data-scene={scene ?? undefined} style={rootStyle}>
       <a className="lk-skip" href="#tro-choi">Bỏ qua phần giới thiệu</a>
 
       <header ref={navRef} className="lk-nav" data-solid="false" data-story="true" data-menu={menuOpen}>
@@ -681,11 +710,11 @@ export function LandingPage() {
       </header>
 
       <main>
-        <section ref={storyRef} id="kham-pha" className="lk-story" aria-label="Hành trình vào thung lũng LumiKids">
+        <section ref={storyRef} id="kham-pha" className="lk-story" aria-label={config.copy.storyLabel}>
           <div ref={stageRef} className="lk-stage" tabIndex={-1}>
             <div className="lk-sky" aria-hidden="true" />
             <div ref={duskRef} className="lk-dusk" aria-hidden="true" />
-            <img className="lk-poster" src={LANDING_ASSETS.poster} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.hidden = true; }} />
+            {sceneReady ? <img className="lk-poster" src={config.poster} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.hidden = true; }} /> : null}
             {/* Sky haze sits behind the transparent canvas so it softens the sky only, never the scene's corners. */}
             <div className="lk-mist" aria-hidden="true" />
             <canvas ref={canvasRef} className="lk-canvas" aria-hidden="true" />
@@ -713,15 +742,15 @@ export function LandingPage() {
             </div>
 
             <div ref={guideRef} className={`lk-layer lk-guide`}>
-              <p className="lk-guideTitle">{LANDING_COPY.guide}</p>
-              <p className="lk-guideNote">{LANDING_COPY.guideNote}</p>
+              <p className="lk-guideTitle">{config.copy.guide}</p>
+              <p className="lk-guideNote">{config.copy.guideNote}</p>
             </div>
 
             <div ref={encounterRef} className={`lk-layer lk-encounter`}>
-              <p className="lk-eyebrow">{LANDING_COPY.encounter.caption}</p>
+              <p className="lk-eyebrow">{config.copy.encounterCaption}</p>
             </div>
 
-            {CHARACTER_IDS.map((id) => {
+            {config.characterIds.map((id) => {
               const content = HOTSPOTS[id];
               const open = openCard === id;
               return (
@@ -783,7 +812,7 @@ export function LandingPage() {
             </div>
 
             <div ref={farewellRef} className={`lk-layer lk-farewell`}>
-              <h2 className="lk-farewellTitle">{LANDING_COPY.farewell.title}</h2>
+              <h2 className="lk-farewellTitle">{config.copy.farewellTitle}</h2>
               <p className="lk-farewellSubtitle">{LANDING_COPY.farewell.subtitle}</p>
               <div className="lk-farewellActions">
                 <a className={`lk-cta lk-ctaLarge`} href="#tro-choi" onClick={goTo("games")}>{LANDING_COPY.farewell.cta}<ArrowIcon /></a>
@@ -792,10 +821,10 @@ export function LandingPage() {
             </div>
 
             <div ref={sayRef} className="lk-say" role="status" aria-live="polite" data-show="false" />
-            {found.length > 0 ? (
-              <p className="lk-quest" role="status" data-done={found.length === QUEST.length}>
-                <span>{found.length === QUEST.length ? LANDING_COPY.quest.done : `${LANDING_COPY.quest.label} ${found.length}/${QUEST.length}`}</span>
-                <span className="lk-questDots" aria-hidden="true">{QUEST.map((id) => <i key={id} data-found={found.includes(id)} />)}</span>
+            {quest && found.length > 0 ? (
+              <p className="lk-quest" role="status" data-done={found.length === quest.length}>
+                <span>{found.length === quest.length ? LANDING_COPY.quest.done : `${LANDING_COPY.quest.label} ${found.length}/${quest.length}`}</span>
+                <span className="lk-questDots" aria-hidden="true">{quest.map((id) => <i key={id} data-found={found.includes(id)} />)}</span>
               </p>
             ) : null}
             {canSound ? (
@@ -892,7 +921,7 @@ export function LandingPage() {
             <p className="lk-copyright">© {new Date().getFullYear()} {siteName}.</p>
             <details className="lk-credits">
               <summary>{LANDING_COPY.footer.creditsLabel}</summary>
-              <p>{LANDING_COPY.footer.credits}</p>
+              <p>{config.copy.credits}</p>
             </details>
           </footer>
         </section>
