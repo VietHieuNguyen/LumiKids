@@ -1,0 +1,136 @@
+{
+  "assetSet": "LUMI_PASTEL_01",
+  "description": "Bộ con vật 3D mềm, pastel, cùng phong cách gấu linh vật. Dựng thủ tục trong Blender 4.5 (lumi-pastel-01.blend, scene LumiPastel), camera trực giao, nền trong suốt, 1024px. Dùng chung cho mọi loại trò (PATTERN, COUNTING, CLASSIFICATION, MATCHING giống nhau).",
+  "license": "Tự tạo cho LumiKids",
+  "assets": [
+    {
+      "file": "webp/bunny.webp",
+      "name": "Thỏ trắng pastel",
+      "objectType": "RABBIT",
+      "tags": ["động vật", "thỏ", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "RABBIT",
+        "color": "WHITE",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "aliases": ["thỏ", "con thỏ", "thỏ trắng", "bạn thỏ", "rabbit", "bunny"]
+      }
+    },
+    {
+      "file": "webp/chick.webp",
+      "name": "Gà con vàng pastel",
+      "objectType": "CHICK",
+      "tags": ["động vật", "gà con", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "CHICKEN",
+        "color": "YELLOW",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "habitats": ["FARM"],
+        "aliases": ["gà con", "chú gà con", "gà", "con gà con", "chick"]
+      }
+    },
+    {
+      "file": "webp/pig.webp",
+      "name": "Heo hồng pastel",
+      "objectType": "PIG",
+      "tags": ["động vật", "heo", "lợn", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "PIG",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "habitats": ["FARM"],
+        "aliases": ["heo", "con heo", "lợn", "con lợn", "heo con", "pig"]
+      }
+    },
+    {
+      "file": "webp/cat.webp",
+      "name": "Mèo cam pastel",
+      "objectType": "CAT",
+      "tags": ["động vật", "mèo", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "CAT",
+        "color": "ORANGE",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "aliases": ["mèo", "con mèo", "mèo con", "mèo cam", "cat"]
+      }
+    },
+    {
+      "file": "webp/frog.webp",
+      "name": "Ếch xanh pastel",
+      "objectType": "FROG",
+      "tags": ["động vật", "ếch", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "FROG",
+        "color": "GREEN",
+        "variant": "NORMAL",
+        "lifeStage": "ADULT",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "habitats": ["LAKE"],
+        "aliases": ["ếch", "con ếch", "chú ếch", "ếch xanh", "frog"]
+      }
+    },
+    {
+      "file": "webp/fish.webp",
+      "name": "Cá xanh pastel",
+      "objectType": "FISH",
+      "tags": ["động vật", "cá", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "FISH",
+        "color": "BLUE",
+        "variant": "NORMAL",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "aliases": ["cá", "con cá", "chú cá", "cá xanh", "fish"]
+      }
+    },
+    {
+      "file": "webp/bear.webp",
+      "name": "Gấu nâu pastel",
+      "objectType": "BEAR",
+      "tags": ["động vật", "gấu", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "BEAR",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "habitats": ["FOREST"],
+        "aliases": ["gấu", "con gấu", "gấu con", "gấu nâu", "bear"]
+      }
+    },
+    {
+      "file": "webp/elephant.webp",
+      "name": "Voi tím pastel",
+      "objectType": "ELEPHANT",
+      "tags": ["động vật", "voi", "pastel", "dễ thương"],
+      "attributes": {
+        "category": "ANIMAL",
+        "animalType": "ELEPHANT",
+        "color": "PURPLE",
+        "variant": "NORMAL",
+        "lifeStage": "YOUNG",
+        "visualStyle": "CARTOON_2D",
+        "assetSet": "LUMI_PASTEL_01",
+        "aliases": ["voi", "con voi", "voi con", "chú voi", "elephant"]
+      }
+    }
+  ]
+}
