@@ -4,7 +4,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ARCTIC_GLOBE, ARCTIC_HOLDS, ARCTIC_POINTS, arcticViewAt, arcticWarmth } from "./arctic-path";
-import { ARCTIC_SEA, makeSchool, swimPose, uprightOn } from "./arctic-fish";
+import { ARCTIC_OPEN_WATER, ARCTIC_SEA, makeSchool, swimPose, uprightOn } from "./arctic-fish";
 import type { Swimmer } from "./arctic-fish";
 import { pickFriend } from "./arctic-pick";
 import type { PickSphere } from "./arctic-pick";
@@ -209,6 +209,22 @@ export class ArcticStage implements LandingStage {
         const parentTurn = new THREE.Quaternion().setFromRotationMatrix(parentFromRoot);
         this.swimmers.push({ mesh, swim, parentFromRoot, parentTurn });
       });
+    }
+    // Open-water schools round the rest of the globe: more copies of the front goldfish.
+    const template = groups.get("front")?.[0];
+    if (template) {
+      const parent = template.parent ?? root;
+      const parentFromRoot = rootInverse.clone().multiply(parent.matrixWorld).invert();
+      const parentTurn = new THREE.Quaternion().setFromRotationMatrix(parentFromRoot);
+      for (const spec of ARCTIC_OPEN_WATER) {
+        makeSchool(spec.center, this.lite ? Math.ceil(spec.count / 2) : spec.count, seed++, spec.shape).forEach((swim, index) => {
+          const mesh = template.clone();
+          mesh.scale.multiplyScalar(0.8 + ((index * 37) % 10) / 25);
+          parent.add(mesh);
+          this.fish.push({ mesh, phase: this.fish.length * 0.83 });
+          this.swimmers.push({ mesh, swim, parentFromRoot, parentTurn });
+        });
+      }
     }
     this.updateSwimmers(0);
   }

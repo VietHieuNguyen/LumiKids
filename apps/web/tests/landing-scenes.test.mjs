@@ -191,6 +191,30 @@ test("arctic path: the wide stops show the walrus, the seal and their neighbours
   for (const name of ["puffins", "seal"]) assert.ok(inView(iceberg, ARCTIC_POINTS[name], 20), `${name} in the iceberg view`);
 });
 
+test("arctic seal: it lies on its own ice away from the kayak and the igloo camp, next to the puffins", () => {
+  const angle = (a, b) => Math.acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))) * 180 / Math.PI;
+  assert.ok(angle(ARCTIC_POINTS.seal, ARCTIC_POINTS.kayak) > 35, "seal clear of the kayak");
+  assert.ok(angle(ARCTIC_POINTS.seal, ARCTIC_POINTS.campfire) > 35, "seal clear of the igloo camp");
+  assert.ok(angle(ARCTIC_POINTS.seal, ARCTIC_POINTS.puffins) < 30, "seal still beside the puffins");
+});
+
+test("arctic sea: open-water schools ring the globe so the turning hero never shows an empty sea", async () => {
+  const { makeSchool, swimPose, ARCTIC_SEA, ARCTIC_OPEN_WATER } = await import("../src/features/landing/arctic-fish.ts");
+  const angle = (a, b) => Math.acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))) * 180 / Math.PI;
+  const longitude = (v) => ((Math.atan2(v[0], v[2]) * 180) / Math.PI + 360) % 360;
+  assert.ok(ARCTIC_OPEN_WATER.length >= 3, "several open-water schools");
+  for (const spec of ARCTIC_OPEN_WATER) {
+    assert.ok(angle(spec.center, ARCTIC_POINTS.orca) > 60, "away from the orca");
+    assert.ok(Math.abs(spec.center[1]) / Math.hypot(...spec.center) < 0.55, "in the band the hero spin shows");
+    for (const fish of makeSchool(spec.center, spec.count, 5, spec.shape)) {
+      for (const t of [0, 4, 9]) assert.ok(Math.hypot(...swimPose(fish, t).position) < ARCTIC_GLOBE.radius - 0.25, "under water");
+    }
+  }
+  const lons = [ARCTIC_SEA.goldfish.center, ...ARCTIC_OPEN_WATER.map((s) => s.center)].map(longitude).sort((a, b) => a - b);
+  const gaps = lons.map((l, i) => (i + 1 < lons.length ? lons[i + 1] : lons[0] + 360) - l);
+  assert.ok(Math.max(...gaps) <= 120, `largest stretch without fish ${Math.max(...gaps).toFixed(0)}°`);
+});
+
 test("arctic view: the screen never rolls abruptly (no flips on the way in, out or under the water)", () => {
   const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

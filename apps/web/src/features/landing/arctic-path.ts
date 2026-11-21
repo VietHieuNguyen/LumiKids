@@ -22,7 +22,9 @@ export const ARCTIC_POINTS = {
   campfire: [-1.02, -1.34, 5.37],
   lantern: [-2.1, -0.44, 5.18],
   puffins: [-3.94, 2.14, 2.67],
-  seal: [-2.36, 1.0, 4.63],
+  /** On its own ice at the open left edge, by the puffins and clear of the kayak and the igloo camp. */
+  seal: [-4.44, 0.29, 2.86],
+  kayak: [-1.17, 1.16, 4.84],
   polarBears: [-0.62, 3.66, 3.92],
   fox: [2.98, 4.32, 1.4],
   walrus: [4.71, 1.57, 1.99],

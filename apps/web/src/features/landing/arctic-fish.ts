@@ -1,4 +1,4 @@
-import { ARCTIC_HOLDS, arcticShotAt } from "./arctic-path";
+import { ARCTIC_GLOBE, ARCTIC_HOLDS, arcticShotAt } from "./arctic-path";
 import type { Vec3 } from "./camera-path";
 
 /** One fish milling round its school: a circle about the school's radial axis, with a gentle bob. */
@@ -104,3 +104,20 @@ export const ARCTIC_SEA = {
   dolphins: { center: inView(2.6, 0, 0.1), count: 3, shape: { radius: [0.45, 0.75], depth: 0.25, speed: [0.12, 0.2], bob: 0.09 } },
   mantas: { center: inView(3.6, 0.9, -0.95), count: 2, shape: { radius: [0.7, 1.1], depth: 0.2, speed: [0.08, 0.12], bob: 0.05 } },
 } as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;
+
+/** A point `depth` below the surface in the direction of a spot on the globe. */
+const underSea = (spot: Vec3, depth = 0.7): Vec3 => {
+  const k = (ARCTIC_GLOBE.radius - depth) / Math.hypot(...spot);
+  return [spot[0] * k, spot[1] * k, spot[2] * k];
+};
+
+/**
+ * Small goldfish schools in the open water round the rest of the globe (found in the blend's clearest water),
+ * so the slowly turning hero globe never shows an empty sea while the orca side is busy.
+ */
+const OPEN_WATER_SPOTS: readonly Vec3[] = [
+  [3.43, 2.59, -2.65],
+  [-1.8, -2.45, -4.03],
+  [-4.46, 2.28, 0.63],
+];
+export const ARCTIC_OPEN_WATER: readonly { center: Vec3; count: number; shape: SchoolShape }[] = OPEN_WATER_SPOTS.map((spot) => ({ center: underSea(spot), count: 12, shape: { radius: [0.35, 0.75] as const, depth: 0.3, speed: [0.3, 0.5] as const, bob: 0.04 } }));
