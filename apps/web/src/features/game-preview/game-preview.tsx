@@ -147,6 +147,7 @@ function ValidatedPreview({
           assetRevisions={snapshot.revisions}
           paused={paused || snapshot.status !== "ready"}
           onAssetError={resolver.reportImageError}
+          completionHref={backHref}
           onInteraction={(event) => {
             if (debug) setEvents((current) => [...current.slice(-99), event]);
             onInteraction?.(event);
