@@ -1,4 +1,4 @@
-import { ARCTIC_HOLDS, ARCTIC_POINTS, arcticShotAt } from "./arctic-path";
+import { ARCTIC_HOLDS, arcticShotAt } from "./arctic-path";
 import type { Vec3 } from "./camera-path";
 
 /** One fish milling round its school: a circle about the school's radial axis, with a gentle bob. */
@@ -84,13 +84,6 @@ export function uprightOn(heading: Vec3, radial: Vec3): { forward: Vec3; up: Vec
   return { forward, up };
 }
 
-/** The underwater stage seen by the dive camera: the goldfish school, the way the camera looks (`ahead`), across it, and up. */
-const SCHOOL = ARCTIC_POINTS.fishSchool;
-const UP = unit(SCHOOL);
-const AHEAD = unit(add(add(ARCTIC_POINTS.orca, scale(SCHOOL, -1)), scale(UP, -dot(add(ARCTIC_POINTS.orca, scale(SCHOOL, -1)), UP))));
-const ACROSS = cross(UP, AHEAD);
-const at = (ahead: number, across: number, up: number): Vec3 => add(add(add(SCHOOL, scale(AHEAD, ahead)), scale(ACROSS, across)), scale(UP, up));
-
 /** A spot in the underwater shot's own frame: `ahead` along the view, then right and up on screen. */
 function inView(ahead: number, right: number, up: number): Vec3 {
   const shot = arcticShotAt((ARCTIC_HOLDS.summitHold[0] + ARCTIC_HOLDS.summitHold[1]) / 2);
@@ -100,8 +93,14 @@ function inView(ahead: number, right: number, up: number): Vec3 {
   return add(add(add(shot.position, scale(look, ahead)), scale(screenRight, right)), scale(screenUp, up));
 }
 
-/** The other sea life round the goldfish: a tuna school a little deeper and a few dolphins higher up, all slow. */
+/**
+ * Where each group swims in the underwater shot, spread over the picture: the dolphins in the middle, the
+ * goldfish to the left, the tuna low on the right and two manta rays gliding underneath. All but the
+ * goldfish are slow.
+ */
 export const ARCTIC_SEA = {
-  tuna: { center: at(0.9, -0.35, -0.4), count: 9, shape: { radius: [0.4, 0.9], depth: 0.35, speed: [0.18, 0.3], bob: 0.03 } },
-  dolphins: { center: inView(2.1, 0.35, 0.5), count: 3, shape: { radius: [0.35, 0.55], depth: 0.2, speed: [0.12, 0.2], bob: 0.09 } },
+  goldfish: { center: inView(2.3, -0.85, 0.3), count: 0, shape: { radius: [0.45, 1.25], depth: 0.9 } },
+  tuna: { center: inView(2.9, 1.0, -0.5), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
+  dolphins: { center: inView(2.6, 0, 0.1), count: 3, shape: { radius: [0.45, 0.75], depth: 0.25, speed: [0.12, 0.2], bob: 0.09 } },
+  mantas: { center: inView(3.6, -0.55, -1.0), count: 2, shape: { radius: [0.7, 1.1], depth: 0.2, speed: [0.08, 0.12], bob: 0.05 } },
 } as const satisfies Record<string, { center: Vec3; count: number; shape: SchoolShape }>;

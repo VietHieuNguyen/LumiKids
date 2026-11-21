@@ -9,7 +9,7 @@ import { LumiLogo, LumiWordmark } from "@/components/lumi-logo";
 import { useSiteSettings } from "@/components/site-settings-provider";
 import type { GameType } from "@lumikids/shared";
 import { STORY } from "./camera-path";
-import { ValleyAudio, audioSupported } from "./landing-audio";
+import { LandingAudio, audioSupported } from "./landing-audio";
 import { LANDING_ASSETS } from "./landing-assets";
 import type { CharacterId } from "./landing-assets";
 import { GAME_CARD_TYPES, HOTSPOTS, LANDING_COPY } from "./landing-copy";
@@ -202,7 +202,7 @@ export function LandingPage() {
   const progressValue = useRef(0);
   const openCardRef = useRef<CharacterId | null>(null);
   const sayRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<ValleyAudio | null>(null);
+  const audioRef = useRef<LandingAudio | null>(null);
   const soundOnRef = useRef(false);
 
   const [mode, setMode] = useState<StageMode>("loading");
@@ -626,7 +626,7 @@ export function LandingPage() {
     const next = !soundOnRef.current;
     if (next) {
       try {
-        audioRef.current ??= new ValleyAudio();
+        audioRef.current ??= new LandingAudio(config.ambience);
         audioRef.current.setProgress(progressValue.current);
         void audioRef.current.start();
       } catch {
@@ -637,7 +637,7 @@ export function LandingPage() {
     }
     soundOnRef.current = next;
     setSoundOn(next);
-  }, []);
+  }, [config.ambience]);
 
   const goTo = (target: NavTarget) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
     setMenuOpen(false);

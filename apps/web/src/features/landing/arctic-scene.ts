@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { ARCTIC_GLOBE, ARCTIC_POINTS, arcticViewAt, arcticWarmth } from "./arctic-path";
+import { ARCTIC_GLOBE, ARCTIC_HOLDS, ARCTIC_POINTS, arcticViewAt, arcticWarmth } from "./arctic-path";
 import { ARCTIC_SEA, makeSchool, swimPose, uprightOn } from "./arctic-fish";
 import type { Swimmer } from "./arctic-fish";
 import { pickFriend } from "./arctic-pick";
@@ -66,8 +66,9 @@ export class ArcticStage implements LandingStage {
   /** Every fish (the file's and the extra clones) with its swim path, in globe-local space. */
   private readonly swimmers: { mesh: THREE.Mesh; swim: Swimmer; parentFromRoot: THREE.Matrix4; parentTurn: THREE.Quaternion }[] = [];
   /** Tuna and dolphins (built in code), each following its own slow swim path in globe-local space. */
-  private readonly seaLife: { body: THREE.Group; mixer: THREE.AnimationMixer | null; swim: Swimmer; kind: "tuna" | "dolphins"; phase: number }[] = [];
+  private readonly seaLife: { body: THREE.Group; mixer: THREE.AnimationMixer | null; swim: Swimmer; kind: "tuna" | "dolphins" | "mantas"; phase: number }[] = [];
   /** The orca's swim wrapper (so its greeting hop, which owns the orca's own transform, is untouched). */
+  private seaRoot: THREE.Object3D | null = null;
   private orcaSwim: { group: THREE.Group; base: THREE.Vector3; forward: THREE.Vector3; up: THREE.Vector3; reach: number } | null = null;
   private readonly yawQuat = new THREE.Quaternion();
   private bubbles: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial> | null = null;
@@ -189,8 +190,11 @@ export class ArcticStage implements LandingStage {
     for (const [key, meshes] of groups) {
       const local = (mesh: THREE.Mesh) => mesh.getWorldPosition(new THREE.Vector3()).applyMatrix4(rootInverse);
       const center = meshes.reduce((sum, mesh) => sum.add(local(mesh)), new THREE.Vector3()).multiplyScalar(1 / meshes.length);
-      const centre: [number, number, number] = [center.x, center.y, center.z];
-      const school = makeSchool(centre, meshes.length + (extra[key] ?? 0), seed++, { radius: [0.45, key === "front" ? 1.5 : 1.0], depth: 0.7 });
+      // The near school is placed in the underwater shot (ARCTIC_SEA.goldfish); the far one stays where the file has it.
+      const front = key === "front";
+      const centre: [number, number, number] = front ? [...ARCTIC_SEA.goldfish.center] : [center.x, center.y, center.z];
+      const shape = front ? ARCTIC_SEA.goldfish.shape : { radius: [0.45, 1.0] as const, depth: 0.7 };
+      const school = makeSchool(centre, meshes.length + (extra[key] ?? 0), seed++, shape);
       const template = meshes[0];
       school.forEach((swim, index) => {
         let mesh = meshes[index];
@@ -281,7 +285,11 @@ export class ArcticStage implements LandingStage {
    * fewer on lite devices. Each is a rigged copy playing its own swim clip, out of step with the others.
    */
   private addSeaLife(root: THREE.Object3D, sea: THREE.Object3D, clips: THREE.AnimationClip[]): void {
-    const kinds = [["tuna", "SEA_Tuna", "Tuna_Swim", 21, 0.7], ["dolphins", "SEA_Dolphin", "Dolphin_Swim", 5, 0.55]] as const;
+    const kinds = [
+      ["tuna", "SEA_Tuna", "Tuna_Swim", 21, 0.7],
+      ["dolphins", "SEA_Dolphin", "Dolphin_Swim", 5, 0.55],
+      ["mantas", "SEA_Manta", "Manta_Swim", 9, 0.45],
+    ] as const;
     for (const [kind, node, clipName, seed, pace] of kinds) {
       const template = sea.getObjectByName(node);
       if (!template) continue;
@@ -306,7 +314,31 @@ export class ArcticStage implements LandingStage {
         this.seaLife.push({ body, mixer, swim, kind, phase: index * 1.3 });
       });
     }
+    this.seaRoot = root;
+    this.placeDolphins();
     this.updateSeaLife(0, 0);
+  }
+
+  /**
+   * Put the dolphins in the middle of the picture for this screen. The underwater shot is framed off-centre on
+   * wide screens (room for the copy) and centred on tall ones, so the spot is found from the real camera:
+   * a point a little above the screen centre, 2.6 in front of the lens at the underwater hold.
+   */
+  private placeDolphins(): void {
+    const root = this.seaRoot;
+    const dolphins = this.seaLife.filter((swimmer) => swimmer.kind === "dolphins");
+    if (!root || dolphins.length === 0) return;
+    const spin = this.spinAngle;
+    this.spinAngle = 0;
+    this.poseCamera((ARCTIC_HOLDS.summitHold[0] + ARCTIC_HOLDS.summitHold[1]) / 2, 0, 0);
+    this.spinAngle = spin;
+    this.camera.updateMatrixWorld();
+    this.camera.updateProjectionMatrix();
+    this.globe.updateMatrixWorld(true);
+    const spot = new THREE.Vector3(0, 0.08, 0.5).unproject(this.camera).sub(this.camera.position).setLength(2.6).add(this.camera.position);
+    root.worldToLocal(spot);
+    const school = makeSchool([spot.x, spot.y, spot.z], dolphins.length, 5, ARCTIC_SEA.dolphins.shape);
+    dolphins.forEach((dolphin, index) => { dolphin.swim = school[index]; });
   }
 
   private updateSeaLife(timeSeconds: number, dt: number): void {
@@ -483,6 +515,7 @@ export class ArcticStage implements LandingStage {
     this.desktop = desktop;
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(this.width, this.height, false);
+    this.placeDolphins();
   }
 
   private poseCamera(p: number, parallaxX: number, parallaxY: number): void {

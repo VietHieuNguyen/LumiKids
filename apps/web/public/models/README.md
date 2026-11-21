@@ -49,6 +49,6 @@ Nguồn mô hình còn lại của quả cầu: xem `source/arctic/globe-v8/READ
 
 ### Sinh vật biển Bắc Cực (`landing/arctic-sea-life.glb`)
 
-Dựng bằng `blender -b source/arctic/fish/Tuna.blend --python source/arctic/build-sea-life.py` (chạy trong `public/models`) từ `source/arctic/fish/Tuna.blend` (hoạt cảnh `Swimming_Normal` → `Tuna_Swim`) và `source/arctic/fish/Dolphin.glb` (`Armature|Swim` → `Dolphin_Swim`, bỏ khối `Icosphere` thừa). Mỗi con nằm dưới một empty `SEA_Tuna`/`SEA_Dolphin`: căn giữa, đầu +X, lưng +Y (three.js), dài 0,5 và 0,95 đơn vị quả cầu. `arctic-scene.ts` nhân bản bằng SkeletonUtils, mỗi bản có mixer riêng chạy chậm và lệch nhịp; đường bơi ở `arctic-fish.ts` (`ARCTIC_SEA`).
+Dựng bằng `blender -b source/arctic/fish/Tuna.blend --python source/arctic/build-sea-life.py` (chạy trong `public/models`) từ `source/arctic/fish/Tuna.blend` (hoạt cảnh `Swimming_Normal` → `Tuna_Swim`) và `source/arctic/fish/Dolphin.glb` (`Armature|Swim` → `Dolphin_Swim`) và `source/arctic/fish/Manta ray.glb` (→ `Manta_Swim`), bỏ các khối `Icosphere` thừa. Mỗi con nằm dưới một empty `SEA_Tuna`/`SEA_Dolphin`: căn giữa, đầu +X, lưng +Y (three.js), dài 0,5 và 0,95 đơn vị quả cầu. `arctic-scene.ts` nhân bản bằng SkeletonUtils, mỗi bản có mixer riêng chạy chậm và lệch nhịp; đường bơi ở `arctic-fish.ts` (`ARCTIC_SEA`).
 
-Nguồn/giấy phép: bộ `source/arctic/fish` trông như các gói cá low-poly của Quaternius (CC0) nhưng **chưa xác nhận** — cần ghi tác giả và giấy phép trước khi phát hành, rồi thêm vào dòng ghi công trong `scene-config.ts`.
+Nguồn/giấy phép: bộ `source/arctic/fish` là các gói cá low-poly của Quaternius (CC0), đã xác nhận với người dùng 22/11/2026; ghi công ở `scene-config.ts`. File gồm `SEA_Tuna`, `SEA_Dolphin`, `SEA_Manta` (`Manta ray.glb`, dài 1,2).

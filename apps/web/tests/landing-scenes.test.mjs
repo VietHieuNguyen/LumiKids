@@ -233,17 +233,27 @@ test("arctic fish swim round their school: steady orbit, nose along the path, ba
   assert.deepEqual(makeSchool(ARCTIC_POINTS.fishSchool, 3, 7, { radius: [0.5, 1.3], depth: 0.5 }), school.slice(0, 3));
 });
 
-test("arctic sea: the tuna and the dolphins swim under water, in front of the underwater camera, slower than the goldfish", async () => {
+test("arctic sea: goldfish, tuna, dolphins and manta rays spread over the underwater view, all under water, the big ones slow", async () => {
   const { makeSchool, swimPose, ARCTIC_SEA } = await import("../src/features/landing/arctic-fish.ts");
   const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const view = arcticShotAt((STORY.summitHold[0] + STORY.summitHold[1]) / 2);
   const look = unitOf(view.target.map((t, i) => t - view.position[i]));
-  for (const kind of ["tuna", "dolphins"]) {
+  const toScreen = (point) => unitOf(point.map((c, i) => c - view.position[i]));
+  // The dolphins swim in the middle of the picture; the other groups spread round it, not in one corner.
+  assert.ok(dot(toScreen(ARCTIC_SEA.dolphins.center), look) > Math.cos((5 * Math.PI) / 180), "dolphins in the middle");
+  const kinds = ["goldfish", "tuna", "dolphins", "mantas"];
+  for (let i = 0; i < kinds.length; i += 1) {
+    for (let j = i + 1; j < kinds.length; j += 1) {
+      const apart = Math.acos(dot(toScreen(ARCTIC_SEA[kinds[i]].center), toScreen(ARCTIC_SEA[kinds[j]].center))) * 180 / Math.PI;
+      assert.ok(apart > 9, `${kinds[i]} and ${kinds[j]} are ${apart.toFixed(1)}° apart`);
+    }
+  }
+  for (const kind of kinds) {
     const spec = ARCTIC_SEA[kind];
     const school = makeSchool(spec.center, spec.count, 3, spec.shape);
     for (const fish of school) {
-      assert.ok(Math.abs(fish.speed) <= spec.shape.speed[1] + 1e-9 && spec.shape.speed[1] < 0.35, `${kind} swims gently`);
+      if (kind !== "goldfish") assert.ok(Math.abs(fish.speed) <= spec.shape.speed[1] + 1e-9 && spec.shape.speed[1] < 0.35, `${kind} swims gently`);
       for (const t of [0, 3, 7, 12]) {
         const { position } = swimPose(fish, t);
         assert.ok(Math.hypot(...position) < ARCTIC_GLOBE.radius - 0.25, `${kind} stays under water`);
@@ -272,9 +282,38 @@ test("arctic sea life: the tuna and dolphin from the fish models, each a swim-re
   const jsonLength = bytes.readUInt32LE(12);
   const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
   const names = gltf.nodes.map((node) => node.name);
-  for (const name of ["SEA_Tuna", "SEA_Dolphin"]) assert.ok(names.includes(name), `${name} node`);
-  assert.deepEqual(gltf.animations.map((clip) => clip.name).sort(), ["Dolphin_Swim", "Tuna_Swim"]);
-  assert.equal(gltf.skins.length, 2, "both are skinned, so the swim clip bends the body");
+  for (const name of ["SEA_Tuna", "SEA_Dolphin", "SEA_Manta"]) assert.ok(names.includes(name), `${name} node`);
+  assert.deepEqual(gltf.animations.map((clip) => clip.name).sort(), ["Dolphin_Swim", "Manta_Swim", "Tuna_Swim"]);
+  assert.equal(gltf.skins.length, 3, "all are skinned, so the swim clip bends the body");
   assert.ok(statSync(file).size < 600_000, "small enough for the landing page");
   assert.ok(!names.includes("Icosphere"), "stray helper mesh removed");
+});
+
+test("landing sound: each scene has its own soundscape and every arctic animal its own call", async () => {
+  const valley = landingSceneConfig("VALLEY");
+  const arctic = landingSceneConfig("ARCTIC");
+  assert.equal(valley.ambience, "valley");
+  assert.equal(arctic.ambience, "arctic");
+  assert.deepEqual(
+    { seal: arctic.voices.seal, orca: arctic.voices.orca, walrus: arctic.voices.walrus, puffin: arctic.voices.puffin, fox: arctic.voices.fox },
+    { seal: "seal", orca: "orca", walrus: "walrus", puffin: "puffin", fox: "fox" },
+  );
+  for (const valleyOnly of ["duck", "elephant", "frog", "rabbit", "deer"]) {
+    assert.ok(!Object.values(arctic.voices).includes(valleyOnly), `no ${valleyOnly} call at the North Pole`);
+  }
+});
+
+test("arctic sound: wind and waves above, muffled water once the camera dives", async () => {
+  const { arcticSoundLevels } = await import("../src/features/landing/landing-audio.ts");
+  const hero = arcticSoundLevels(0);
+  const under = arcticSoundLevels((STORY.summitHold[0] + STORY.summitHold[1]) / 2);
+  const shore = arcticSoundLevels((STORY.charactersHold[0] + STORY.charactersHold[1]) / 2);
+  assert.equal(hero.under, 0);
+  assert.equal(under.under, 1);
+  assert.ok(hero.wind > under.wind, "the wind fades under water");
+  assert.ok(shore.waves > 0.5, "waves by the ice");
+  for (let i = 0; i <= 100; i += 1) {
+    const levels = arcticSoundLevels(i / 100);
+    for (const value of Object.values(levels)) assert.ok(value >= 0 && value <= 1, `level in 0..1 at ${i / 100}`);
+  }
 });
