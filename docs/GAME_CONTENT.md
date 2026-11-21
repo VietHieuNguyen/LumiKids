@@ -63,6 +63,18 @@ Không cố định hai nhóm/sáu item. Nhiều item có thể cùng nhóm, nh�
 
 Các giới hạn array là phạm vi/payload của v1, không phải level hoặc công thức đánh giá trẻ.
 
+### PATTERN (Sắp xếp theo quy tắc — Chỉ số 46)
+
+- `items`: 2–4 phần tử `{ id, assetId, label? }`, mỗi phần tử một `assetId` khác nhau.
+- `sequences`: 3–6 phần tử `{ id, rule, cells, choiceIds, correctItemId }` (mặc định 5 để N ≥ 5).
+  - `rule`: `AB | AAB | ABB | ABC | AABB | ABCD`; `cells`: 4–8 itemId theo thứ tự hiển thị, ô trống luôn ở cuối, phải lặp đủ ít nhất 2 chu kỳ, mỗi chữ cái một hình khác nhau.
+  - `correctItemId` là phần tử kế tiếp của chu kỳ và phải nằm trong `choiceIds` (2–3, không trùng).
+- `completionRule: "ALL_SEQUENCES_COMPLETED"`; dãy được giải theo thứ tự.
+- Event `FILL_PATTERN`: `sourceId` = sequenceId (nhiệm vụ), `targetId` = itemId thẻ đã chọn. Gợi ý: `REQUEST_HINT.sourceId` = sequenceId, làm sáng các ô của chu kỳ đầu (`<seqId>:cell:<i>`).
+- Sinh trò: Nest dựng nội dung bằng `buildPatternContent` (seed từ prompt + quy tắc + ảnh), **không gọi model**; ảnh lấy theo tên/alias trong whitelist ACTIVE. Thiếu ảnh → `PATTERN_ASSETS_INSUFFICIENT`.
+
+[pattern.v1.json](../packages/shared/examples/game-content/pattern.v1.json): thỏ, gà con, heo với các quy tắc AB, ABC, AAB.
+
 ## Ba lớp validation
 
 1. **Cấu trúc:** `gameContentStructureSchema` kiểm tra shape, version/type/rule, ID, loại dữ liệu và giới hạn. Có schema cấu trúc riêng cho từng game; kết quả này chưa đủ để lưu/publish.
