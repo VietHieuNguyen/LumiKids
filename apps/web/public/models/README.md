@@ -8,6 +8,23 @@
 
 Quy ước tên: chữ thường, gạch nối, kèm tên tác giả với đồ tải về (`campfire-kenney.glb`). Bên trong các gói lớn của bên thứ ba giữ nguyên tên gốc vì FBX/OBJ tham chiếu texture theo tên.
 
+## Cảnh landing
+
+Admin đổi cảnh ở **/admin/settings → Cảnh trang chủ** (Thung lũng / Bắc Cực). Trang chủ chỉ tải file của cảnh đang chọn, chờ cài đặt về rồi mới dựng 3D; lỗi tải thì hiện poster.
+
+| Cảnh | File | Code |
+|---|---|---|
+| Thung lũng | `landing/valley.glb` + nhân vật, `landing/poster.webp` | `features/landing/valley-scene.ts` |
+| Bắc Cực | `landing/arctic.glb` (2,9 MB), `landing/arctic-poster.webp` | `features/landing/arctic-scene.ts`, đường camera `arctic-path.ts`, chữ trong `scene-config.ts` |
+
+`arctic.glb` được xuất từ `source/arctic/globe-v8/arctic_landing.blend` (bản sao, file gốc v8 giữ nguyên); tọa độ dùng cho camera ghi ở `source/arctic/arctic-landing-notes.json`. So với quả cầu v8, bản landing thêm:
+- bạn gấu của thung lũng (`ARC_Bear`, từ `source/bear.glb`) quàng khăn đỏ để không nhầm với gấu Bắc Cực;
+- 3 chim puffin (`ARC_Puffin_*`) do LumiKids dựng trong Blender;
+- chó husky Quaternius (CC0, `source/quaternius-animals/husky.gltf`) có hoạt ảnh Idle;
+- hai điểm đèn `ARC_Light_Campfire`, `ARC_Light_Lantern`: three.js gắn đèn ấm vào đó, sáng dần ở mốc lửa trại.
+
+Nguồn mô hình còn lại của quả cầu: xem `source/arctic/globe-v8/README_VI.md` và danh sách tải về bên dưới.
+
 ## source/
 
 - `valley.glb`, `bear.glb`, … và `valley-kit/`, `duck-pack/` — nguồn của các file cùng tên trong `landing/`.

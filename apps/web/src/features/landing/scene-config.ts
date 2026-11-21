@@ -63,7 +63,7 @@ const ARCTIC: LandingSceneConfig = {
     encounterCaption: "Gặp các bạn trên tảng băng",
     farewellTitle: "Bắc Cực luôn chờ bé quay lại",
     credits:
-      "Mô hình 3D: quả cầu Bắc Cực LumiKids; lều tuyết, tảng băng, cá voi, kayak và cá vàng của Poly by Google (CC BY); lửa trại của Kenney; củi của Voxel_dev; đèn lồng của Alex Safayan (Poly Pizza); chó husky của Quaternius (CC0); Gấu từ Sketchfab (xem giấy phép của tác giả).",
+      "Mô hình 3D: quả cầu Bắc Cực và chim puffin LumiKids; lều tuyết, tảng băng, cá voi, kayak và cá vàng của Poly by Google (CC BY); lửa trại của Kenney; củi của Voxel_dev; đèn lồng của Alex Safayan (Poly Pizza); chó husky của Quaternius (CC0); Gấu từ Sketchfab (xem giấy phép của tác giả).",
     friends: {
       bear: "Chào bé! Lạnh quá nhỉ!",
       polarBear: "Chào bạn nhỏ!",
