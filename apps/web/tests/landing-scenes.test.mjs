@@ -46,12 +46,12 @@ test("arctic config: bear-led journey, no quest, no pins, its own greetings", ()
   assert.equal(typeof arctic.loadStage, "function");
 });
 
-const { ARCTIC_SHOTS, ARCTIC_GLOBE, arcticShotAt, arcticWarmth } = await import("../src/features/landing/arctic-path.ts");
+const { ARCTIC_SHOTS, ARCTIC_GLOBE, ARCTIC_POINTS, ARCTIC_FRONT, arcticShotAt, arcticViewAt, arcticWarmth } = await import("../src/features/landing/arctic-path.ts");
 const { STORY } = await import("../src/features/landing/camera-path.ts");
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 test("arctic path: eight beats in story order, each with a portrait framing", () => {
-  assert.deepEqual(ARCTIC_SHOTS.map((shot) => shot.name), ["vista", "bearGreet", "husky", "polarBears", "iceberg", "campfire", "dusk", "farewell"]);
+  assert.deepEqual(ARCTIC_SHOTS.map((shot) => shot.name), ["vista", "bearGreet", "husky", "polarBears", "iceberg", "campfire", "underwater", "farewell"]);
   for (const shot of ARCTIC_SHOTS) assert.ok(shot.portrait, shot.name);
 });
 
@@ -67,15 +67,24 @@ test("arctic path: the camera stands still during every story hold", () => {
   }
 });
 
-test("arctic path: never inside the globe and never jumps", () => {
+test("arctic path: only the underwater beat dives below the surface, and the path never jumps", () => {
   const { center, radius } = ARCTIC_GLOBE;
   for (const portrait of [false, true]) {
-    let previous = arcticShotAt(0, portrait).position;
+    const under = arcticShotAt(STORY.summitHold[0], portrait);
+    assert.ok(dist(under.position, center) < radius * 0.95, "underwater camera is in the water");
+    assert.ok(dist(under.position, ARCTIC_POINTS.fishSchool) < 3.2, "underwater camera is close to the fish school");
+    assert.ok(dist(under.target, ARCTIC_POINTS.fishSchool) < 0.6, "underwater camera looks at the fish school");
+    // Measured on what is rendered: the camera stays in front and the globe turns, so both must move smoothly.
+    let previous = arcticViewAt(0, portrait);
     for (let i = 0; i <= 1000; i += 1) {
-      const { position } = arcticShotAt(i / 1000, portrait);
-      assert.ok(dist(position, center) > radius * 1.08, `inside globe at p=${i / 1000}`);
-      assert.ok(dist(position, previous) < radius * 0.12, `jump at p=${i / 1000}`);
-      previous = position;
+      const p = i / 1000;
+      const view = arcticViewAt(p, portrait);
+      const diving = p > STORY.cabinHold[1] && p < STORY.farewellHold[0];
+      if (!diving) assert.ok(dist(view.position, center) > radius * 1.08, `inside globe at p=${p}`);
+      assert.ok(dist(view.position, previous.position) < radius * 0.12, `camera jump at p=${p}`);
+      const same = Math.abs(view.globe.reduce((sum, x, k) => sum + x * previous.globe[k], 0));
+      assert.ok((2 * Math.acos(Math.min(1, same)) * 180) / Math.PI < 2, `globe spins too fast at p=${p}`);
+      previous = view;
     }
   }
 });
@@ -101,8 +110,26 @@ test("arctic path: close shots keep the local ground level (camera up = surface 
     assert.ok(dot(shot.up, unitOf(shot.target)) > 0.95, `up follows the ground at ${hold[0]}`);
     // Seen at an angle, not from straight above: the view direction is well off the surface normal.
     const view = unitOf(shot.target.map((t, i) => t - shot.position[i]));
-    assert.ok(Math.abs(dot(view, unitOf(shot.target))) < 0.8, `oblique view at ${hold[0]}`);
+    assert.ok(Math.abs(dot(view, unitOf(shot.target))) < 0.35, `low, near-ground view at ${hold[0]}`);
   }
+});
+
+test("arctic view: the globe turns to bring each stop to the front, the camera stays in front of it", () => {
+  const unitOf = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const rotate = ([x, y, z], [qx, qy, qz, qw]) => {
+    const ix = qw * x + qy * z - qz * y, iy = qw * y + qz * x - qx * z, iz = qw * z + qx * y - qy * x, iw = -qx * x - qy * y - qz * z;
+    return [ix * qw + iw * -qx + iy * -qz - iz * -qy, iy * qw + iw * -qy + iz * -qx - ix * -qz, iz * qw + iw * -qz + ix * -qy - iy * -qx];
+  };
+  for (let i = 0; i <= 200; i += 1) {
+    const p = i / 200;
+    const local = arcticShotAt(p);
+    const view = arcticViewAt(p);
+    const turned = rotate(local.position, view.globe);
+    assert.ok(dist(turned, view.position) < 1e-6, `camera = turned local camera at p=${p}`);
+    assert.ok(dot(unitOf(view.position), ARCTIC_FRONT) > Math.cos((5 * Math.PI) / 180), `camera stays in front at p=${p}`);
+  }
+  assert.ok(dot(arcticViewAt(0).up, [0, 1, 0]) > 0.99, "wide shots stay upright");
 });
 
 test("landing scene is fixed once: remembered scene at once, else the settings once ready, never switched after", async () => {

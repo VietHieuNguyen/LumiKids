@@ -19,9 +19,12 @@ Admin đổi cảnh ở **/admin/settings → Cảnh trang chủ** (Thung lũng 
 
 `arctic.glb` được xuất từ `source/arctic/globe-v8/arctic_landing.blend` (bản sao, file gốc v8 giữ nguyên); tọa độ dùng cho camera ghi ở `source/arctic/arctic-landing-notes.json`. So với quả cầu v8, bản landing thêm:
 - bạn gấu của thung lũng (`ARC_Bear`, từ `source/bear.glb`) quàng khăn đỏ để không nhầm với gấu Bắc Cực;
-- 3 chim puffin (`ARC_Puffin_*`) do LumiKids dựng trong Blender;
-- chó husky Quaternius (CC0, `source/quaternius-animals/husky.gltf`) có hoạt ảnh Idle;
+- 3 chim puffin (`ARC_Puffin_*`, cao ~0,3): dựng lại trong Blender từ mẫu `source/arctic/downloads/Penguin.glb` (thân thấp lại, đầu to, mặt trắng, vòng cổ đen, mỏ tam giác xám–vàng–cam, chân cam);
+- chó husky Quaternius (CC0, `source/quaternius-animals/husky.gltf`) có hoạt ảnh Idle, quay lưng về phía gấu;
+- cá voi `SM_Orca_below_surface` có hai morph target `Tail_Up`/`Tail_Down`, three.js cho vẫy đuôi;
 - hai điểm đèn `ARC_Light_Campfire`, `ARC_Light_Lantern`: three.js gắn đèn ấm vào đó, sáng dần ở mốc lửa trại.
+
+Camera: quả cầu tự xoay để đưa từng điểm dừng ra trước mặt (như quả địa cầu để bàn), camera và đèn đứng yên phía trước (`arcticViewAt`). Mốc "Dành cho bé" lặn xuống nước nhìn đàn cá vàng và cá voi; khi camera dưới mặt nước có sương xanh.
 
 Nguồn mô hình còn lại của quả cầu: xem `source/arctic/globe-v8/README_VI.md` và danh sách tải về bên dưới.
 
@@ -37,6 +40,7 @@ Nguồn mô hình còn lại của quả cầu: xem `source/arctic/globe-v8/READ
   - `killer-whale-poly-google.glb` — Killer Whale, Poly by Google, https://poly.pizza/m/7pqZEQ9b_E-
   - `lantern-alex-safayan.glb` — Lantern, Alex Safayan, https://poly.pizza/m/3wYoxNf9RSJ
   - `arctic-globe-complete-v8-copy.glb` — bản trùng byte-với-byte của `globe-v8/arctic_globe_complete_v8.glb`, có thể xóa.
+  - `Penguin.glb` — mẫu chim cánh cụt low-poly (obj2gltf) dùng làm gốc cho puffin. **Chưa rõ tác giả/giấy phép — cần bổ sung trước khi phát hành.**
   - `reference-ordinary-day-sketchfab.md` — ảnh tham khảo "Ordinary Day" (David Geraud, Sketchfab).
 - `arctic/winter-mountains-craftpix/` — núi và đồi tuyết low-poly (CraftPix, xem `License.txt`).
 - `quaternius-animals/` — 12 con vật Quaternius (CC0) có hoạt ảnh Idle/Walk/Eating…: alpaca, bull, cow, deer, donkey, fox, horse, horse-white, husky, shiba-inu, stag, wolf.

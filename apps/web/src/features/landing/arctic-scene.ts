@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { ARCTIC_GLOBE, ARCTIC_POINTS, arcticShotAt, arcticWarmth } from "./arctic-path";
+import { ARCTIC_GLOBE, ARCTIC_POINTS, arcticViewAt, arcticWarmth } from "./arctic-path";
 import { pickFriend } from "./arctic-pick";
 import type { PickSphere } from "./arctic-pick";
 import { STORY } from "./camera-path";
@@ -14,7 +14,7 @@ import { clamp, lerp, seg, smooth } from "./scroll-math";
 const FRIEND_NODES: readonly (readonly [prefix: string, id: string, height: number])[] = [
   ["ARC_Bear", "bear", 0.62],
   ["ARC_Husky", "husky", 0.42],
-  ["ARC_Puffin_", "puffin", 0.52],
+  ["ARC_Puffin_", "puffin", 0.3],
   ["SM_Bear_on_floe", "polarBear", 1.1],
   ["SM_Cub_on_floe", "polarBear", 0.6],
   ["SM_Fox_on_floe", "fox", 0.8],
@@ -58,6 +58,12 @@ export class ArcticStage implements LandingStage {
   private readonly campLights: CampLight[] = [];
   private readonly friends: Friend[] = [];
   private readonly fish: { mesh: THREE.Mesh; phase: number }[] = [];
+  private orca: THREE.Mesh | null = null;
+  /** Blue haze once the camera dives under the surface (underwater beat). */
+  private readonly fog = new THREE.FogExp2("#1f6f8c", 0);
+  private readonly spinQuat = new THREE.Quaternion();
+  private readonly yAxis = new THREE.Vector3(0, 1, 0);
+  private spinAngle = 0;
   private mixer: THREE.AnimationMixer | null = null;
   private bear: Friend | null = null;
   private aurora: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial> | null = null;
@@ -111,6 +117,7 @@ export class ArcticStage implements LandingStage {
         if (object.name.startsWith("SM_Goldfish") || object.parent?.name.startsWith("SM_Goldfish")) {
           if (object.morphTargetInfluences?.length) this.fish.push({ mesh: object, phase: this.fish.length * 0.83 });
         }
+        if (object.name === "SM_Orca_below_surface" && object.morphTargetInfluences?.length) this.orca = object;
       }
     });
     for (const [prefix, id, height] of FRIEND_NODES) {
@@ -256,11 +263,17 @@ export class ArcticStage implements LandingStage {
   private poseCamera(p: number, parallaxX: number, parallaxY: number): void {
     const aspect = this.width / this.height;
     const portrait = aspect < 0.9;
-    const shot = arcticShotAt(p, portrait);
+    // The globe turns to bring each stop to the front; the camera stays in front of it.
+    const shot = arcticViewAt(p, portrait);
+    this.spinQuat.setFromAxisAngle(this.yAxis, this.spinAngle);
+    this.globe.quaternion.set(...shot.globe).multiply(this.spinQuat);
     this.camera.position.set(...shot.position);
     this.lookTarget.set(...shot.target);
     this.camera.up.set(...shot.up);
     this.camera.lookAt(this.lookTarget);
+    const under = smooth(clamp((ARCTIC_GLOBE.radius - this.camera.position.length()) / 0.35, 0, 1));
+    this.fog.density = 0.14 * under;
+    this.scene.fog = under > 0 ? this.fog : null;
     let fov = shot.fov;
     // Narrow screens: widen vertically so the horizontal view stays close to the desktop framing.
     const referenceAspect = 1.6;
@@ -326,7 +339,7 @@ export class ArcticStage implements LandingStage {
 
     // The globe turns slowly on the hero shot and eases back to its rest pose as the journey starts.
     if (animate && p < STORY.heroHold[1]) this.spin += dt * 0.04;
-    this.globe.rotation.y = this.spin * (1 - smooth(seg(p, STORY.heroHold[1], STORY.pondHold[0] - 0.03)));
+    this.spinAngle = this.spin * (1 - smooth(seg(p, STORY.heroHold[1], STORY.pondHold[0] - 0.03)));
 
     this.poseCamera(p, parallaxX, parallaxY);
     this.applyLight(p, timeSeconds, animate);
@@ -341,6 +354,13 @@ export class ArcticStage implements LandingStage {
           influences[0] = Math.max(0, w);
           if (influences.length > 1) influences[1] = Math.max(0, -w);
         }
+      }
+      const tail = this.orca?.morphTargetInfluences;
+      if (tail) {
+        // A slow up-and-down beat of the flukes (Tail_Up / Tail_Down morph targets).
+        const w = Math.sin(timeSeconds * 2.1);
+        tail[0] = Math.max(0, w);
+        if (tail.length > 1) tail[1] = Math.max(0, -w);
       }
       this.updateFriends(timeSeconds);
       const bear = this.bear;
@@ -366,13 +386,14 @@ export class ArcticStage implements LandingStage {
     return [...this.camera.position.toArray(), ...this.lookTarget.toArray()];
   }
 
-  describe(): { position: number[]; target: number[]; fov: number; friends: number; fish: number } {
+  describe(): { position: number[]; target: number[]; fov: number; friends: number; fish: number; orcaTail: boolean } {
     return {
       position: this.camera.position.toArray(),
       target: this.lookTarget.toArray(),
       fov: clamp(this.camera.fov, 0, 180),
       friends: this.friends.length,
       fish: this.fish.length,
+      orcaTail: (this.orca?.morphTargetInfluences?.length ?? 0) >= 2,
     };
   }
 
