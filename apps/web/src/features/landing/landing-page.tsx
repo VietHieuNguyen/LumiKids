@@ -159,23 +159,23 @@ function readRememberedScene(): string | null {
 }
 
 export function LandingPage() {
-  const { settings: siteSettings, ready: settingsReady } = useSiteSettings();
+  const { settings: siteSettings, ready: settingsReady, fromApi: settingsFromApi } = useSiteSettings();
   const { siteName, tagline: siteTagline } = siteSettings;
   // The 3D scene, its copy and quest come from the admin's choice. It is fixed once per page view
-  // (remembered scene at once, else the settings or their deadline), so only one stage ever loads.
+  // (the saved settings, or the last known scene if the API misses its deadline), so only one stage loads.
   const remembered = useSyncExternalStore(ignoreStorageEvents, readRememberedScene, () => null);
   const [scene, setScene] = useState<LandingScene | null>(null);
-  const nextScene = chooseLandingScene({ locked: scene, ready: settingsReady, fromSettings: siteSettings.landingScene, remembered });
+  const nextScene = chooseLandingScene({ locked: scene, ready: settingsReady, fromApi: settingsFromApi, fromSettings: siteSettings.landingScene, remembered });
   if (nextScene !== scene) setScene(nextScene);
   useEffect(() => {
-    // Remember the admin's latest choice for the next visit.
-    if (!settingsReady) return;
+    // Remember the admin's latest choice, as a fallback for a visit when the API is slow or down.
+    if (!settingsFromApi) return;
     try {
       window.localStorage.setItem(SCENE_MEMORY_KEY, siteSettings.landingScene);
     } catch {
       // Private mode or blocked storage: the next visit simply waits for the settings again.
     }
-  }, [settingsReady, siteSettings.landingScene]);
+  }, [settingsFromApi, siteSettings.landingScene]);
   const sceneReady = scene !== null;
   const config = landingSceneConfig(scene ?? siteSettings.landingScene);
   const quest = config.quest;
@@ -662,7 +662,7 @@ export function LandingPage() {
   const rootStyle = (sceneReady ? { "--poster": `url(${config.poster})` } : {}) as CSSProperties;
 
   return (
-    <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} style={rootStyle}>
+    <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} data-scene={scene ?? undefined} style={rootStyle}>
       <a className="lk-skip" href="#tro-choi">Bỏ qua phần giới thiệu</a>
 
       <header ref={navRef} className="lk-nav" data-solid="false" data-story="true" data-menu={menuOpen}>

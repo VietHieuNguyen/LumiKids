@@ -23,6 +23,8 @@
   --pad: clamp(20px, 4.4vw, 72px);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --story-height: 1000svh;
+  --title-accent: #2e8b57;
+  --title-glow: rgba(234, 244, 236, 0.9);
 
   position: relative;
   min-height: 100svh;
@@ -184,7 +186,7 @@
   font-family: var(--display);
   font-size: clamp(44px, 4.3vw, 78px); line-height: 0.96; letter-spacing: -0.015em; font-weight: 800;
   color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35), 0 12px 40px rgba(234, 244, 236, 0.9);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35), 0 12px 40px var(--title-glow);
 }
 /* fit-content: the clip box (for the rise animation) follows the text, so a long line is never cut off on the right. */
 /* Top padding leaves room for stacked Vietnamese marks (ỗ, ẫ) inside the clip box. */
@@ -478,8 +480,8 @@
 .lk-steps li:nth-child(1) .lk-stepIndex { background: var(--blue); color: #fff; }
 .lk-steps li:nth-child(2) .lk-stepIndex { background: var(--coral); color: #fff; }
 .lk-steps li:nth-child(3) .lk-stepIndex { background: var(--leaf); color: #fff; }
-/* Second hero line in a friendly leaf green. */
-.lk-heroLine:nth-child(2) > span { color: #2e8b57; }
+/* Second hero line in the scene's accent (leaf green in the valley, sea blue at the North Pole). */
+.lk-heroLine:nth-child(2) > span { color: var(--title-accent); }
 .lk-cardActions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; margin-top: 8px; }
 .lk-cardPlay {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
@@ -642,4 +644,53 @@
 @media (prefers-reduced-motion: reduce) {
   .lk-mist, .lk-hintDot, .lk-caret, .lk-pinDot { animation: none !important; }
   .lk-heroLine > span, .lk-heroSubtitle, .lk-hero .lk-cta, .lk-card > * { animation: none !important; }
+}
+
+/*
+ * North Pole palette: navy ink, sea-blue accent, an icy sky with a low polar sun, and a lilac polar
+ * twilight with aurora ribbons for the farewell. Only tokens and the two sky layers change.
+ */
+.lk-root[data-scene="ARCTIC"] {
+  --ink: #15304a;
+  --ink-soft: #4a6378;
+  --ink-scene: #24435e;
+  --sky: #dcecf6;
+  --cream: #f4f8fb;
+  --paper: #fbfdff;
+  --line: rgba(21, 48, 74, 0.14);
+  --glass: rgba(244, 248, 251, 0.86);
+  --title-accent: #1f7fc0;
+  --title-glow: rgba(226, 240, 250, 0.95);
+}
+.lk-root[data-scene="ARCTIC"] .lk-sky {
+  background:
+    radial-gradient(38% 30% at 80% 14%, rgba(255, 246, 222, 0.95), rgba(255, 238, 205, 0.35) 45%, transparent 72%),
+    radial-gradient(60% 40% at 12% 8%, rgba(190, 226, 255, 0.55), transparent 70%),
+    linear-gradient(180deg, #9fd0f0 0%, #c6e4f6 34%, #e2f1f9 64%, #f3f8fb 100%);
+}
+.lk-root[data-scene="ARCTIC"] .lk-sky::after {
+  /* Snow glitter: a few soft flakes drifting down; still when motion is reduced. */
+  content: ""; position: absolute; inset: -20% 0 0; pointer-events: none; opacity: 0.7;
+  background-image:
+    radial-gradient(2px 2px at 12% 22%, #fff 60%, transparent 62%),
+    radial-gradient(1.6px 1.6px at 34% 64%, #fff 60%, transparent 62%),
+    radial-gradient(2.4px 2.4px at 58% 18%, #fff 60%, transparent 62%),
+    radial-gradient(1.6px 1.6px at 76% 52%, #fff 60%, transparent 62%),
+    radial-gradient(2px 2px at 90% 30%, #fff 60%, transparent 62%),
+    radial-gradient(1.4px 1.4px at 22% 84%, #fff 60%, transparent 62%),
+    radial-gradient(2px 2px at 66% 88%, #fff 60%, transparent 62%);
+  background-size: 420px 420px;
+  animation: lk-snow 26s linear infinite;
+}
+@keyframes lk-snow { from { transform: translateY(0); } to { transform: translateY(20%); } }
+@media (prefers-reduced-motion: reduce) { .lk-root[data-scene="ARCTIC"] .lk-sky::after { animation: none; } }
+.lk-root[data-scene="ARCTIC"] .lk-dusk {
+  background:
+    radial-gradient(70% 22% at 30% 16%, rgba(124, 232, 190, 0.55), transparent 70%),
+    radial-gradient(60% 18% at 70% 10%, rgba(176, 140, 240, 0.45), transparent 70%),
+    radial-gradient(55% 40% at 82% 70%, rgba(255, 196, 206, 0.6), transparent 72%),
+    linear-gradient(180deg, #8fa6dc 0%, #b9b6e6 34%, #e4c8e2 66%, #f6dfe4 100%);
+}
+.lk-root[data-scene="ARCTIC"] .lk-endScrim {
+  background: radial-gradient(70% 60% at 50% 30%, rgba(244, 248, 251, 0.55), transparent 75%);
 }

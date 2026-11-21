@@ -164,15 +164,21 @@ function LogoPanel({ admin, settings, onSaved }: { admin: AdminApi; settings: Si
 }
 
 function ScenePanel({ admin, settings, onSaved }: { admin: AdminApi; settings: SiteSettings; onSaved: (next: SiteSettings) => void }) {
+  // Picking a card only marks a draft; nothing changes for visitors until "Áp dụng".
+  const [draft, setDraft] = useState<LandingScene>(settings.landingScene);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
   const scenes = Object.entries(LANDING_SCENES) as [LandingScene, (typeof LANDING_SCENES)[LandingScene]][];
-  async function choose(scene: LandingScene) {
-    if (busy || scene === settings.landingScene) return;
+  const changed = draft !== settings.landingScene;
+  async function apply() {
+    if (busy || !changed) return;
     setBusy(true);
     setError("");
+    setDone(false);
     try {
-      onSaved(await admin.updateSiteSettings({ landingScene: scene }));
+      onSaved(await admin.updateSiteSettings({ landingScene: draft }));
+      setDone(true);
     } catch (failure) {
       setError(classroomError(failure));
     } finally {
@@ -180,19 +186,23 @@ function ScenePanel({ admin, settings, onSaved }: { admin: AdminApi; settings: S
     }
   }
   return (
-    <Panel title="Cảnh trang chủ" description="Cảnh 3D khách thấy đầu tiên ở trang chủ.">
+    <Panel title="Cảnh trang chủ" description="Cảnh 3D khách thấy đầu tiên ở trang chủ. Chọn một cảnh rồi bấm Áp dụng.">
       <fieldset disabled={busy}>
         <legend className="sr-only">Chọn cảnh trang chủ</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           {scenes.map(([key, scene]) => (
             <label key={key} className="cursor-pointer overflow-hidden rounded-lg border border-line bg-paper has-[:checked]:border-leaf has-[:checked]:ring-2 has-[:checked]:ring-leaf/25">
-              <input type="radio" name="landing-scene" className="sr-only" checked={settings.landingScene === key} onChange={() => choose(key)} />
+              <input type="radio" name="landing-scene" className="sr-only" checked={draft === key} onChange={() => { setDraft(key); setDone(false); setError(""); }} />
               {/* eslint-disable-next-line @next/next/no-img-element -- static poster of the scene */}
               <img src={scene.poster} alt="" className="aspect-[16/9] w-full object-cover" />
               <span className="block px-3 py-2.5">
                 <span className="flex items-center justify-between gap-2 text-sm font-semibold">
                   {scene.label}
-                  {settings.landingScene === key && <span className="text-xs font-medium text-leaf">Đang dùng</span>}
+                  {settings.landingScene === key ? (
+                    <span className="text-xs font-medium text-leaf">Đang dùng</span>
+                  ) : draft === key ? (
+                    <span className="text-xs font-medium text-ink-soft">Đã chọn, chưa áp dụng</span>
+                  ) : null}
                 </span>
                 <span className="mt-0.5 block text-xs leading-5 text-ink-soft">{scene.description}</span>
               </span>
@@ -204,6 +214,13 @@ function ScenePanel({ admin, settings, onSaved }: { admin: AdminApi; settings: S
         </div>
       </fieldset>
       {error && <p role="alert" className="asset-error mt-3">{error}</p>}
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+        {done && <p role="status" className="text-sm text-leaf">Đã áp dụng. Khách thấy cảnh mới khi mở lại trang chủ.</p>}
+        {changed && (
+          <button type="button" className="asset-button-secondary" onClick={() => setDraft(settings.landingScene)} disabled={busy}>Hủy</button>
+        )}
+        <button type="button" className="asset-button-primary" onClick={apply} disabled={busy || !changed}>{busy ? "Đang áp dụng…" : "Áp dụng"}</button>
+      </div>
     </Panel>
   );
 }

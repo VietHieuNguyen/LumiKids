@@ -72,9 +72,10 @@ const ARCTIC: LandingSceneConfig = {
       puffin: "Xin chào!",
       orca: "Phù!",
       husky: "Gâu gâu!",
+      walrus: "Răng tớ dài không nè?",
     },
   },
-  voices: { bear: "bear", polarBear: "bear", husky: "dog", fox: "deer", seal: "duck", puffin: "duck", orca: "elephant" },
+  voices: { bear: "bear", polarBear: "bear", husky: "dog", fox: "deer", seal: "duck", puffin: "duck", orca: "elephant", walrus: "elephant" },
   loadStage: () => import("./arctic-scene").then((module) => module.ArcticStage),
 };
 

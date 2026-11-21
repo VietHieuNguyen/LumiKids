@@ -7,17 +7,21 @@ export const SETTINGS_DEADLINE_MS = 1500;
 export const SCENE_MEMORY_KEY = "lumikids.landingScene";
 
 /**
- * The scene the landing commits to, or null while it still has to wait. Once chosen it never
- * changes for this page view, so two stages are never built; a new admin choice shows next visit.
+ * The scene the landing commits to, or null while it still waits for the settings. The admin's saved
+ * scene always wins, so an applied change shows on the next page load; the scene remembered in this
+ * browser only covers an API that failed or missed the deadline. Once chosen it never changes for this
+ * page view, so two stages are never built.
  */
 export function chooseLandingScene(input: {
   locked: LandingScene | null;
   ready: boolean;
+  fromApi: boolean;
   fromSettings: LandingScene;
   remembered: string | null;
 }): LandingScene | null {
   if (input.locked) return input.locked;
+  if (!input.ready) return null;
+  if (input.fromApi) return input.fromSettings;
   const remembered = landingSceneSchema.safeParse(input.remembered);
-  if (remembered.success) return remembered.data;
-  return input.ready ? input.fromSettings : null;
+  return remembered.success ? remembered.data : input.fromSettings;
 }
