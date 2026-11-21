@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Small static SVG illustrations and a poster that cross-fades with the WebGL canvas; next/image adds no benefit here. */
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -17,6 +17,8 @@ import { loginHref } from "@/lib/safe-return-path";
 import { clamp, easeInOutCubic, seg, smooth } from "./scroll-math";
 import type { LandingStage } from "./landing-stage";
 import { landingSceneConfig } from "./scene-config";
+import { chooseLandingScene, SCENE_MEMORY_KEY } from "./landing-scene-choice";
+import type { LandingScene } from "@lumikids/shared";
 import "./landing.css";
 
 type StageMode = "loading" | "live" | "static";
@@ -147,11 +149,35 @@ function MiniActivity({ kind }: { kind: "shadow" | "count" }) {
   );
 }
 
+const ignoreStorageEvents = () => () => undefined;
+function readRememberedScene(): string | null {
+  try {
+    return window.localStorage.getItem(SCENE_MEMORY_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function LandingPage() {
   const { settings: siteSettings, ready: settingsReady } = useSiteSettings();
   const { siteName, tagline: siteTagline } = siteSettings;
-  // The 3D scene, its copy and quest come from the admin's choice; nothing 3D loads until it is known.
-  const config = landingSceneConfig(siteSettings.landingScene);
+  // The 3D scene, its copy and quest come from the admin's choice. It is fixed once per page view
+  // (remembered scene at once, else the settings or their deadline), so only one stage ever loads.
+  const remembered = useSyncExternalStore(ignoreStorageEvents, readRememberedScene, () => null);
+  const [scene, setScene] = useState<LandingScene | null>(null);
+  const nextScene = chooseLandingScene({ locked: scene, ready: settingsReady, fromSettings: siteSettings.landingScene, remembered });
+  if (nextScene !== scene) setScene(nextScene);
+  useEffect(() => {
+    // Remember the admin's latest choice for the next visit.
+    if (!settingsReady) return;
+    try {
+      window.localStorage.setItem(SCENE_MEMORY_KEY, siteSettings.landingScene);
+    } catch {
+      // Private mode or blocked storage: the next visit simply waits for the settings again.
+    }
+  }, [settingsReady, siteSettings.landingScene]);
+  const sceneReady = scene !== null;
+  const config = landingSceneConfig(scene ?? siteSettings.landingScene);
   const quest = config.quest;
   const rootRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -203,7 +229,7 @@ export function LandingPage() {
     const story = storyRef.current;
     const stage = stageRef.current;
     const canvas = canvasRef.current;
-    if (!story || !stage || !canvas || !settingsReady) return;
+    if (!story || !stage || !canvas || !sceneReady) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const staticMode = reduceMotion.matches || !supportsWebGL() || rememberedFallback();
@@ -560,7 +586,7 @@ export function LandingPage() {
       document.removeEventListener("visibilitychange", onVisibility);
       valley?.dispose();
     };
-  }, [settingsReady, config]);
+  }, [sceneReady, config]);
 
   // The nav CTA reads "skip" until the games section reaches the middle of the screen.
   useEffect(() => {
@@ -633,7 +659,7 @@ export function LandingPage() {
     window.scrollTo({ top: top + travel * NAV_PROGRESS[target], behavior });
   };
 
-  const rootStyle = (settingsReady ? { "--poster": `url(${config.poster})` } : {}) as CSSProperties;
+  const rootStyle = (sceneReady ? { "--poster": `url(${config.poster})` } : {}) as CSSProperties;
 
   return (
     <div ref={rootRef} className="lk-root" data-mode={mode} data-ready={ready} style={rootStyle}>
@@ -688,7 +714,7 @@ export function LandingPage() {
           <div ref={stageRef} className="lk-stage" tabIndex={-1}>
             <div className="lk-sky" aria-hidden="true" />
             <div ref={duskRef} className="lk-dusk" aria-hidden="true" />
-            {settingsReady ? <img className="lk-poster" src={config.poster} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.hidden = true; }} /> : null}
+            {sceneReady ? <img className="lk-poster" src={config.poster} alt="" aria-hidden="true" onError={(e) => { e.currentTarget.hidden = true; }} /> : null}
             {/* Sky haze sits behind the transparent canvas so it softens the sky only, never the scene's corners. */}
             <div className="lk-mist" aria-hidden="true" />
             <canvas ref={canvasRef} className="lk-canvas" aria-hidden="true" />

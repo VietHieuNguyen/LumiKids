@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { siteSettingsSchema } from "@lumikids/shared";
 import type { SiteSettings } from "@lumikids/shared";
+import { SETTINGS_DEADLINE_MS } from "@/features/landing/landing-scene-choice";
 
 const apiOrigin = () => process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 const builtIn: SiteSettings = { siteName: "LumiKids", tagline: null, logoPath: null, landingScene: "VALLEY", updatedAt: null };
@@ -32,6 +33,9 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     const origin = apiOrigin();
     if (!origin) return;
     const controller = new AbortController();
+    // A slow API must not hold pages that wait on `ready`: go on with the built-in settings, and still
+    // take the real ones if they arrive later.
+    const deadline = window.setTimeout(() => setReady(true), SETTINGS_DEADLINE_MS);
     fetch(`${origin}/api/v1/site-settings`, { signal: controller.signal, cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((envelope: unknown) => {
@@ -42,7 +46,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         if (!controller.signal.aborted) setReady(true);
       });
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(deadline);
+      controller.abort();
+    };
   }, []);
   const logoUrl = settings.logoPath ? `${apiOrigin()}${settings.logoPath}` : null;
   useEffect(() => {

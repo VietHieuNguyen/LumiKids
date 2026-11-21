@@ -104,3 +104,27 @@ test("arctic path: close shots keep the local ground level (camera up = surface 
     assert.ok(Math.abs(dot(view, unitOf(shot.target))) < 0.8, `oblique view at ${hold[0]}`);
   }
 });
+
+test("landing scene is fixed once: remembered scene at once, else the settings once ready, never switched after", async () => {
+  const { chooseLandingScene, SETTINGS_DEADLINE_MS } = await import("../src/features/landing/landing-scene-choice.ts");
+  assert.ok(SETTINGS_DEADLINE_MS > 0 && SETTINGS_DEADLINE_MS <= 2000, "a slow API never holds the page for long");
+  assert.equal(chooseLandingScene({ locked: null, ready: false, fromSettings: "VALLEY", remembered: null }), null);
+  assert.equal(chooseLandingScene({ locked: null, ready: false, fromSettings: "VALLEY", remembered: "ARCTIC" }), "ARCTIC");
+  assert.equal(chooseLandingScene({ locked: null, ready: false, fromSettings: "VALLEY", remembered: "MOON" }), null);
+  assert.equal(chooseLandingScene({ locked: null, ready: true, fromSettings: "ARCTIC", remembered: null }), "ARCTIC");
+  assert.equal(chooseLandingScene({ locked: "VALLEY", ready: true, fromSettings: "ARCTIC", remembered: null }), "VALLEY");
+});
+
+test("arctic picking: generous spheres, nearest wins, the globe hides what is behind it", async () => {
+  const THREE = await import("three");
+  const { pickFriend } = await import("../src/features/landing/arctic-pick.ts");
+  const ray = new THREE.Ray(new THREE.Vector3(0, 0, 20), new THREE.Vector3(0, 0, -1));
+  const front = { center: new THREE.Vector3(0.3, 0, 5.4), radius: 0.5 };
+  const behind = { center: new THREE.Vector3(0, 0, -5.4), radius: 0.5 };
+  const under = { center: new THREE.Vector3(0, 0, 3.9), radius: 1 };
+  assert.equal(pickFriend(ray, [behind, front], 5), 1, "a near miss on the front animal still counts");
+  assert.equal(pickFriend(ray, [behind], 5), null, "far side of the globe is not tappable");
+  assert.equal(pickFriend(ray, [under], 5), null, "inside the globe is not tappable");
+  const side = new THREE.Ray(new THREE.Vector3(9, 0, 20), new THREE.Vector3(0, 0, -1));
+  assert.equal(pickFriend(side, [{ center: new THREE.Vector3(9, 0, -3), radius: 0.5 }], 5), 0, "behind but beside the globe stays tappable");
+});
