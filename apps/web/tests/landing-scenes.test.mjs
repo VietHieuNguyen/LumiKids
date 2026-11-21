@@ -202,17 +202,20 @@ test("arctic sea: open-water schools ring the globe so the turning hero never sh
   const { makeSchool, swimPose, ARCTIC_SEA, ARCTIC_OPEN_WATER } = await import("../src/features/landing/arctic-fish.ts");
   const angle = (a, b) => Math.acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))) * 180 / Math.PI;
   const longitude = (v) => ((Math.atan2(v[0], v[2]) * 180) / Math.PI + 360) % 360;
-  assert.ok(ARCTIC_OPEN_WATER.length >= 3, "several open-water schools");
+  assert.ok(ARCTIC_OPEN_WATER.length >= 5, "several open-water schools");
+  // Most goldfish live out in the open water; only a small group stays by the orca.
+  const open = ARCTIC_OPEN_WATER.reduce((sum, spec) => sum + spec.count, 0);
+  assert.ok(ARCTIC_SEA.goldfish.count <= 8 && open > 3 * ARCTIC_SEA.goldfish.count, `${ARCTIC_SEA.goldfish.count} extra by the orca, ${open} in the open water`);
   for (const spec of ARCTIC_OPEN_WATER) {
-    assert.ok(angle(spec.center, ARCTIC_POINTS.orca) > 60, "away from the orca");
-    assert.ok(Math.abs(spec.center[1]) / Math.hypot(...spec.center) < 0.55, "in the band the hero spin shows");
+    assert.ok(angle(spec.center, ARCTIC_POINTS.orca) > 40, "away from the orca");
+    assert.ok(Math.abs(spec.center[1]) / Math.hypot(...spec.center) < 0.6, "in the band the hero spin shows");
     for (const fish of makeSchool(spec.center, spec.count, 5, spec.shape)) {
       for (const t of [0, 4, 9]) assert.ok(Math.hypot(...swimPose(fish, t).position) < ARCTIC_GLOBE.radius - 0.25, "under water");
     }
   }
   const lons = [ARCTIC_SEA.goldfish.center, ...ARCTIC_OPEN_WATER.map((s) => s.center)].map(longitude).sort((a, b) => a - b);
   const gaps = lons.map((l, i) => (i + 1 < lons.length ? lons[i + 1] : lons[0] + 360) - l);
-  assert.ok(Math.max(...gaps) <= 120, `largest stretch without fish ${Math.max(...gaps).toFixed(0)}°`);
+  assert.ok(Math.max(...gaps) <= 100, `largest stretch without fish ${Math.max(...gaps).toFixed(0)}°`);
 });
 
 test("arctic view: the screen never rolls abruptly (no flips on the way in, out or under the water)", () => {

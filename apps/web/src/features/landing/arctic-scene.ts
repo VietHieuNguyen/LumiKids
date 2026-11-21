@@ -184,7 +184,7 @@ export class ArcticStage implements LandingStage {
       const key = mesh.name.includes("Far") || mesh.parent?.name.includes("Far") ? "far" : "front";
       groups.set(key, [...(groups.get(key) ?? []), mesh]);
     }
-    const extra: Record<string, number> = { front: 26, far: 10 };
+    const extra: Record<string, number> = { front: ARCTIC_SEA.goldfish.count, far: 10 };
     let seed = 11;
     for (const [key, meshes] of groups) {
       const local = (mesh: THREE.Mesh) => mesh.getWorldPosition(new THREE.Vector3()).applyMatrix4(rootInverse);

@@ -102,10 +102,11 @@ function inView(ahead: number, right: number, up: number): Vec3 {
 /**
  * Where each group swims in the underwater shot, spread over the picture: the dolphins in the open water above
  * the orca, the goldfish to the left, the tuna low on the right and two manta rays gliding underneath. All but the
- * goldfish are slow.
+ * goldfish are slow. The goldfish `count` is how many extra copies join the file's fish by the orca; most goldfish
+ * swim in the open water instead (ARCTIC_OPEN_WATER).
  */
 export const ARCTIC_SEA = {
-  goldfish: { center: inView(2.3, -0.85, 0.3), count: 0, shape: { radius: [0.45, 1.25], depth: 0.9 } },
+  goldfish: { center: inView(2.3, -0.85, 0.3), count: 6, shape: { radius: [0.45, 1.25], depth: 0.9 } },
   tuna: { center: inView(2.6, -1.0, -0.55), count: 9, shape: { radius: [0.45, 0.95], depth: 0.45, speed: [0.18, 0.3], bob: 0.03 } },
   dolphins: { center: inView(3.2, 0.9, 0.55), count: 3, shape: { radius: [0.68, 0.7], depth: 0.2, speed: [0.12, 0.16], bob: 0.09, evenly: true } },
   mantas: { center: inView(5.0, 0.0, -1.4), count: 2, shape: { radius: [0.8, 0.85], depth: 0.15, speed: [0.08, 0.1], bob: 0.05, evenly: true } },
@@ -122,8 +123,10 @@ const underSea = (spot: Vec3, depth = 0.7): Vec3 => {
  * so the slowly turning hero globe never shows an empty sea while the orca side is busy.
  */
 const OPEN_WATER_SPOTS: readonly Vec3[] = [
+  [4.52, 1.65, -1.54],
   [3.43, 2.59, -2.65],
   [-1.8, -2.45, -4.03],
   [-4.46, 2.28, 0.63],
+  [-3.62, -2.83, 2.1],
 ];
 export const ARCTIC_OPEN_WATER: readonly { center: Vec3; count: number; shape: SchoolShape }[] = OPEN_WATER_SPOTS.map((spot) => ({ center: underSea(spot), count: 12, shape: { radius: [0.35, 0.75] as const, depth: 0.3, speed: [0.3, 0.5] as const, bob: 0.04 } }));
