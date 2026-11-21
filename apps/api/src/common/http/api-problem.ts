@@ -180,7 +180,7 @@ const problems = {
   ],
   ASSIGNMENT_AGE_MISMATCH: [
     422,
-    'Có trẻ không thuộc nhóm tuổi của trò chơi (tính theo tháng tuổi tại ngày mở bài). Hãy chọn trò khác hoặc bỏ trẻ đó.',
+    'Có trẻ chưa đủ tuổi tối thiểu của trò chơi (tính theo tháng tuổi tại ngày mở bài). Hãy chọn trò dành cho nhóm tuổi nhỏ hơn hoặc bỏ trẻ chưa đủ tuổi.',
   ],
   AGE_GROUP_INVALID: [422, 'Nhóm tuổi không tồn tại.'],
   INVITE_INVALID: [

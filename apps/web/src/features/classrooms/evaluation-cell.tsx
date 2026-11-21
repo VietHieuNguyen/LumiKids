@@ -18,7 +18,7 @@ export function EvaluationCell({ evaluation }: { evaluation: PlayHistoryItem["ev
         <span className="ml-1 text-xs font-normal text-ink-soft">· Chỉ số {evaluation.criterionCode}</span>
       </p>
       <p className="text-xs text-ink-soft">
-        Đúng ngay {p.firstAttemptCorrectCount} · Sửa đúng {p.retryCorrectCount} · {p.totalScoredItems} nhiệm vụ
+        Đúng ngay {p.firstAttemptCorrectCount} · Sửa đúng {p.retryCorrectCount} · Nhờ gợi ý {p.hintCorrectCount} · {p.totalScoredItems} nhiệm vụ
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {evaluation.level ? (
