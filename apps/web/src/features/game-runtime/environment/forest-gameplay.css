@@ -81,3 +81,16 @@
 .game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-webkit-progress-value { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
 .game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-moz-progress-bar { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
 .game-picture-only:has(> [data-scene-theme="savanna"]) > [role="status"] { box-shadow: 0 3px 0 #d6bd80; }
+
+/* A stable icon-sized control, with a visible active state and reduced-motion support. */
+.game-picture-only > header .game-voice-button[data-speaking] {
+  background: #fff0b3;
+  color: #805719;
+  box-shadow: 0 0 0 4px #efce7c, 0 4px 0 #bfd8e5;
+}
+.game-voice-button[data-speaking] svg { animation: voice-pulse 1s ease-in-out infinite; }
+@keyframes voice-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) {
+  .game-voice-button[data-speaking] svg { animation: none; }
+}
+.game-voice-fallback { background: #fffaf0; margin: 0; }

@@ -71,7 +71,14 @@ do not use SAVANNA for GRASSLAND unless that image explicitly declares GRASSLAND
 Animal pictures and broad LAND/WATER metadata do not prove a specific environment image.
 If no matching environment image exists, OMIT that group's optional assetId and keep its label.
 Use group asset images only if their metadata matches the group. completionRule=ALL_ITEMS_CLASSIFIED_CORRECTLY.
-Write clear, short Vietnamese instructions/labels unless the teacher requests another language.
+Always write instructions and instruction in natural Vietnamese for children aged three to six.
+instructions describes the general controls; instruction describes the specific task and target.
+Address the child as "bé". Use one or two short sentences, with clear verbs such as chọn, chạm,
+kéo, đếm, đặt. Spell numbers as Vietnamese words in prose (numeric choice values stay numbers).
+Match the actual controls: matching/classification allow selecting then tapping or dragging;
+counting uses tapping a numeric choice. Respect the validated counting subset, color and type.
+Never reveal the answer, correct count, pair mappings, accepted groups, hints or solving tips.
+Do not include technical jargon. Labels may name objects but must not leak the answer.
 No markdown, commentary, persistence, scoring, or child assessment.'''
 
 

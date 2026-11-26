@@ -52,7 +52,9 @@ def payload() -> dict:
 
 
 def content() -> dict:
-    return {'schemaVersion': 2, 'gameType': 'COUNTING', 'instruction': 'Đếm bóng', 'countingRule': {'type': 'ALL'}, 'countedItemIds': ['ball1'],
+    return {'schemaVersion': 2, 'gameType': 'COUNTING', 'instruction': 'Bé hãy đếm bóng nhé!',
+            'instructions': 'Bé hãy đếm rồi chạm vào số bé chọn nhé!',
+            'countingRule': {'type': 'ALL'}, 'countedItemIds': ['ball1'],
             'items': [{'id': 'ball1', 'assetId': '61aa17ec-2380-4f39-9229-045322b692d7'}],
             'choices': [{'id': 'one', 'value': 1}, {'id': 'two', 'value': 2}],
             'correctChoiceId': 'one', 'completionRule': 'CORRECT_CHOICE'}
@@ -107,6 +109,13 @@ def test_generated_schema_accepts_shared_example(payload: dict) -> None:
         parse_output(json.dumps(wrong), payload['responseSchema'])
 
 
+def test_new_generation_requires_general_voice_instructions(payload: dict) -> None:
+    legacy = content()
+    del legacy['instructions']
+    with pytest.raises(AiFailure, match='AI_OUTPUT_INVALID'):
+        parse_output(json.dumps(legacy), payload['responseSchema'])
+
+
 def test_sdk_structured_output_and_single_attempt(payload: dict, settings: Settings) -> None:
     response = types.GenerateContentResponse(candidates=[types.Candidate(finish_reason='STOP', content=types.Content(parts=[types.Part(text=json.dumps(content()))]))])
     client, call = mock_client(response)
@@ -155,6 +164,8 @@ def test_missing_key_never_creates_sdk_client(payload: dict) -> None:
 def test_structured_schemas_accept_real_shared_examples(game_type: str) -> None:
     example_path = ROOT / 'packages' / 'shared' / 'examples' / 'game-content' / f'{game_type.lower()}.v1.json'
     example = json.loads(example_path.read_text(encoding='utf-8'))
+    # Persisted v1 examples stay unchanged; new model output includes general instructions.
+    example['instructions'] = 'Bé hãy chạm hoặc kéo hình để chơi nhé!'
     if game_type == 'COUNTING':
         example.update(schemaVersion=2, countingRule={'type': 'ALL'}, countedItemIds=[item['id'] for item in example['items']])
     elif game_type == 'CLASSIFICATION':

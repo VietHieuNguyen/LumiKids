@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   gameContentSchema,
+  withLegacyInstruction,
   getGameContentAssetIds,
   getGameContentAssetIssues,
 } from '@lumikids/shared';
@@ -61,7 +62,7 @@ export class GameLibraryService {
     row: LibraryVersion,
     criteria: AssessmentCriterion[],
   ): SavedGameDetail {
-    const content = gameContentSchema.parse(row.content);
+    const content = gameContentSchema.parse(withLegacyInstruction(row.content));
     return {
       activityId: row.activityId,
       versionId: row.versionId,
@@ -167,9 +168,9 @@ export class GameLibraryService {
     this.authorize(user, 'READ_GAMES');
     const row = await this.requireVersion(user, versionId);
     if (
-      !getGameContentAssetIds(gameContentSchema.parse(row.content)).includes(
-        assetId,
-      )
+      !getGameContentAssetIds(
+        gameContentSchema.parse(withLegacyInstruction(row.content)),
+      ).includes(assetId)
     )
       throw new ForbiddenException('Ảnh không thuộc trò chơi đã lưu.');
     return this.assets.savedGameReadUrl(user, assetId);
@@ -179,7 +180,9 @@ export class GameLibraryService {
     if (this.canManageAll(user)) return;
     this.authorize(user, 'SAVE_GAMES');
     if (row.activity.createdBy !== user.userId)
-      throw new ForbiddenException('Bạn chỉ có thể quản lý trò chơi do mình tạo.');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể quản lý trò chơi do mình tạo.',
+      );
   }
   async ageGroup(user: Principal, versionId: string, ageGroupId: string) {
     this.authorize(user, 'READ_GAMES');

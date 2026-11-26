@@ -11,6 +11,9 @@ import {
 } from "react";
 import {
   gameContentSchema,
+  withLegacyInstruction,
+  currentVoiceInstruction,
+  voiceInstructionText,
   getGameProgress,
   getHintTargets,
   isAnswerInteraction,
@@ -33,6 +36,8 @@ import { GameBackdrop } from "./environment/game-backdrop";
 import { GameMusic } from "./components/game-music";
 import { CorrectAnswerMascot } from "./components/correct-answer-mascot";
 import { GameCompletion } from "./components/game-completion";
+import { useSpeech } from "../../lib/use-speech";
+import { VoiceInstructionButton } from "./components/voice-instruction-button";
 
 export interface GameRuntimeProps extends RuntimeCallbacks {
   content: GameContent;
@@ -103,6 +108,16 @@ function GameRun({
     toggle: toggleFullscreen,
   } = useGameFullscreen(defaultExpanded);
   const [controller] = useState(() => createGameController(content));
+  const { speak, stop: stopSpeech, isSpeaking, status: speechStatus } = useSpeech();
+  const [started, setStarted] = useState(mode === "PREVIEW");
+  const [displayedSequence, setDisplayedSequence] = useState<string | null>(
+    content.gameType === "PATTERN" ? content.sequences[0]?.id ?? null : null,
+  );
+  const lastReadSequence = useRef<string | null>(null);
+  const onDisplayedSequence = useCallback((id: string) => {
+    if (displayedSequence !== id) stopSpeech();
+    setDisplayedSequence(id);
+  }, [displayedSequence, stopSpeech]);
   const [mascotEvent, setMascotEvent] = useState<{ id: string; result: "CORRECT" | "INCORRECT" } | null>(null);
   const effectAudio = useRef<HTMLAudioElement | null>(null);
   const mascotResult = useRef<"CORRECT" | "INCORRECT" | null>(null);
@@ -116,6 +131,7 @@ function GameRun({
     controller.setCallbacks({ onInteraction: (event) => {
       // A hint has no result: no mascot or effect sound, only the light-up on the board.
       if (mode === "PLAY" && isAnswerInteraction(event) && (!mascotBusy.current || mascotResult.current !== event.result)) {
+        stopSpeech();
         mascotBusy.current = true;
         mascotResult.current = event.result;
         setMascotEvent({ id: event.eventId, result: event.result });
@@ -127,7 +143,7 @@ function GameRun({
       }
       onInteraction?.(event);
     }, onComplete });
-  }, [controller, mode, onInteraction, onComplete]);
+  }, [controller, mode, onInteraction, onComplete, stopSpeech]);
   useEffect(() => {
     const stop = () => effectAudio.current?.pause();
     const visibility = () => { if (document.hidden) stop(); };
@@ -140,6 +156,16 @@ function GameRun({
     };
   }, []);
   const [state, setState] = useState(controller.getState);
+  useEffect(() => {
+    if (paused || state.completed || !started) stopSpeech();
+  }, [paused, state.completed, started, stopSpeech]);
+  useEffect(() => {
+    if (mode !== "PLAY" || !started || paused || state.completed || mascotEvent || !displayedSequence
+      || lastReadSequence.current === displayedSequence) return;
+    lastReadSequence.current = displayedSequence;
+    if (content.gameType === "PATTERN" && content.sequences.find((entry) => entry.id === displayedSequence)?.instruction)
+      speak(currentVoiceInstruction(content, displayedSequence));
+  }, [mode, started, paused, state.completed, mascotEvent, displayedSequence, content, speak]);
   const [round, setRound] = useState(0);
   const headingId = useId();
   const [presentationSeed, setPresentationSeed] = useState(headingId);
@@ -155,7 +181,7 @@ function GameRun({
   const registration = gameRegistry[content.gameType];
   const theme = gameSceneTheme(content.gameType);
   function act(action: GameAction) {
-    if (paused) return;
+    if (paused || !started) return;
     // Commit synchronously in controller, publish UI outside a React state updater.
     try {
       controller.dispatch(action);
@@ -164,6 +190,9 @@ function GameRun({
     }
   }
   function reset() {
+    stopSpeech();
+    lastReadSequence.current = null;
+    setStarted(mode === "PREVIEW");
     dismissMascot();
     if (content.gameType === "MATCHING")
       setPresentationSeed(crypto.randomUUID());
@@ -211,6 +240,17 @@ function GameRun({
     correct: "✓ Đúng rồi! Con tiếp tục nhé.",
     incorrect: "↻ Chưa đúng rồi. Con thử lại nhé!",
   }[feedback];
+  function readInstruction(initial = false) {
+    effectAudio.current?.pause();
+    const task = currentVoiceInstruction(content, displayedSequence);
+    const general = voiceInstructionText(content.instructions ?? "");
+    speak(initial && general && general !== task ? `${general} ${task}` : task);
+  }
+  function start() {
+    lastReadSequence.current = displayedSequence;
+    setStarted(true);
+    readInstruction(true);
+  }
   return (
     <section
       ref={fullscreenTarget}
@@ -234,7 +274,7 @@ function GameRun({
           <button
             type="button"
             className="asset-button-secondary game-hint-button"
-            disabled={paused || !nextHint}
+            disabled={paused || !started || !nextHint}
             title={nextHint ? "Gợi ý (mỗi câu một lần)" : "Đã dùng hết gợi ý"}
             onClick={() => nextHint && act({ actionType: "REQUEST_HINT", sourceId: nextHint.taskId })}
           >
@@ -243,7 +283,15 @@ function GameRun({
             </svg>
             <span>{nextHint ? "Gợi ý" : "Hết gợi ý"}</span>
           </button>
-          {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused} target={fullscreenTarget} />}
+          {mode === "PLAY" && !started && (
+            <button type="button" className="asset-button-primary" style={{ minHeight: 48 }} disabled={paused} onClick={start}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 4 13 8-13 8Z" /></svg>
+              Bắt đầu
+            </button>
+          )}
+          <VoiceInstructionButton status={speechStatus} disabled={paused || !started || state.completed}
+            onReplay={() => readInstruction()} />
+          {mode === "PLAY" && <GameMusic gameType={content.gameType} paused={paused || !started || state.completed} ducked={isSpeaking} target={fullscreenTarget} />}
           <button
             type="button"
             className="asset-button-secondary"
@@ -315,10 +363,13 @@ function GameRun({
           </span>
         </div>
       </header>
+      {(speechStatus === "unsupported" || speechStatus === "no-voice" || speechStatus === "error") && (
+        <p className="game-voice-fallback px-4 py-2 text-center text-sm text-slate-700">{currentVoiceInstruction(content, displayedSequence)}</p>
+      )}
       <div className="game-forest-scene" data-scene-theme={theme}>
         <GameBackdrop theme={theme} className="game-forest-canvas" />
         <fieldset
-          disabled={paused}
+          disabled={paused || !started}
           aria-label="Thao tác trò chơi"
           className="min-w-0 px-5 py-6 sm:px-8 disabled:opacity-60"
           key={`${round}:${paused}`}
@@ -332,6 +383,7 @@ function GameRun({
             onAction: act,
             onAssetError,
             hint,
+            onDisplayedSequence,
           })}
         </fieldset>
       </div>
@@ -355,7 +407,7 @@ function GameRun({
 
 export function GameRuntime(props: GameRuntimeProps) {
   const validation = useMemo(
-    () => gameContentSchema.safeParse(props.content),
+    () => gameContentSchema.safeParse(withLegacyInstruction(props.content)),
     [props.content],
   );
   if (!validation.success)

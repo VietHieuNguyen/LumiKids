@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { gameContentSchema, getGameContentAssetIds } from '@lumikids/shared';
+import {
+  withLegacyInstruction,
+  gameContentSchema,
+  getGameContentAssetIds,
+} from '@lumikids/shared';
 import type {
   GameContent,
   PlayableGameDetail,
@@ -33,7 +37,7 @@ export class PlayableGameService {
       throw new ForbiddenException();
   }
   private present(row: PlayableVersion): PlayableGameDetail {
-    const content = gameContentSchema.parse(row.content);
+    const content = gameContentSchema.parse(withLegacyInstruction(row.content));
     return {
       versionId: row.versionId,
       name: row.activity.name,
@@ -80,6 +84,6 @@ export class PlayableGameService {
   async versionContent(versionId: string): Promise<GameContent> {
     const row = await this.repository.findVersionContent(versionId);
     if (!row) throw new NotFoundException('Trò chơi không tồn tại.');
-    return gameContentSchema.parse(row.content);
+    return gameContentSchema.parse(withLegacyInstruction(row.content));
   }
 }

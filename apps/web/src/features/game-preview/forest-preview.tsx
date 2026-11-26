@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSpeech } from "../../lib/use-speech";
 import { useEffect, useRef, useState } from "react";
 import { getGameProgress, isAnswerInteraction } from "@lumikids/shared";
 import type { GameAction, GameInteraction } from "@lumikids/shared";
@@ -23,6 +24,7 @@ function Icon({ name }: { name: "home" | "reset" | "sound" | "expand" }) {
 }
 
 export function ForestPreview() {
+  const { speak, stop: stopSpeech } = useSpeech();
   const root = useRef<HTMLElement>(null);
   const [controller] = useState(() => createGameController(content));
   const [state, setState] = useState(controller.getState);
@@ -33,7 +35,7 @@ export function ForestPreview() {
   const audio = useRef<AudioContext | null>(null);
   const progress = getGameProgress(content, state);
 
-  useEffect(() => () => { void audio.current?.close(); window.speechSynthesis?.cancel(); }, []);
+  useEffect(() => () => { void audio.current?.close(); }, []);
 
   function act(action: GameAction) {
     controller.dispatch(action);
@@ -54,16 +56,12 @@ export function ForestPreview() {
   }
 
   function toggleSound() {
-    if (sound) { setSound(false); window.speechSynthesis?.cancel(); return; }
+    if (sound) { setSound(false); stopSpeech(); return; }
     try {
       audio.current ??= new AudioContext();
       void audio.current.resume().catch(() => setNotice("Trình duyệt chưa cho phép phát âm thanh."));
       setSound(true);
-      if ("speechSynthesis" in window) {
-        const speech = new SpeechSynthesisUtterance(instruction);
-        speech.lang = "vi-VN"; speech.rate = 0.85;
-        window.speechSynthesis.speak(speech);
-      }
+      speak(instruction);
     } catch { setNotice("Trình duyệt chưa hỗ trợ âm thanh."); }
   }
 

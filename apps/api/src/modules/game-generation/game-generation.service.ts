@@ -16,6 +16,7 @@ import type {
 import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import {
   buildPatternContent,
+  gameContentSchema,
   getGameContentAssetIds,
   getGameContentAssetIssues,
   patternContentSchema,
@@ -36,6 +37,7 @@ import {
 import { validateGeneratedContent } from './game-validation.js';
 import { normalizeHabitatAnswers } from './habitat-validation.js';
 import { pickPatternAssets } from './pattern-composition.js';
+import { prepareVoiceInstructions } from './voice-instruction.js';
 
 @Injectable()
 export class GameGenerationService {
@@ -115,13 +117,21 @@ export class GameGenerationService {
             validationStage = 'NEST';
             throw new AiClientError('AI_OUTPUT_INVALID', true);
           }
-          const ids = getGameContentAssetIds(validation.content);
+          const voiced = gameContentSchema.safeParse(
+            prepareVoiceInstructions(validation.content),
+          );
+          if (!voiced.success) {
+            validationErrors = ['VOICE_INSTRUCTION_INVALID'];
+            validationStage = 'NEST';
+            throw new AiClientError('AI_OUTPUT_INVALID', true);
+          }
+          const ids = getGameContentAssetIds(voiced.data);
           const current = await this.assets.generationAssets(user, ids);
-          if (getGameContentAssetIssues(validation.content, current).length)
+          if (getGameContentAssetIssues(voiced.data, current).length)
             throw new ApiProblem('ASSETS_CHANGED');
           // Validate again against current metadata to reject edits/deactivation during the model call.
           const final = validateGeneratedContent(
-            validation.content,
+            voiced.data,
             input.gameType,
             input.prompt,
             current.map(toCandidate),
@@ -129,7 +139,7 @@ export class GameGenerationService {
           if (final.errors.length) throw new ApiProblem('ASSETS_CHANGED');
           return {
             gameType: input.gameType,
-            gameContent: validation.content,
+            gameContent: voiced.data,
             generation: {
               requestId,
               model: output.model,

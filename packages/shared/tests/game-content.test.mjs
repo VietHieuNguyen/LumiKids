@@ -10,6 +10,9 @@ import {
   gameInteractionSchema,
   getGameContentAssetIds,
   getGameContentAssetIssues,
+  withLegacyInstruction,
+  currentVoiceInstruction,
+  voiceInstructionText,
 } from "../dist/index.js";
 
 function example(name) {
@@ -23,6 +26,37 @@ function example(name) {
 const counting = () => example("counting");
 const matching = () => example("matching");
 const classification = () => example("classification");
+
+test("voice fields round-trip without changing answer data and legacy games remain valid", () => {
+  for (const fixture of [counting, matching, classification]) {
+    const old = fixture();
+    assert.deepEqual(gameContentSchema.parse(old), old);
+    const next = { ...old, instructions: "Bé hãy chạm hoặc kéo hình để chơi nhé!" };
+    assert.deepEqual(gameContentSchema.parse(JSON.parse(JSON.stringify(next))), next);
+    assert.equal(currentVoiceInstruction(old), voiceInstructionText(old.instruction));
+    for (const instructions of ["", " ", "x".repeat(501), 123])
+      assert.equal(gameContentSchema.safeParse({ ...old, instructions }).success, false);
+  }
+});
+
+test("legacy adaptation only fills missing prose, preserves input, and still rejects broken answers", () => {
+  const old = counting();
+  delete old.instruction;
+  const compatible = withLegacyInstruction(old);
+  assert.equal(Object.hasOwn(old, "instruction"), false);
+  assert.equal(gameContentSchema.safeParse(compatible).success, true);
+  assert.equal(gameContentSchema.safeParse(withLegacyInstruction({ ...old, correctChoiceId: "absent" })).success, false);
+  assert.equal(gameContentSchema.safeParse(withLegacyInstruction({ ...old, instruction: 123 })).success, false);
+  assert.equal(gameContentSchema.safeParse(withLegacyInstruction({ ...old, gameType: "toString" })).success, false);
+});
+
+test("spoken text spells small numbers without reading counts from the answer keys", () => {
+  assert.equal(voiceInstructionText("Bé hãy chọn 1 hình và ghép 12 cặp nhé!"), "Bé hãy chọn một hình và ghép mười hai cặp nhé!");
+  const content = counting();
+  content.instruction = "Bé hãy đếm các hình màu đỏ nhé!";
+  assert.equal(currentVoiceInstruction(content), content.instruction);
+  assert.ok(!currentVoiceInstruction(content).includes(content.choices[0].value.toString()));
+});
 const cases = [
   ["COUNTING", counting, countingContentSchema],
   ["MATCHING", matching, matchingContentSchema],

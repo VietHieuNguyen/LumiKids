@@ -115,6 +115,8 @@ export function gameResponseSchema(
   assetIds: string[],
 ): Record<string, unknown> {
   const schema = z.toJSONSchema(structures[gameType], { target: "draft-7" });
+  // Storage accepts legacy games; new model output must include both levels.
+  schema.required = [...new Set([...(schema.required ?? []), "instructions"])];
   const visit = (value: unknown, key?: string): unknown => {
     if (Array.isArray(value)) return value.map((entry) => visit(entry));
     if (value === null || typeof value !== "object") return value;

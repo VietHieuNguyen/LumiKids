@@ -62,7 +62,12 @@ describe('Saved game library (offline)', () => {
       createdBy: user.userId,
       status: 'ACTIVE',
       ageGroupId: 'AGE_5_6',
-      ageGroup: { ageGroupId: 'AGE_5_6', name: 'Lá (5–6 tuổi)', minAge: 5, maxAge: 6 },
+      ageGroup: {
+        ageGroupId: 'AGE_5_6',
+        name: 'Lá (5–6 tuổi)',
+        minAge: 5,
+        maxAge: 6,
+      },
       saveRequestId: input.saveRequestId,
       saveFingerprint: 'fixture',
       createdAt: new Date(),
@@ -127,6 +132,40 @@ describe('Saved game library (offline)', () => {
     );
     expect(result.criterions.map((c) => c.criterionCode)).toEqual(['42', '43']);
     expect(result.content).toEqual(input.content);
+  });
+  it('preserves voice instructions through save and read without changing the preview proof', async () => {
+    const { service, repository, previews } = fixture();
+    const content = {
+      ...input.content,
+      instructions: 'Bé hãy đếm rồi chạm vào số bé chọn nhé!',
+    };
+    repository.find.mockResolvedValue({ ...structuredClone(row), content });
+    const result = await service.save(user, { ...input, content });
+    expect(previews.verifyForSave).toHaveBeenCalledWith(
+      user,
+      input.previewToken,
+      content,
+    );
+    expect(repository.create.mock.calls[0][1].content).toEqual(content);
+    expect(result.content).toEqual(content);
+  });
+  it('reads missing legacy prose without writing or repairing answer data', async () => {
+    const { service, repository } = fixture();
+    const legacy = { ...input.content } as Record<string, unknown>;
+    delete legacy.instruction;
+    repository.find.mockResolvedValue({
+      ...structuredClone(row),
+      content: legacy,
+    });
+    const result = await service.detail(user, versionId);
+    expect(result.content.instruction).toContain('Bé');
+    expect(repository.create).not.toHaveBeenCalled();
+    expect(legacy.instruction).toBeUndefined();
+    repository.find.mockResolvedValue({
+      ...structuredClone(row),
+      content: { ...legacy, correctChoiceId: 'absent' },
+    });
+    await expect(service.detail(user, versionId)).rejects.toThrow();
   });
   it('retries an already committed save without duplicating it or rechecking an expired proof', async () => {
     const { service, repository, previews } = fixture();

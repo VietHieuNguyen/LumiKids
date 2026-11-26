@@ -28,6 +28,7 @@ export type CompletionRule = z.infer<typeof completionRuleSchema>;
 export const baseContentShape = {
   schemaVersion: z.literal(GAME_CONTENT_SCHEMA_VERSION),
   instruction: z.string().trim().min(1).max(1000),
+  instructions: z.string().trim().min(1).max(500).optional(),
 };
 
 export const assetItemSchema = z.strictObject({

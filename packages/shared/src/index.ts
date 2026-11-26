@@ -159,4 +159,5 @@ export * from "./assessment.js";
 export * from './token-usage.js';
 export * from './age.js';
 export * from './family.js';
+export * from './game-content/voice-instruction.js';
 export * from './lesson-plan.js';

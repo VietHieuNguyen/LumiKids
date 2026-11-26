@@ -5,6 +5,7 @@ import {
   canStart,
   vietnamDate,
   gameContentSchema,
+  withLegacyInstruction,
   getGameContentAssetIds,
   playableUntil,
 } from '@lumikids/shared';
@@ -45,7 +46,7 @@ function game(version: AssignmentVersion): AssignmentGame {
   };
 }
 function coverAssetIds(version: AssignmentVersion): string[] {
-  const parsed = gameContentSchema.safeParse(version.content);
+  const parsed = gameContentSchema.safeParse(withLegacyInstruction(version.content));
   return parsed.success ? getGameContentAssetIds(parsed.data).slice(0, 3) : [];
 }
 
