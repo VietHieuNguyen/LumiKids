@@ -8,6 +8,8 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/modules/users/users.service.js';
 import { PlayableGameService } from '../src/modules/learning-content/playable-game.service.js';
+import { AssignmentsRepository } from '../src/modules/learning-content/assignments.repository.js';
+import { ClassroomsService } from '../src/modules/classrooms/classrooms.service.js';
 import { PlaySessionRepository } from '../src/modules/gameplay/application/play-session.repository.js';
 import { ChildAuthService } from '../src/modules/auth/child-auth.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
@@ -46,9 +48,13 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     completionRule: 'CORRECT_CHOICE',
   });
   const sessionId = randomUUID();
+  const assignmentId = randomUUID();
+  const versionId = randomUUID();
+  const classId = randomUUID();
   const session = (childId: string) => ({
     sessionId,
-    versionId: randomUUID(),
+    assignmentId,
+    versionId,
     childId,
     status: 'IN_PROGRESS' as const,
     eventCount: 0,
@@ -118,6 +124,31 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
       .useValue(sessions)
       .overrideProvider(PlayableGameService)
       .useValue(games)
+      .overrideProvider(ClassroomsService)
+      .useValue({ currentClassId: () => Promise.resolve(classId) })
+      .overrideProvider(AssignmentsRepository)
+      .useValue({
+        findRecipientGame: (childId: string, requestedAssignment: string, requestedVersion: string) =>
+          Promise.resolve(childId === child.childId && requestedAssignment === assignmentId ? {
+            child: { dob: new Date('2021-06-01T00:00:00.000Z') },
+            extendedUntil: null,
+            assignment: {
+              classId,
+              source: 'TEACHER',
+              status: 'ACTIVE',
+              opensAt: new Date('2026-06-01T00:00:00.000Z'),
+              dueAt: null,
+              items: requestedVersion === versionId ? [{
+                version: {
+                  versionId,
+                  content,
+                  difficulty: 'EASY',
+                  activity: { ageGroup: { minAge: 5, maxAge: 6 } },
+                },
+              }] : [],
+            },
+          } : null),
+      })
       .compile();
     app = module.createNestApplication();
     configureHttp(app);
@@ -195,8 +226,16 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     expect(response.body).toMatchObject({ success: true, code: 'OK' });
   });
 
+  it('requires an assignment before starting a new play session', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/gameplay/sessions')
+      .auth(await token(), { type: 'bearer' })
+      .send({ versionId: randomUUID(), startRequestId: randomUUID() })
+      .expect(400);
+    expect(sessions.start).not.toHaveBeenCalled();
+  });
+
   it('starts a session for the child in the token', async () => {
-    games.detail.mockResolvedValue({ content });
     sessions.findByStartRequest.mockResolvedValue(null);
     sessions.start.mockImplementation(() =>
       Promise.resolve(session(child.childId)),
@@ -205,15 +244,34 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/gameplay/sessions')
       .auth(await token(), { type: 'bearer' })
-      .send({ versionId: randomUUID(), startRequestId })
+      .send({ assignmentId, versionId, startRequestId })
       .expect(201);
     expect(response.body.data).toMatchObject({
       sessionId,
+      assignmentId,
       status: 'IN_PROGRESS',
     });
     expect(sessions.start).toHaveBeenCalledWith(
-      expect.objectContaining({ childId: child.childId, startRequestId }),
+      {
+        childId: child.childId,
+        assignmentId,
+        versionId,
+        startRequestId,
+        context: 'SCHOOL',
+        ageGroup: '5-6',
+        difficulty: 'EASY',
+        hintLimitPerTask: 1,
+      },
     );
+  });
+
+  it('refuses another assignment even when the child can play the same game', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/gameplay/sessions')
+      .auth(await token(), { type: 'bearer' })
+      .send({ assignmentId: randomUUID(), versionId, startRequestId: randomUUID() })
+      .expect(404);
+    expect(sessions.start).not.toHaveBeenCalled();
   });
 
   it('records a server-verified event and returns the session state', async () => {

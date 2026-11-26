@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ClassroomsRepository } from '../src/modules/classrooms/classrooms.repository.js';
 import { AssignmentsRepository } from '../src/modules/learning-content/assignments.repository.js';
+import { recipientProgress } from '../src/modules/learning-content/assignment-progress.js';
+import { PrismaPlaySessionRepository } from '../src/modules/gameplay/infrastructure/prisma-play-session.repository.js';
 
 const testUrl = process.env.TEST_DATABASE_URL;
 
@@ -84,6 +86,7 @@ describe.skipIf(!testUrl)(
         data: {
           name: 'Game',
           createdBy: user.userId,
+          ageGroupId: 'AGE_5_6',
           saveRequestId: randomUUID(),
           saveFingerprint: '0'.repeat(64),
         },
@@ -110,11 +113,11 @@ describe.skipIf(!testUrl)(
     });
     afterEach(async () => {
       for (const cleanup of cleanups.splice(0)) await cleanup();
-      await prisma.activityAssignment.deleteMany({
-        where: { classId: ids.classId },
-      });
       await prisma.playSession.deleteMany({
         where: { childId: { in: ids.childIds } },
+      });
+      await prisma.activityAssignment.deleteMany({
+        where: { OR: [{ classId: ids.classId }, { createdBy: ids.userId }] },
       });
       await prisma.classroomEnrollment.deleteMany({
         where: { classId: ids.classId },
@@ -136,7 +139,7 @@ describe.skipIf(!testUrl)(
       await prisma?.onModuleDestroy();
     });
 
-    const create = (dueAt: Date | null) =>
+    const create = (dueAt: Date | null, childIds = ids.childIds) =>
       assignments.create({
         classId: ids.classId,
         title: 'Bài',
@@ -147,7 +150,7 @@ describe.skipIf(!testUrl)(
         targetType: 'CLASS',
         targetLabel: 'Cả lớp',
         versionIds: [ids.versionId],
-        childIds: ids.childIds,
+        childIds,
       });
 
     it('creates items and one recipient per child; the database rejects a deadline before opening', async () => {
@@ -160,6 +163,47 @@ describe.skipIf(!testUrl)(
       await expect(
         create(new Date('2026-11-01T00:00:00.000Z')),
       ).rejects.toBeDefined();
+    });
+
+    it('links completion to the selected assignment and rejects a child outside its recipients', async () => {
+      const [childId, otherChildId] = ids.childIds;
+      const first = await create(null, [childId]);
+      const second = await create(null, [childId]);
+      const plays = new PrismaPlaySessionRepository(prisma);
+      const start = {
+        childId,
+        assignmentId: first,
+        versionId: ids.versionId,
+        startRequestId: randomUUID(),
+        context: 'SCHOOL' as const,
+        ageGroup: '5-6',
+        difficulty: 'EASY' as const,
+        hintLimitPerTask: 1,
+      };
+
+      expect(await assignments.findRecipientGame(childId, first, ids.versionId))
+        .toMatchObject({
+          child: { dob: new Date('2021-05-01T00:00:00.000Z') },
+          assignment: { items: [{ version: { versionId: ids.versionId } }] },
+        });
+      await expect(plays.start({ ...start, childId: otherChildId }))
+        .rejects.toMatchObject({ code: 'P2003' });
+      const play = await plays.start(start);
+      expect(await prisma.playSession.update({
+        where: { sessionId: play.sessionId },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+      })).toMatchObject({
+        assignmentId: first,
+        context: 'SCHOOL',
+        ageGroup: '5-6',
+        difficulty: 'EASY',
+        hintLimitPerTask: 1,
+      });
+      const since = new Date(0);
+      const versions = [ids.versionId];
+      const sessions = await assignments.sessions([childId], versions, since);
+      expect(recipientProgress(versions, since, sessions, first).completionStatus).toBe('COMPLETED');
+      expect(recipientProgress(versions, since, sessions, second).completionStatus).toBe('NOT_STARTED');
     });
 
     it('keeps one pending replay request per child and approves it once', async () => {
@@ -236,6 +280,31 @@ describe.skipIf(!testUrl)(
           new Date('2026-11-12T00:00:00.000Z'),
         ),
       ).toHaveLength(0);
+    });
+
+    it('adds home practice to the class work of a child in a class', async () => {
+      const classWork = await create(null);
+      const homeWork = await assignments.create({
+        source: 'GUARDIAN',
+        classId: null,
+        title: 'Ở nhà',
+        note: '',
+        createdBy: ids.userId,
+        opensAt: new Date('2026-11-10T00:00:00.000Z'),
+        dueAt: null,
+        targetType: 'CHILDREN',
+        targetLabel: 'Phụ huynh chọn',
+        versionIds: [ids.versionId],
+        childIds: [ids.childIds[0]],
+      });
+      const at = new Date('2026-11-12T00:00:00.000Z');
+      const inClass = await assignments.forChild(ids.childIds[0], ids.classId, at);
+      expect(inClass.map((row) => row.assignment.assignmentId).sort()).toEqual(
+        [classWork, homeWork].sort(),
+      );
+      // Moved to another class: the old class's work disappears, home practice stays.
+      const elsewhere = await assignments.forChild(ids.childIds[0], randomUUID(), at);
+      expect(elsewhere.map((row) => row.assignment.assignmentId)).toEqual([homeWork]);
     });
   },
 );

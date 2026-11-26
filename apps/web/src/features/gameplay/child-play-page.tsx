@@ -13,7 +13,7 @@ import { useGameplaySession } from "./use-gameplay-session";
 
 const RESTART_FLUSH_MS = 3000;
 
-export function ChildPlayPage({ versionId }: { versionId: string }) {
+export function ChildPlayPage({ assignmentId, versionId }: { assignmentId: string; versionId: string }) {
   const { session, loading, api, canPlay, logout } = useGameplaySession();
   if (loading || !session || !api)
     return (
@@ -32,8 +32,9 @@ export function ChildPlayPage({ versionId }: { versionId: string }) {
   return (
     <ChildFrame childName={givenName(session.child.fullName)} logout={logout}>
       <PlayContent
-        key={`${session.child.childId}:${versionId}`}
+        key={`${session.child.childId}:${assignmentId}:${versionId}`}
         api={api}
+        assignmentId={assignmentId}
         versionId={versionId}
       />
     </ChildFrame>
@@ -53,9 +54,11 @@ function saveLabel(snapshot: OutboxSnapshot | null, starting: boolean) {
 
 function PlayContent({
   api,
+  assignmentId,
   versionId,
 }: {
   api: GameplayApi;
+  assignmentId: string;
   versionId: string;
 }) {
   // Token refreshes replace `api`; requests always use the latest one.
@@ -78,7 +81,7 @@ function PlayContent({
   useEffect(() => {
     const abort = new AbortController();
     api
-      .detail(versionId, abort.signal)
+      .detail(versionId, assignmentId, abort.signal)
       .then((value) => {
         if (abort.signal.aborted) return;
         setGame(value);
@@ -88,14 +91,14 @@ function PlayContent({
         if (!abort.signal.aborted) setError(gameplayError(failure));
       });
     return () => abort.abort();
-  }, [api, versionId, retry]);
+  }, [api, assignmentId, versionId, retry]);
 
   useEffect(() => {
     if (!ready) return;
     const abort = new AbortController();
     // Same startRequestId on a re-run returns the same session (server idempotency).
     apiRef.current
-      .start(versionId, startRequestId, abort.signal)
+      .start({ assignmentId, versionId, startRequestId }, abort.signal)
       .then((view) => {
         if (abort.signal.aborted || sessionRef.current === view.sessionId)
           return;
@@ -116,7 +119,7 @@ function PlayContent({
         if (!abort.signal.aborted) setError(gameplayError(failure));
       });
     return () => abort.abort();
-  }, [ready, versionId, startRequestId]);
+  }, [ready, assignmentId, versionId, startRequestId, retry]);
 
   useEffect(() => {
     function leave() {
@@ -170,7 +173,6 @@ function PlayContent({
               onClick={() => {
                 setError("");
                 setRetry((n) => n + 1);
-                setStartRequestId(crypto.randomUUID());
               }}
             >
               Thử lại

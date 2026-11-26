@@ -97,6 +97,7 @@ function setup() {
     forChild: vi.fn(() => Promise.resolve(forChildRows)),
     sessions: vi.fn(() => Promise.resolve(sessions)),
     findRecipient: vi.fn(),
+    findRecipientGame: vi.fn(),
     requestReplay: vi.fn(() =>
       Promise.resolve({
         status: 'PENDING',
@@ -117,12 +118,15 @@ function setup() {
     dueAt?: Date | null;
     extendedUntil?: Date | null;
     versions?: string[];
+    source?: 'TEACHER' | 'GUARDIAN';
   }) => ({
     recipientId: randomUUID(),
+    child: { dob: new Date('2021-06-01T00:00:00.000Z') },
     extendedUntil: opts.extendedUntil ?? null,
     replayRequests: [],
     assignment: {
       assignmentId: randomUUID(),
+      source: opts.source ?? 'TEACHER',
       title: 'Bài',
       note: '',
       status: 'ACTIVE',
@@ -151,6 +155,7 @@ function setup() {
 }
 
 describe('recipientProgress', () => {
+  const assignment = { assignmentId: randomUUID(), opensAt: at(10) };
   const v1 = randomUUID();
   const v2 = randomUUID();
   const fact = (
@@ -159,50 +164,61 @@ describe('recipientProgress', () => {
     day: number,
   ): SessionFact => ({
     childId: 'c',
+    assignmentId: null,
     versionId,
     status,
     startedAt: at(day),
   });
   it('is complete only when every game has a COMPLETED session after opening (late ones count)', () => {
-    expect(recipientProgress([v1, v2], at(10), []).completionStatus).toBe(
+    expect(recipientProgress([v1, v2], assignment.opensAt, [], assignment.assignmentId).completionStatus).toBe(
       'NOT_STARTED',
     );
     expect(
-      recipientProgress([v1, v2], at(10), [fact(v1, 'ABANDONED', 11)])
+      recipientProgress([v1, v2], assignment.opensAt, [fact(v1, 'ABANDONED', 11)], assignment.assignmentId)
         .completionStatus,
     ).toBe('IN_PROGRESS');
     expect(
-      recipientProgress([v1, v2], at(10), [fact(v1, 'COMPLETED', 11)]),
+      recipientProgress([v1, v2], assignment.opensAt, [fact(v1, 'COMPLETED', 11)], assignment.assignmentId),
     ).toEqual({
       completedVersionIds: [v1],
       completionStatus: 'IN_PROGRESS',
     });
     expect(
-      recipientProgress([v1, v2], at(10), [
+      recipientProgress([v1, v2], assignment.opensAt, [
         fact(v1, 'COMPLETED', 11),
         fact(v2, 'COMPLETED', 25),
-      ]).completionStatus,
+      ], assignment.assignmentId).completionStatus,
     ).toBe('COMPLETED');
   });
   it('ignores sessions played before the assignment opened', () => {
     expect(
-      recipientProgress([v1], at(10), [fact(v1, 'COMPLETED', 9)])
+      recipientProgress([v1], assignment.opensAt, [fact(v1, 'COMPLETED', 9)], assignment.assignmentId)
         .completionStatus,
     ).toBe('NOT_STARTED');
+  });
+  it('credits a linked play only to its own assignment when two assignments share a game', () => {
+    const otherAssignment = { ...assignment, assignmentId: randomUUID() };
+    const sessions = [{
+      ...fact(v1, 'COMPLETED', 11),
+      assignmentId: assignment.assignmentId,
+    }];
+    expect(recipientProgress([v1], assignment.opensAt, sessions, assignment.assignmentId).completionStatus).toBe('COMPLETED');
+    expect(recipientProgress([v1], otherAssignment.opensAt, sessions, otherAssignment.assignmentId).completionStatus).toBe('NOT_STARTED');
   });
 });
 
 describe('AssignmentsService — teacher', () => {
   it.each([
     [3, 4, '2023-11-12', true],
-    [3, 4, '2022-11-12', true],
-    [3, 4, '2021-11-12', true],
+    [3, 4, '2022-11-12', false],
+    [3, 4, '2021-11-12', false],
     [4, 5, '2023-11-12', false],
     [4, 5, '2022-11-12', true],
-    [4, 5, '2021-11-12', true],
+    [4, 5, '2021-11-12', false],
     [5, 6, '2023-11-12', false],
     [5, 6, '2022-11-12', false],
     [5, 6, '2021-11-12', true],
+    [5, 6, '2020-11-12', false],
     [4, 5, '2022-11-13', false],
   ])(
     'game %i–%i with birthday %s: eligible=%s',
@@ -256,20 +272,20 @@ describe('AssignmentsService — teacher', () => {
     );
     const opensAt = new Date('2026-11-20T17:00:00.000Z'); // November 21 in Vietnam.
     await expect(
-      service.requireAgeFit([v1], [an, binh], opensAt),
+      service.requireAgeFit([v1], [binh], opensAt),
     ).resolves.toBeUndefined();
     await expect(
       service.requireAgeFit([v1, v2], [an, binh], opensAt),
     ).rejects.toMatchObject(problem('ASSIGNMENT_AGE_MISMATCH'));
     await expect(
-      service.requireAgeFit([v1, v2], [an], opensAt),
+      service.requireAgeFit([v2], [an], opensAt),
     ).resolves.toBeUndefined();
     await expect(
       service.requireAgeFit([v1], [binh], new Date('2026-11-20T16:59:00.000Z')),
     ).rejects.toMatchObject(problem('ASSIGNMENT_AGE_MISMATCH'));
   });
 
-  it('rejects a recipient below the minimum playing age, by months on the opening day', async () => {
+  it('rejects a recipient outside the matching age group on the opening day', async () => {
     const { service, repository, classId, an, v1, dobs } = setup();
     // 59 months on 2026-11-12: still "Chồi", one month short of "Lá".
     dobs.set(an, new Date('2021-12-01T00:00:00.000Z'));
@@ -400,6 +416,56 @@ describe('AssignmentsService — teacher', () => {
 });
 
 describe('AssignmentsService — child', () => {
+  it('checks age on the opening day even when the child now belongs to a different age group', async () => {
+    const { service, repository, classId, child, recipientRow, v1 } = setup();
+    const row = recipientRow({ opensAt: at(10) });
+    const assignmentId = row.assignment.assignmentId;
+    repository.findRecipientGame.mockResolvedValue({
+      ...row,
+      child: { dob: new Date('2021-11-12T00:00:00.000Z') },
+      assignment: { ...row.assignment, classId, source: 'TEACHER' },
+    });
+    await expect(
+      service.requirePlayableAssignment(child.childId, assignmentId, v1),
+    ).rejects.toMatchObject(problem('ASSIGNMENT_AGE_MISMATCH'));
+  });
+
+  it('keeps home practice playable while the child is in a class, but never another class\'s work', async () => {
+    const { service, repository, classId, child, recipientRow, v1 } = setup();
+    const row = recipientRow({});
+    const assignmentId = row.assignment.assignmentId;
+    repository.findRecipientGame.mockResolvedValueOnce({
+      ...row,
+      assignment: { ...row.assignment, classId: null, source: 'GUARDIAN' },
+    });
+    await expect(
+      service.requirePlayableAssignment(child.childId, assignmentId, v1),
+    ).resolves.toMatchObject({ assignment: { source: 'GUARDIAN' } });
+
+    repository.findRecipientGame.mockResolvedValueOnce({
+      ...row,
+      assignment: { ...row.assignment, classId: randomUUID(), source: 'TEACHER' },
+    });
+    await expect(
+      service.requirePlayableAssignment(child.childId, assignmentId, v1),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    repository.findRecipientGame.mockResolvedValueOnce({
+      ...row,
+      assignment: { ...row.assignment, classId, source: 'TEACHER' },
+    });
+    await expect(
+      service.requirePlayableAssignment(child.childId, assignmentId, v1),
+    ).resolves.toMatchObject({ assignment: { classId } });
+  });
+
+  it('tells the child which work is from the class and which from home', async () => {
+    const { service, forChildRows, recipientRow, child } = setup();
+    forChildRows.push(recipientRow({}), recipientRow({ source: 'GUARDIAN' }));
+    const list = await service.forChild(child);
+    expect(list.map((item) => item.source).sort()).toEqual(['GUARDIAN', 'TEACHER']);
+  });
+
   it('lists open assignments first and marks closed ones', async () => {
     const { service, forChildRows, recipientRow, child } = setup();
     forChildRows.push(

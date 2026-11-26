@@ -7,17 +7,21 @@ export interface RecipientProgress {
 }
 
 /**
- * Completion = every assigned version has at least one COMPLETED session started after the assignment
- * opened (late sessions count). Any session at all makes it IN_PROGRESS.
+ * Completion requires a completed play of every assigned version. For historical sessions without
+ * an assignment link, retain the version and opening-time rule.
  */
 export function recipientProgress(
   versionIds: readonly string[],
   opensAt: Date,
   sessions: readonly SessionFact[],
+  assignmentId: string,
 ): RecipientProgress {
   const relevant = sessions.filter(
     (session) =>
-      session.startedAt >= opensAt && versionIds.includes(session.versionId),
+      versionIds.includes(session.versionId) &&
+      (session.assignmentId === null
+        ? session.startedAt >= opensAt
+        : session.assignmentId === assignmentId),
   );
   const done = new Set(
     relevant

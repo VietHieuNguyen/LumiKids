@@ -33,8 +33,9 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
   // The list is small (a family's children); the detail is one entry of it.
   const children = useResource((signal) => family.children(signal), "family-children");
   const child = children.data?.find((entry) => entry.childId === childId) ?? null;
+  // Without a class the guardian also issues the login code; home practice is open either way.
   const atHome = Boolean(child && !child.currentClass);
-  const activities = useResource(atHome ? (signal) => family.activities(childId, signal) : null, `activities:${childId}`);
+  const activities = useResource(child ? (signal) => family.activities(childId, signal) : null, `activities:${childId}`);
   const [page, setPage] = useState(1);
   const history = useResource((signal) => family.playHistory(childId, page, signal), `${childId}:${page}`);
   const [dialog, setDialog] = useState<"edit" | "code" | "pick" | null>(null);
@@ -136,7 +137,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
                   <span className="block font-semibold">Lớp {child.currentClass.className}</span>
                   <span className="text-ink-soft">{child.currentClass.schoolYearName} · {child.currentClass.ageGroupName} · từ {formatDate(child.currentClass.since)}</span>
                 </p>
-                <p className="leading-6 text-ink-soft">Giáo viên giao bài và cấp mã cho con. Trò chọn ở nhà tạm dừng khi con học lớp.</p>
+                <p className="leading-6 text-ink-soft">Giáo viên giao bài và cấp mã cho con. Bạn vẫn chọn được trò để con luyện ở nhà; lượt chơi ở nhà không hiện với giáo viên.</p>
                 {child.currentClass.viaGuardianConsent ? (
                   <button type="button" className="asset-button-secondary w-full" disabled={busy} onClick={() => void leave(child)}>
                     Rời lớp và rút đồng ý chia sẻ
@@ -171,46 +172,44 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
           </Panel>
         </aside>
         <div className="min-w-0 space-y-6">
-          {atHome && (
-            <Panel
-              title="Trò chơi ở nhà"
-              description="Trò bạn chọn trong kho, đúng nhóm tuổi của con. Con chơi bằng mã của mình; mỗi lượt chơi xong được chấm điểm như ở lớp."
-              actions={<button type="button" className="lumi-button-sun" onClick={() => setDialog("pick")}>Chọn trò cho con</button>}
-            >
-              {activities.error && <ErrorBanner message={activities.error} onRetry={activities.reload} />}
-              {!activities.data && !activities.error && <p role="status" className="text-sm">Đang tải…</p>}
-              {activities.data?.length === 0 && <p className="text-sm text-ink-soft">Chưa chọn trò nào. Bấm “Chọn trò cho con” để bắt đầu.</p>}
-              {activities.data && activities.data.length > 0 && (
-                <ul className="divide-y divide-line">
-                  {activities.data.map((activity) => (
-                    <li key={activity.assignmentId} className="py-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="break-words font-semibold">{activity.title}</p>
-                          <p className="text-xs text-ink-soft">
-                            Từ {formatDate(activity.opensAt)}{activity.dueAt ? ` · hạn ${formatDate(activity.dueAt)}` : ""} · {activity.games.filter((game) => game.completed).length}/{activity.games.length} trò đã xong
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <StatusPill tone={activityTones[activity.state]}>{activityLabels[activity.state]}</StatusPill>
-                          {activity.state === "OPEN" && (
-                            <button type="button" className="asset-text-button" disabled={busy} onClick={() => void cancel(activity)}>Hủy</button>
-                          )}
-                        </div>
+          <Panel
+            title="Trò chơi ở nhà"
+            description="Trò bạn chọn trong kho, đúng nhóm tuổi của con. Con chơi bằng mã của mình; mỗi lượt chơi xong được chấm điểm như ở lớp."
+            actions={<button type="button" className="lumi-button-sun" onClick={() => setDialog("pick")}>Chọn trò cho con</button>}
+          >
+            {activities.error && <ErrorBanner message={activities.error} onRetry={activities.reload} />}
+            {!activities.data && !activities.error && <p role="status" className="text-sm">Đang tải…</p>}
+            {activities.data?.length === 0 && <p className="text-sm text-ink-soft">Chưa chọn trò nào. Bấm “Chọn trò cho con” để bắt đầu.</p>}
+            {activities.data && activities.data.length > 0 && (
+              <ul className="divide-y divide-line">
+                {activities.data.map((activity) => (
+                  <li key={activity.assignmentId} className="py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="break-words font-semibold">{activity.title}</p>
+                        <p className="text-xs text-ink-soft">
+                          Từ {formatDate(activity.opensAt)}{activity.dueAt ? ` · hạn ${formatDate(activity.dueAt)}` : ""} · {activity.games.filter((game) => game.completed).length}/{activity.games.length} trò đã xong
+                        </p>
                       </div>
-                      <ul className="mt-2 flex flex-wrap gap-1.5">
-                        {activity.games.map((game) => (
-                          <li key={game.versionId} className={`rounded-md px-2 py-1 text-xs font-medium ${game.completed ? "bg-leaf-soft text-leaf" : "bg-ink/5 text-ink-soft"}`}>
-                            {game.completed ? "✓ " : ""}{game.name}{game.available ? "" : " (đã gỡ khỏi kho)"}
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
-          )}
+                      <div className="flex items-center gap-2">
+                        <StatusPill tone={activityTones[activity.state]}>{activityLabels[activity.state]}</StatusPill>
+                        {activity.state === "OPEN" && (
+                          <button type="button" className="asset-text-button" disabled={busy} onClick={() => void cancel(activity)}>Hủy</button>
+                        )}
+                      </div>
+                    </div>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {activity.games.map((game) => (
+                        <li key={game.versionId} className={`rounded-md px-2 py-1 text-xs font-medium ${game.completed ? "bg-leaf-soft text-leaf" : "bg-ink/5 text-ink-soft"}`}>
+                          {game.completed ? "✓ " : ""}{game.name}{game.available ? "" : " (đã gỡ khỏi kho)"}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
           <Panel title="Kết quả chơi" description="Mọi lượt chơi của con, ở nhà và ở lớp. Điểm tính khi con chơi xong một trò; lượt bỏ dở không chấm.">
             {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
             {history.data?.pagination.total === 0 && <p className="text-sm text-ink-soft">Con chưa chơi trò nào.</p>}

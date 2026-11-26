@@ -123,6 +123,8 @@ export const childAssignmentGameSchema = playableGameSchema.extend({
 });
 export const childAssignmentSchema = z.object({
   assignmentId: z.uuid(),
+  /** TEACHER = class work (replay asked from the teacher); GUARDIAN = home practice picked by a parent. */
+  source: z.enum(["TEACHER", "GUARDIAN"]),
   title: z.string(),
   note: z.string(),
   dueAt: z.iso.datetime().nullable(),
