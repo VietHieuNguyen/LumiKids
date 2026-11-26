@@ -161,3 +161,6 @@ export * from './age.js';
 export * from './family.js';
 export * from './game-content/voice-instruction.js';
 export * from './lesson-plan.js';
+
+export * from "./game-content/quantity.schema.js";
+export type { QuantityState } from "./game-runtime/types.js";

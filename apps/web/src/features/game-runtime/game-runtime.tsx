@@ -271,6 +271,7 @@ function GameRun({
             {mode === "PREVIEW" ? "Chơi thử" : "Trò chơi"} ·{" "}
             {registration.label}
           </span>
+          {content.gameType !== "QUANTITY" && (
           <button
             type="button"
             className="asset-button-secondary game-hint-button"
@@ -283,6 +284,7 @@ function GameRun({
             </svg>
             <span>{nextHint ? "Gợi ý" : "Hết gợi ý"}</span>
           </button>
+          )}
           {mode === "PLAY" && !started && (
             <button type="button" className="asset-button-primary" style={{ minHeight: 48 }} disabled={paused} onClick={start}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 4 13 8-13 8Z" /></svg>

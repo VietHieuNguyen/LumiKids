@@ -37,6 +37,7 @@ import {
 import { validateGeneratedContent } from './game-validation.js';
 import { normalizeHabitatAnswers } from './habitat-validation.js';
 import { pickPatternAssets } from './pattern-composition.js';
+import { composeQuantity } from './quantity-composition.js';
 import { prepareVoiceInstructions } from './voice-instruction.js';
 
 @Injectable()
@@ -66,6 +67,38 @@ export class GameGenerationService {
     let validationStage: 'NEST' | 'AI_GATEWAY' | undefined;
     try {
       // PATTERN is composed deterministically from whitelisted pictures: no model call, no tokens.
+      if (input.gameType === 'QUANTITY') {
+        if (!input.quantity) throw new Error('Quantity options required');
+        const candidates = (
+          await this.assets.generationCandidates(
+            user,
+            searchTerms(
+              [...input.quantity.fruits.map((f) => f.name), 'basket'].join(' '),
+            ),
+          )
+        )
+          .filter((a) => a.status === 'ACTIVE')
+          .map(toCandidate);
+        const content = composeQuantity(input.quantity, candidates);
+        const current = await this.assets.generationAssets(
+          user,
+          getGameContentAssetIds(content),
+        );
+        if (getGameContentAssetIssues(content, current).length)
+          throw new ApiProblem('ASSETS_CHANGED');
+        return {
+          gameType: input.gameType,
+          gameContent: content,
+          generation: {
+            requestId,
+            model: 'deterministic',
+            attempts: 0,
+            reviewRequired: true,
+            warnings: [],
+            validatedAt: new Date().toISOString(),
+          },
+        };
+      }
       if (input.gameType === 'PATTERN')
         return await this.composePattern(user, input, requestId);
       if (!this.config.url || !this.config.token)

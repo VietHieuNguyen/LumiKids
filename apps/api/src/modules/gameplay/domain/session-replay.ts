@@ -45,6 +45,7 @@ function toAction(event: GameInteraction): GameAction {
       return { actionType: event.actionType, sourceId: event.sourceId };
     case 'MATCH_DROP':
     case 'CLASSIFY_DROP':
+    case 'QUANTITY_DROP':
     case 'FILL_PATTERN':
       return {
         actionType: event.actionType,

@@ -266,6 +266,7 @@ enum InteractionEventType {
   CLASSIFY_DROP
   REQUEST_HINT
   FILL_PATTERN
+  QUANTITY_DROP
 }
 
 enum InteractionResult {
@@ -355,6 +356,7 @@ enum GameType {
   MATCHING
   CLASSIFICATION
   PATTERN
+  QUANTITY
 }
 
 enum CompletionRule {
@@ -362,6 +364,7 @@ enum CompletionRule {
   ALL_PAIRS_CORRECT
   ALL_ITEMS_CLASSIFIED_CORRECTLY
   ALL_SEQUENCES_COMPLETED
+  ALL_BASKETS_FILLED
 }
 
 model Skill {

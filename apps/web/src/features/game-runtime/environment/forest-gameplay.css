@@ -94,3 +94,48 @@
   .game-voice-button[data-speaking] svg { animation: none; }
 }
 .game-voice-fallback { background: #fffaf0; margin: 0; }
+
+/* Quantity: the forest fills the frame; content sets the height in embedded previews. */
+.game-runtime-quantity.is-expanded { display:flex; flex-direction:column; }
+.game-runtime-quantity > header { flex-shrink:0; }
+.game-runtime-quantity.is-expanded > .game-forest-scene { flex:1; display:flex; min-height:0; }
+.game-runtime-quantity .game-forest-scene > fieldset { display:flex; flex-direction:column; width:100%; min-width:0; }
+.game-runtime-quantity > [data-feedback] { display:none; }
+.quantity-board { position:relative; display:flex; flex-direction:column; justify-content:center; gap:14px; width:100%; max-width:1100px; flex:1; margin:auto; padding:clamp(16px,3vh,32px) 16px; }
+.quantity-heading { text-align:center; font-size:clamp(22px,3vw,32px); font-weight:800; line-height:1.2; color:#38604c; }
+.quantity-instruction { text-align:center; background:#fff9e9ed; border-radius:18px; padding:10px 18px; margin:0 auto; width:100%; max-width:800px; color:#4b583b; font-weight:600; }
+.quantity-source { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:10px; min-height:82px; padding:12px; border-radius:24px; background:#ffffff75; }
+.quantity-source-fruit { padding:6px; border-radius:18px; background:#fffdf3; box-shadow:0 3px 0 #bccba4; touch-action:none; }
+.quantity-fruit { width:clamp(46px,7vw,64px); height:clamp(52px,8vw,72px); object-fit:contain; }
+.quantity-baskets { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:clamp(12px,2vw,24px); }
+.quantity-basket { display:flex; flex-direction:column; align-items:center; position:relative; width:min(100%,280px); padding:12px 10px; border:2px solid #fff9; border-radius:26px; background:#fffaf0b8; color:#61452b; box-shadow:0 5px 16px #375e4110; }
+.quantity-basket[data-hovered] { border-color:#e7af3b; background:#fff3c7; }
+.quantity-basket-title { font-size:20px; font-weight:800; }
+.quantity-order { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.quantity-order>span { display:flex; align-items:center; gap:4px; }
+.quantity-order-picture { width:30px; height:36px; object-fit:contain; }
+.quantity-basket-body { position:relative; isolation:isolate; width:100%; height:clamp(150px,24vh,210px); }
+.quantity-basket-back,.quantity-basket-front { position:absolute; inset:0; pointer-events:none; }
+.quantity-basket-back { z-index:0; }
+.quantity-basket-front { z-index:2; clip-path:inset(57% 0 0); }
+.quantity-basket-art { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+.quantity-placed { position:absolute; inset:0; z-index:1; pointer-events:none; }
+.quantity-nest-fruit { position:absolute; left:var(--fruit-x); bottom:var(--fruit-bottom); transform:translateX(-50%) rotate(var(--fruit-turn)); transform-origin:50% 85%; animation:quantity-settle .25s ease-out; }
+.quantity-placed .quantity-fruit { width:clamp(32px,5vw,46px); height:clamp(42px,7vw,60px); filter:drop-shadow(1px 2px 1px #573b2526); }
+.quantity-basket-count { font-size:22px; font-weight:800; line-height:1.2; }
+.quantity-status { text-align:center; padding:8px 12px; background:#fff9e9d9; border-radius:16px; margin:0; font-size:14px; }
+.quantity-source [data-wrong] { animation:quantity-return .35s ease-out; }
+@keyframes quantity-return { 25% { transform:translateX(-8px); } 75% {transform:translateX(8px);} }
+@keyframes quantity-settle { from { opacity:.4; translate:0 -12px; } }
+@media(max-width:600px) {
+  .quantity-board { padding:14px 8px; gap:10px; }
+  .quantity-baskets { gap:8px; }
+  .quantity-basket { width:calc((100% - 16px)/3); min-width:94px; padding:8px 3px; border-radius:18px; }
+  .quantity-basket:only-child { width:min(100%,280px); }
+  .quantity-basket-body { height:clamp(110px,25vw,150px); }
+  .quantity-order { gap:2px; font-size:13px; }
+  .quantity-order-picture { width:24px; height:28px; }
+  .quantity-basket-title { font-size:16px; }
+  .quantity-placed .quantity-fruit { width:26px; height:36px; }
+}
+@media(prefers-reduced-motion:reduce) { .quantity-source [data-wrong],.quantity-nest-fruit { animation:none; } }

@@ -109,6 +109,7 @@ export class GameLibraryService {
   async save(user: Principal, input: SaveGameInput) {
     this.authorize(user, 'SAVE_GAMES');
     this.authorize(user, 'READ_GAMES');
+    if(input.content.gameType==='QUANTITY' && (input.criterionCodes.length!==1 || input.criterionCodes[0]!=='42')) throw new BadRequestException('Quantity games require criterion 42.');
     const fingerprint = contentDigest({
       name: input.name,
       description: input.description,

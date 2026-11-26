@@ -1,5 +1,6 @@
 import {
   gameContentSchema,
+  quantityOptionsSchema,
   gameTypeSchema,
   getGameContentAssetIds,
 } from "@lumikids/shared";
@@ -110,6 +111,11 @@ export function validateGameRequest(
       400,
       "INVALID_INPUT",
     );
+  if (value.gameType === "QUANTITY") {
+    const parsed=quantityOptionsSchema.safeParse(value.quantity);
+    if(!parsed.success) throw new GameGenerationApiError("Kiểm tra tên quả, tổng số quả tối đa mười và số lượng cần vào từng giỏ.",400,"INVALID_INPUT");
+    return {gameType:value.gameType,prompt,quantity:parsed.data};
+  }
   if (value.gameType === "PATTERN")
     return {
       gameType: value.gameType,
@@ -141,7 +147,7 @@ export function parseGeneratedGame(
     typeof meta.attempts !== "number" ||
     !Number.isInteger(meta.attempts) ||
     // PATTERN is composed without a model call (0 attempts); model-generated types use 1–2.
-    (expectedType === "PATTERN"
+    ((expectedType === "PATTERN" || expectedType === "QUANTITY")
       ? meta.attempts !== 0
       : meta.attempts !== 1 && meta.attempts !== 2) ||
     meta.reviewRequired !== true ||

@@ -20,6 +20,8 @@ import { GameLibraryApi } from "../game-library/api";
 import { SaveGamePanel } from "../game-library/save-game-panel";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
 import { CreatorIllustration } from "./creator-illustration";
+import { QuantityOptionsForm } from "./quantity-options";
+import type { QuantityOptions } from "@lumikids/shared";
 import { PatternOptions } from "./pattern-options";
 
 export const gameCreationOptions: {
@@ -28,6 +30,7 @@ export const gameCreationOptions: {
   description: string;
   example: string;
 }[] = [
+  { type: "QUANTITY", label: "Tách / Gộp số lượng", description: "Chuẩn 15 - Chỉ số 42, kéo quả vào giỏ trong phạm vi 10.", example: "Tách hoặc gộp quả vào giỏ" },
   {
     type: "COUNTING",
     label: "Đếm số lượng",
@@ -68,6 +71,7 @@ export function GameCreator({
   libraryHref = "/teacher/games",
 }: GameCreatorProps) {
   const [gameType, setGameType] = useState<GameType>("COUNTING");
+  const [quantity,setQuantity] = useState<QuantityOptions>({mode:"MERGE",fruits:[{name:"táo",available:2,required:1},{name:"dâu tây",available:1,required:1},{name:"cam",available:4,required:3}],splitCounts:[2,3]});
   const [prompt, setPrompt] = useState("");
   const [patternRules, setPatternRules] = useState<PatternRule[]>(["AB"]);
   const [sequenceCount, setSequenceCount] = useState(5);
@@ -110,7 +114,7 @@ export function GameCreator({
   const draft = snapshot.draft;
   const generatedGame = draft?.game;
   const invalid =
-    !prompt.trim() || prompt.trim().length > MAX_GAME_PROMPT_LENGTH;
+    (gameType !== "QUANTITY" && !prompt.trim()) || prompt.trim().length > MAX_GAME_PROMPT_LENGTH;
   useEffect(() => {
     controller.setGateway(api);
   }, [api, controller]);
@@ -128,14 +132,15 @@ export function GameCreator({
   const changed =
     draft &&
     (draft.source.gameType !== gameType ||
-      draft.source.prompt !== prompt.trim());
+      draft.source.prompt !== (gameType === "QUANTITY" ? prompt.trim() || "Quantity baskets" : prompt.trim()) ||
+      (gameType === "QUANTITY" && JSON.stringify(draft.source.quantity) !== JSON.stringify(quantity)));
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTouched(true);
     if (!invalid)
       void controller
         .generate(
-          gameType === "PATTERN"
+          gameType === "QUANTITY" ? {gameType,prompt:prompt || "Quantity baskets",quantity} : gameType === "PATTERN"
             ? { gameType, prompt, pattern: { rules: patternRules, sequenceCount } }
             : { gameType, prompt },
         )
@@ -265,6 +270,7 @@ export function GameCreator({
                       </label>
                     ))}
                   </div>
+                  {gameType !== "QUANTITY" && <>
                   <label
                     htmlFor={promptId}
                     className="mt-6 block text-base font-semibold"
@@ -307,6 +313,7 @@ export function GameCreator({
                   >
                     Dùng gợi ý cho {selected.label.toLowerCase()}
                   </button>
+                  </>}
                   {gameType === "COUNTING" && (
                     <button
                       type="button"
@@ -335,6 +342,7 @@ export function GameCreator({
                       Gợi ý: chỉ đếm bóng đỏ giữa các màu
                     </button>
                   )}
+                  {gameType === "QUANTITY" && <QuantityOptionsForm value={quantity} onChange={setQuantity}/>}
                   {gameType === "PATTERN" && (
                     <PatternOptions
                       rules={patternRules}

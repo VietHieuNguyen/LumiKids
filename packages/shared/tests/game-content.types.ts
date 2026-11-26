@@ -5,6 +5,7 @@ import type {
   GameInteraction,
   MatchingContent,
   PatternContent,
+  QuantityContent,
 } from "../dist/index.js";
 
 // Compile-only consumer checks: public declarations must preserve discrimination.
@@ -39,6 +40,10 @@ export function narrowContent(content: GameContent): number {
       void content.choices;
       return task.sequences.length + rule.length;
     }
+    case "QUANTITY": {
+      const task:QuantityContent=content;
+      return task.baskets.length;
+    }
     default: {
       const exhaustive: never = content;
       return exhaustive;
@@ -55,6 +60,7 @@ export function narrowInteraction(event: GameInteraction): string {
     case "MATCH_DROP":
     case "CLASSIFY_DROP":
     case "FILL_PATTERN":
+    case "QUANTITY_DROP":
       return event.targetId;
     case "REQUEST_HINT":
       // @ts-expect-error A hint request is not an answer: it has no result.

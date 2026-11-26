@@ -45,11 +45,14 @@ export const hintInteractionSchema = z.strictObject({
   ...identityShape,
   actionType: z.literal("REQUEST_HINT"),
 });
+export const quantityInteractionSchema = z.strictObject({...eventShape,actionType:z.literal("QUANTITY_DROP"),targetId:gameElementIdSchema});
+export type QuantityInteraction = z.infer<typeof quantityInteractionSchema>;
 export const gameInteractionSchema = z.discriminatedUnion("actionType", [
   countingInteractionSchema,
   matchingInteractionSchema,
   classificationInteractionSchema,
   patternInteractionSchema,
+  quantityInteractionSchema,
   hintInteractionSchema,
 ]);
 export type CountingInteraction = z.infer<typeof countingInteractionSchema>;

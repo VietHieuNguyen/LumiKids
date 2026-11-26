@@ -3,6 +3,7 @@ import type { GameType } from "./common.js";
 
 /** Describes controls only; never derives a hint from answer keys. */
 export const GAME_INSTRUCTIONS: Record<GameType, string> = {
+  QUANTITY: "Bé hãy kéo từng quả vào giỏ theo số lượng được yêu cầu nhé!",
   COUNTING: "Bé hãy quan sát các hình, đếm rồi chạm vào số bé chọn nhé!",
   MATCHING: "Bé hãy chọn một hình rồi chạm hoặc kéo đến hình phù hợp để ghép cặp nhé!",
   CLASSIFICATION: "Bé hãy chọn một hình rồi chạm hoặc kéo vào nhóm phù hợp nhé!",

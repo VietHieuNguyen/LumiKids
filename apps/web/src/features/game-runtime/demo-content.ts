@@ -6,6 +6,7 @@ import pattern from "../../../../../packages/shared/examples/game-content/patter
 import type { ResolvedAssetUrls } from "./components/types";
 
 export const demoContents = {
+  QUANTITY: gameContentSchema.parse({schemaVersion:1,gameType:"QUANTITY",mode:"MERGE",instruction:"Bé hãy đưa hai quả táo vào giỏ nhé!",items:counting.items.slice(0,2),baskets:[{id:"basket",label:"Giỏ",requirements:[{assetId:counting.items[0].assetId,count:2}]}],completionRule:"ALL_BASKETS_FILLED"}),
   COUNTING: gameContentSchema.parse(counting),
   MATCHING: gameContentSchema.parse(matching),
   CLASSIFICATION: gameContentSchema.parse(classification),

@@ -1,3 +1,4 @@
+import { quantityContentSchema, quantityContentStructureSchema } from "./quantity.schema.js";
 import { z } from "zod";
 import {
   countingContentSchema,
@@ -26,6 +27,7 @@ const gameContentV1StructureSchema = z.discriminatedUnion("gameType", [
   matchingContentStructureSchema,
   classificationContentStructureSchema,
   patternContentStructureSchema,
+  quantityContentStructureSchema,
 ]);
 
 /** Use this at trust boundaries: validates structure AND task/answer consistency. */
@@ -34,6 +36,7 @@ export const gameContentV1Schema = z.discriminatedUnion("gameType", [
   matchingContentSchema,
   classificationContentSchema,
   patternContentSchema,
+  quantityContentSchema,
 ]);
 
 export const gameContentStructureSchema = z.union([

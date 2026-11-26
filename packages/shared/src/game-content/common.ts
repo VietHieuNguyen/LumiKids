@@ -7,6 +7,7 @@ export const gameTypeSchema = z.enum([
   "MATCHING",
   "CLASSIFICATION",
   "PATTERN",
+  "QUANTITY",
 ]);
 export type GameType = z.infer<typeof gameTypeSchema>;
 
@@ -22,6 +23,7 @@ export const completionRuleSchema = z.enum([
   "ALL_PAIRS_CORRECT",
   "ALL_ITEMS_CLASSIFIED_CORRECTLY",
   "ALL_SEQUENCES_COMPLETED",
+  "ALL_BASKETS_FILLED",
 ]);
 export type CompletionRule = z.infer<typeof completionRuleSchema>;
 

@@ -10,6 +10,7 @@ export interface GenerateGameInput {
   prompt: string;
   /** PATTERN only: the rules and number of sequences the adult chose. */
   pattern?: PatternGenerationOptions;
+  quantity?: import("@lumikids/shared").QuantityOptions;
 }
 export interface GeneratedPreviewAccess {
   token: string;

@@ -21,7 +21,7 @@ export function SaveGamePanel({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [codes, setCodes] = useState<string[]>([]);
+  const [codes, setCodes] = useState<string[]>(game.gameType === "QUANTITY" ? ["42"] : []);
   const [ageGroups, setAgeGroups] = useState<AgeGroup[]>([]);
   const [ageGroupId, setAgeGroupId] = useState("");
   const [review, setReview] = useState(false);
@@ -209,7 +209,7 @@ export function SaveGamePanel({
                 </div>
               )}
               <div className="mt-3 space-y-3">
-                {skills.map((skill) => (
+                {skills.filter(skill => !["QUANTITY"].includes(game.gameType) || skill.skillCode === "15").map((skill) => (
                   <details
                     key={skill.skillCode}
                     open
@@ -222,7 +222,7 @@ export function SaveGamePanel({
                       {skill.description}
                     </p>
                     <div className="mt-3 space-y-2">
-                      {skill.criterions.map((c) => (
+                      {skill.criterions.filter(c => !["QUANTITY"].includes(game.gameType) || c.criterionCode === "42").map((c) => (
                         <label
                           key={c.criterionCode}
                           className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm leading-6 ${codes.includes(c.criterionCode) ? "border-leaf bg-leaf-soft" : "border-line hover:bg-cream"}`}

@@ -14,6 +14,7 @@ export const gameTypeLabels = {
   COUNTING: "Đếm số lượng",
   MATCHING: "Ghép cặp",
   CLASSIFICATION: "Phân loại",
+  QUANTITY: "Tách / Gộp",
   PATTERN: "Sắp xếp theo quy tắc",
 };
 export const difficultyLabels = {
@@ -25,6 +26,7 @@ const typeStyles = {
   COUNTING: { cover: "bg-sky", badge: "bg-sky text-[#245b73]" },
   MATCHING: { cover: "bg-leaf-soft", badge: "bg-leaf-soft text-[#27633b]" },
   CLASSIFICATION: { cover: "bg-sun-soft", badge: "bg-sun-soft text-[#805b13]" },
+  QUANTITY: { cover: "bg-amber-50", badge: "bg-amber-50 text-amber-900" },
   PATTERN: { cover: "bg-[#f4ecfb]", badge: "bg-[#f4ecfb] text-[#5d4380]" },
 };
 function Cover({ api, game }: { api: GameLibraryApi; game: SavedGame }) {

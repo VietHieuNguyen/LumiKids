@@ -9,6 +9,7 @@ const tracks: Record<GameContent["gameType"], string> = {
   MATCHING: "/audio/game/matching.mp3",
   COUNTING: "/audio/game/counting.mp3",
   // No dedicated track yet: the calm matching loop suits sequence play.
+  QUANTITY: "/audio/game/matching.mp3",
   PATTERN: "/audio/game/matching.mp3",
 };
 
