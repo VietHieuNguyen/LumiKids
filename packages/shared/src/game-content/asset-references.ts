@@ -31,6 +31,9 @@ export function getGameContentAssetIds(content: GameContent): string[] {
           ),
         ]),
       ];
+    case "QUANTITY_COMPARISON_CHANGE":
+    case "QUANTITY":
+      return [...new Set([...content.items.map(i=>i.assetId),...(content.basketAssetId?[content.basketAssetId]:[])])];
     case "PATTERN":
       return [...new Set(content.items.map((item) => item.assetId))];
   }

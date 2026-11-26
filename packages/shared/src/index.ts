@@ -159,4 +159,12 @@ export * from "./assessment.js";
 export * from './token-usage.js';
 export * from './age.js';
 export * from './family.js';
+export * from './game-content/voice-instruction.js';
 export * from './lesson-plan.js';
+
+export * from "./game-content/quantity.schema.js";
+export type { QuantityState } from "./game-runtime/types.js";
+
+export * from "./game-content/comparison-change.schema.js";
+export * from "./game-runtime/comparison-change.js";
+export type {ComparisonChangeState} from "./game-runtime/types.js";

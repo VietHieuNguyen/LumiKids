@@ -5,14 +5,19 @@ import type {
   MatchingInteraction,
   ClassificationInteraction,
   PatternInteraction,
+  QuantityInteraction,
+  CompareQuantitiesInteraction, ConfirmQuantityChangeInteraction,
   GameInteraction,
   HintInteraction,
 } from "../game-content/interaction.schema.js";
 
 export type GameAction =
+  | Pick<CompareQuantitiesInteraction,"actionType"|"sourceId"|"targetId">
+  | Pick<ConfirmQuantityChangeInteraction,"actionType"|"sourceId"|"count">
   | Pick<CountingInteraction, "actionType" | "sourceId">
   | Pick<MatchingInteraction, "actionType" | "sourceId" | "targetId">
   | Pick<ClassificationInteraction, "actionType" | "sourceId" | "targetId">
+  | Pick<QuantityInteraction, "actionType" | "sourceId" | "targetId">
   | Pick<PatternInteraction, "actionType" | "sourceId" | "targetId">
   | Pick<HintInteraction, "actionType" | "sourceId">;
 
@@ -40,7 +45,9 @@ export interface PatternState extends BaseState {
   gameType: "PATTERN";
   solvedSequenceIds: readonly string[];
 }
-export type GameState = CountingState | MatchingState | ClassificationState | PatternState;
+export interface QuantityState extends BaseState { gameType: "QUANTITY"; placements: readonly {itemId:string; basketId:string}[] }
+export interface ComparisonChangeState extends BaseState { gameType:"QUANTITY_COMPARISON_CHANGE"; solvedQuestionIds:readonly string[] }
+export type GameState = ComparisonChangeState | QuantityState | CountingState | MatchingState | ClassificationState | PatternState;
 export interface GameProgress {
   correct: number;
   total: number;

@@ -40,11 +40,24 @@ export interface AppendResult {
 
 function toAction(event: GameInteraction): GameAction {
   switch (event.actionType) {
+    case 'CONFIRM_QUANTITY_CHANGE':
+      return {
+        actionType: event.actionType,
+        sourceId: event.sourceId,
+        count: event.count,
+      };
     case 'SELECT_CHOICE':
     case 'REQUEST_HINT':
       return { actionType: event.actionType, sourceId: event.sourceId };
+    case 'COMPARE_QUANTITIES':
+      return {
+        actionType: event.actionType,
+        sourceId: event.sourceId,
+        targetId: event.targetId,
+      };
     case 'MATCH_DROP':
     case 'CLASSIFY_DROP':
+    case 'QUANTITY_DROP':
     case 'FILL_PATTERN':
       return {
         actionType: event.actionType,
@@ -63,6 +76,8 @@ function samePayload(a: GameInteraction, b: GameInteraction): boolean {
     a.sourceId === b.sourceId &&
     ('targetId' in a ? a.targetId : undefined) ===
       ('targetId' in b ? b.targetId : undefined) &&
+    ('count' in a ? a.count : undefined) ===
+      ('count' in b ? b.count : undefined) &&
     a.attemptIndex === b.attemptIndex &&
     resultOf(a) === resultOf(b) &&
     Date.parse(a.timestamp) === Date.parse(b.timestamp)

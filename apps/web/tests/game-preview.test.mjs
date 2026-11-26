@@ -7,6 +7,37 @@ import { gameContentSchema, getGameContentAssetIds } from "@lumikids/shared";
 import { createPreviewAssetResolver } from "../src/features/game-preview/asset-resolver.ts";
 import { GamePreview } from "../src/features/game-preview/game-preview.tsx";
 import { GameRuntime } from "../src/features/game-runtime/game-runtime.tsx";
+
+test("quantity renderer uses one merge basket, image requests and the matching forest theme", () => {
+  const fruit="00000000-0000-4000-8000-000000000001",basket="00000000-0000-4000-8000-000000000002";
+  const content={schemaVersion:1,gameType:"QUANTITY",mode:"MERGE",instruction:"Bé hãy đưa hai quả táo vào giỏ nhé!",basketAssetId:basket,items:[{id:"a",assetId:fruit},{id:"b",assetId:fruit}],baskets:[{id:"basket",label:"Giỏ",requirements:[{assetId:fruit,count:2}]}],completionRule:"ALL_BASKETS_FILLED"};
+  const markup=renderToStaticMarkup(React.createElement(GameRuntime,{content,mode:"PREVIEW",assetUrls:{[fruit]:"/apple.png",[basket]:"/basket.png"}}));
+  assert.match(markup,/data-scene-theme="forest"/);
+  assert.equal((markup.match(/data-game-target-id=/g)??[]).length,1);
+  assert.match(markup,/src="\/basket.png"/);
+  const split={...content,mode:"SPLIT",baskets:[{id:"left",label:"Giỏ trái",requirements:[{assetId:fruit,count:1}]},{id:"right",label:"Giỏ phải",requirements:[{assetId:fruit,count:1}]}]};
+  const splitMarkup=renderToStaticMarkup(React.createElement(GameRuntime,{content:split,mode:"PREVIEW",assetUrls:{}}));
+  assert.equal((splitMarkup.match(/data-game-target-id=/g)??[]).length,2);
+});
+
+test("voice UI: child play waits for Start; preview stays playable and has one shared replay control", () => {
+  const content = JSON.parse(readFileSync(new URL("../../../packages/shared/examples/game-content/counting.v1.json", import.meta.url), "utf8"));
+  for (const mode of ["PLAY", "PREVIEW"]) {
+    const markup = renderToStaticMarkup(React.createElement(GameRuntime, { content, mode, assetUrls: {} }));
+    assert.equal((markup.match(/game-voice-button/g) ?? []).length, 1);
+    assert.match(markup, /aria-label="Đang tải giọng đọc"/);
+    if (mode === "PLAY") {
+      assert.match(markup, /Bắt đầu/);
+      assert.match(markup, /<fieldset disabled=""/);
+    } else {
+      assert.doesNotMatch(markup, /<fieldset disabled=""/);
+    }
+    const legacy = { ...content };
+    delete legacy.instruction;
+    const fallback = renderToStaticMarkup(React.createElement(GameRuntime, { content: legacy, mode, assetUrls: {} }));
+    assert.doesNotMatch(fallback, /role="alert"/);
+  }
+});
 import {
   GameAssetsApi,
   GameAssetApiError,

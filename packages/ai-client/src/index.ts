@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   gameTypeSchema,
+  comparisonChangeStructureSchema, gameDifficultySchema,
+  quantityContentStructureSchema, quantityOptionsSchema,
   countingContentV2StructureSchema,
   matchingContentStructureSchema,
   classificationContentV2StructureSchema,
@@ -19,12 +21,13 @@ export const patternGenerationOptionsSchema = z.strictObject({
   sequenceCount: z.number().int().min(3).max(6).default(5),
 });
 export const generateGameSchema = generateGameShape
-  .extend({ pattern: patternGenerationOptionsSchema.optional() })
+  .extend({ pattern: patternGenerationOptionsSchema.optional(), quantity: quantityOptionsSchema.optional(), comparisonDifficulty:gameDifficultySchema.optional() })
   .refine((input) => input.gameType === "PATTERN" || input.pattern === undefined, {
     path: ["pattern"],
     message: "Pattern options are only accepted for PATTERN.",
-  });
+  }).refine(input=>input.gameType==="QUANTITY_COMPARISON_CHANGE"||input.comparisonDifficulty===undefined,{path:["comparisonDifficulty"],message:"Comparison difficulty is only for comparison/change games."});
 export type GenerateGameInput = z.infer<typeof generateGameSchema>;
+export const quantityRequestSchema = generateGameSchema.refine(input => input.gameType === "QUANTITY" ? !!input.quantity : input.quantity === undefined, {message:"Quantity options required only for QUANTITY."});
 export const candidateAssetSchema = z.strictObject({
   id: z.uuid(),
   name: z.string().max(200),
@@ -43,6 +46,7 @@ export const candidateAssetSchema = z.strictObject({
 export type CandidateAsset = z.infer<typeof candidateAssetSchema>;
 export const aiRequestSchema = generateGameShape.extend({
   requestId: z.uuid(),
+  comparisonDifficulty:gameDifficultySchema.optional(),
   candidates: z.array(candidateAssetSchema).min(1).max(40),
   responseSchema: z.record(z.string(), z.unknown()),
   attempt: z.number().int().min(1).max(2),
@@ -108,6 +112,8 @@ const structures = {
   CLASSIFICATION: classificationContentV2StructureSchema,
   // PATTERN is composed in Nest without a model call; listed so the map stays exhaustive.
   PATTERN: patternContentStructureSchema,
+  QUANTITY: quantityContentStructureSchema,
+  QUANTITY_COMPARISON_CHANGE:comparisonChangeStructureSchema,
 } satisfies Record<GameType, z.ZodType>;
 // Generated from the actual shared Zod structures; cross-field refinements stay in NestJS.
 export function gameResponseSchema(
@@ -115,6 +121,8 @@ export function gameResponseSchema(
   assetIds: string[],
 ): Record<string, unknown> {
   const schema = z.toJSONSchema(structures[gameType], { target: "draft-7" });
+  // Storage accepts legacy games; new model output must include both levels.
+  schema.required = [...new Set([...(schema.required ?? []), "instructions"])];
   const visit = (value: unknown, key?: string): unknown => {
     if (Array.isArray(value)) return value.map((entry) => visit(entry));
     if (value === null || typeof value !== "object") return value;
@@ -139,7 +147,7 @@ export function gameResponseSchema(
       if (name === "const") output.enum = [entry];
       else output[name] = visit(entry, name);
     }
-    if (key === "assetId") output.enum = [...new Set(assetIds)];
+    if (key === "assetId" || key === "basketAssetId") output.enum = [...new Set(assetIds)];
     return output;
   };
   return visit(schema) as Record<string, unknown>;

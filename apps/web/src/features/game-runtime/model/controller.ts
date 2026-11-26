@@ -17,10 +17,11 @@ function freezeSnapshot(state: GameState): GameState {
     state.matches.forEach(Object.freeze);
     Object.freeze(state.matches);
   }
-  if (state.gameType === "CLASSIFICATION") {
+  if (state.gameType === "CLASSIFICATION" || state.gameType === "QUANTITY") {
     state.placements.forEach(Object.freeze);
     Object.freeze(state.placements);
   }
+  if(state.gameType === "QUANTITY_COMPARISON_CHANGE") Object.freeze(state.solvedQuestionIds);
   return Object.freeze(state);
 }
 

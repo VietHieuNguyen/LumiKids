@@ -8,7 +8,7 @@
     "start": "next start --port 3000",
     "typecheck": "pnpm --filter @lumikids/shared build && next typegen && tsc --noEmit",
     "lint": "eslint",
-    "test": "pnpm test:game-assets && pnpm test:landing && pnpm test:game-runtime && pnpm test:savanna-scene && pnpm test:game-preview && pnpm test:game-creation && pnpm test:gameplay && pnpm test:classrooms",
+    "test": "pnpm test:game-assets && pnpm test:landing && pnpm test:game-runtime && pnpm test:savanna-scene && pnpm test:game-preview && pnpm test:game-creation && pnpm test:gameplay && pnpm test:classrooms && pnpm test:voice && pnpm test:comparison-change",
     "test:classrooms": "node --experimental-default-type=module --experimental-strip-types --test tests/classrooms.test.mjs",
     "test:gameplay": "node --experimental-default-type=module --experimental-strip-types --test tests/gameplay.test.mjs",
     "test:game-creation": "pnpm --filter @lumikids/shared build && node --import ./tests/register-tsx.mjs --test tests/game-creation.test.mjs",
@@ -16,7 +16,9 @@
     "test:game-assets": "node --experimental-default-type=module --experimental-strip-types --test tests/game-assets.test.mjs",
     "test:landing": "pnpm --filter @lumikids/shared build && node --import ./tests/register-tsx.mjs --test tests/landing-scenes.test.mjs",
     "test:savanna-scene": "node --import ./tests/register-tsx.mjs --test tests/savanna-scene.test.mjs",
-    "test:game-runtime": "pnpm --filter @lumikids/shared build && node --experimental-default-type=module --experimental-strip-types --test tests/game-runtime.test.mjs"
+    "test:game-runtime": "pnpm --filter @lumikids/shared build && node --experimental-default-type=module --experimental-strip-types --test tests/game-runtime.test.mjs",
+    "test:voice": "node --experimental-default-type=module --experimental-strip-types --test tests/voice-instruction.test.mjs",
+    "test:comparison-change": "node --import ./tests/register-tsx.mjs --test tests/comparison-change.test.mjs"
   },
   "dependencies": {
     "@lumikids/shared": "workspace:*",

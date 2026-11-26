@@ -1,3 +1,4 @@
+import { validateComparisonChange } from './comparison-change-validation.js';
 import {
   gameContentSchema,
   getGameContentAssetIds,
@@ -43,6 +44,8 @@ export function validateGeneratedContent(
   prompt: string,
   candidates: CandidateAsset[],
 ): ContentValidation {
+  if (gameType === 'QUANTITY_COMPARISON_CHANGE')
+    return validateComparisonChange(value, prompt, candidates);
   const parsed = gameContentSchema.safeParse(value);
   if (!parsed.success) return { errors: ['GAME_SCHEMA_INVALID'], warnings: [] };
   const content = parsed.data;
@@ -57,6 +60,8 @@ export function validateGeneratedContent(
     if (asset && !isAllowedForTask(asset, gameType, prompt))
       errors.push('ASSET_REPRESENTATION_MISMATCH');
   }
+  if (content.gameType === 'QUANTITY_COMPARISON_CHANGE')
+    return { errors: ['GAME_TYPE_MISMATCH'], warnings: [] };
   const expectedCount =
     content.gameType === 'COUNTING'
       ? requestedCountingDisplayCount(

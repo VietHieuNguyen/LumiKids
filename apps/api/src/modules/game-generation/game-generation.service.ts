@@ -16,6 +16,7 @@ import type {
 import { TokenUsageService } from '../token-usage/token-usage.service.js';
 import {
   buildPatternContent,
+  gameContentSchema,
   getGameContentAssetIds,
   getGameContentAssetIssues,
   patternContentSchema,
@@ -36,6 +37,9 @@ import {
 import { validateGeneratedContent } from './game-validation.js';
 import { normalizeHabitatAnswers } from './habitat-validation.js';
 import { pickPatternAssets } from './pattern-composition.js';
+import { composeQuantity } from './quantity-composition.js';
+import { prepareComparisonVoice } from './comparison-change-validation.js';
+import { prepareVoiceInstructions } from './voice-instruction.js';
 
 @Injectable()
 export class GameGenerationService {
@@ -64,17 +68,69 @@ export class GameGenerationService {
     let validationStage: 'NEST' | 'AI_GATEWAY' | undefined;
     try {
       // PATTERN is composed deterministically from whitelisted pictures: no model call, no tokens.
+      if (input.gameType === 'QUANTITY') {
+        if (!input.quantity) throw new Error('Quantity options required');
+        const candidates = (
+          await this.assets.generationCandidates(
+            user,
+            searchTerms(
+              [...input.quantity.fruits.map((f) => f.name), 'basket'].join(' '),
+            ),
+          )
+        )
+          .filter((a) => a.status === 'ACTIVE')
+          .map(toCandidate);
+        const content = composeQuantity(input.quantity, candidates);
+        const current = await this.assets.generationAssets(
+          user,
+          getGameContentAssetIds(content),
+        );
+        if (getGameContentAssetIssues(content, current).length)
+          throw new ApiProblem('ASSETS_CHANGED');
+        return {
+          gameType: input.gameType,
+          gameContent: content,
+          generation: {
+            requestId,
+            model: 'deterministic',
+            attempts: 0,
+            reviewRequired: true,
+            warnings: [],
+            validatedAt: new Date().toISOString(),
+          },
+        };
+      }
       if (input.gameType === 'PATTERN')
         return await this.composePattern(user, input, requestId);
       if (!this.config.url || !this.config.token)
         throw new ApiProblem('AI_NOT_CONFIGURED');
-      checkRequestedLimits(input.gameType, input.prompt);
+      if (input.gameType !== 'QUANTITY_COMPARISON_CHANGE')
+        checkRequestedLimits(input.gameType, input.prompt);
       const candidates = selectCandidates(
         input.prompt,
-        await this.assets.generationCandidates(user, searchTerms(input.prompt)),
+        await this.assets.generationCandidates(
+          user,
+          searchTerms(
+            input.gameType === 'QUANTITY_COMPARISON_CHANGE'
+              ? `${input.prompt} basket`
+              : input.prompt,
+          ),
+        ),
         input.gameType,
       );
-      checkRequestedLimits(input.gameType, input.prompt, candidates);
+      if (input.gameType !== 'QUANTITY_COMPARISON_CHANGE')
+        checkRequestedLimits(input.gameType, input.prompt, candidates);
+      if (
+        input.gameType === 'QUANTITY_COMPARISON_CHANGE' &&
+        !candidates.some((a) => a.objectType === 'BASKET')
+      ) {
+        const basket = (
+          await this.assets.generationCandidates(user, ['basket'])
+        ).find((a) => a.status === 'ACTIVE' && a.objectType === 'BASKET');
+        if (!basket) throw new ApiProblem('ASSETS_INSUFFICIENT');
+        if (candidates.length >= 40) candidates.pop();
+        candidates.push(toCandidate(basket));
+      }
       const responseSchema = gameResponseSchema(
         input.gameType,
         candidates.map((asset) => asset.id),
@@ -115,13 +171,23 @@ export class GameGenerationService {
             validationStage = 'NEST';
             throw new AiClientError('AI_OUTPUT_INVALID', true);
           }
-          const ids = getGameContentAssetIds(validation.content);
+          const voiced = gameContentSchema.safeParse(
+            validation.content.gameType === 'QUANTITY_COMPARISON_CHANGE'
+              ? prepareComparisonVoice(validation.content, candidates)
+              : prepareVoiceInstructions(validation.content),
+          );
+          if (!voiced.success) {
+            validationErrors = ['VOICE_INSTRUCTION_INVALID'];
+            validationStage = 'NEST';
+            throw new AiClientError('AI_OUTPUT_INVALID', true);
+          }
+          const ids = getGameContentAssetIds(voiced.data);
           const current = await this.assets.generationAssets(user, ids);
-          if (getGameContentAssetIssues(validation.content, current).length)
+          if (getGameContentAssetIssues(voiced.data, current).length)
             throw new ApiProblem('ASSETS_CHANGED');
           // Validate again against current metadata to reject edits/deactivation during the model call.
           const final = validateGeneratedContent(
-            validation.content,
+            voiced.data,
             input.gameType,
             input.prompt,
             current.map(toCandidate),
@@ -129,7 +195,7 @@ export class GameGenerationService {
           if (final.errors.length) throw new ApiProblem('ASSETS_CHANGED');
           return {
             gameType: input.gameType,
-            gameContent: validation.content,
+            gameContent: voiced.data,
             generation: {
               requestId,
               model: output.model,

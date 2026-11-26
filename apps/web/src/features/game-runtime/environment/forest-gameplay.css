@@ -81,3 +81,118 @@
 .game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-webkit-progress-value { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
 .game-picture-only:has(> [data-scene-theme="savanna"]) .game-progress::-moz-progress-bar { background: linear-gradient(90deg, #f2c45f, #e59d4f); }
 .game-picture-only:has(> [data-scene-theme="savanna"]) > [role="status"] { box-shadow: 0 3px 0 #d6bd80; }
+
+/* A stable icon-sized control, with a visible active state and reduced-motion support. */
+.game-picture-only > header .game-voice-button[data-speaking] {
+  background: #fff0b3;
+  color: #805719;
+  box-shadow: 0 0 0 4px #efce7c, 0 4px 0 #bfd8e5;
+}
+.game-voice-button[data-speaking] svg { animation: voice-pulse 1s ease-in-out infinite; }
+@keyframes voice-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) {
+  .game-voice-button[data-speaking] svg { animation: none; }
+}
+.game-voice-fallback { background: #fffaf0; margin: 0; }
+
+/* Quantity: the forest fills the frame; content sets the height in embedded previews. */
+.game-runtime-quantity.is-expanded { display:flex; flex-direction:column; }
+.game-runtime-quantity > header { flex-shrink:0; }
+.game-runtime-quantity.is-expanded > .game-forest-scene { flex:1; display:flex; min-height:0; }
+.game-runtime-quantity .game-forest-scene > fieldset { display:flex; flex-direction:column; width:100%; min-width:0; }
+.game-runtime-quantity > [data-feedback] { display:none; }
+.quantity-board { position:relative; display:flex; flex-direction:column; justify-content:center; gap:14px; width:100%; max-width:1100px; flex:1; margin:auto; padding:clamp(16px,3vh,32px) 16px; }
+.quantity-heading { text-align:center; font-size:clamp(22px,3vw,32px); font-weight:800; line-height:1.2; color:#38604c; }
+.quantity-instruction { text-align:center; background:#fff9e9ed; border-radius:18px; padding:10px 18px; margin:0 auto; width:100%; max-width:800px; color:#4b583b; font-weight:600; }
+.quantity-source { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:10px; min-height:82px; padding:12px; border-radius:24px; background:#ffffff75; }
+.quantity-source-fruit { padding:6px; border-radius:18px; background:#fffdf3; box-shadow:0 3px 0 #bccba4; touch-action:none; }
+.quantity-fruit { width:clamp(46px,7vw,64px); height:clamp(52px,8vw,72px); object-fit:contain; }
+.quantity-baskets { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:clamp(12px,2vw,24px); }
+.quantity-basket { display:flex; flex-direction:column; align-items:center; position:relative; width:min(100%,280px); padding:12px 10px; border:2px solid #fff9; border-radius:26px; background:#fffaf0b8; color:#61452b; box-shadow:0 5px 16px #375e4110; }
+.quantity-basket[data-hovered] { border-color:#e7af3b; background:#fff3c7; }
+.quantity-basket-title { font-size:20px; font-weight:800; }
+.quantity-order { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.quantity-order>span { display:flex; align-items:center; gap:4px; }
+.quantity-order-picture { width:30px; height:36px; object-fit:contain; }
+.quantity-basket-body { position:relative; isolation:isolate; width:100%; height:clamp(150px,24vh,210px); }
+.quantity-basket-back,.quantity-basket-front { position:absolute; inset:0; pointer-events:none; }
+.quantity-basket-back { z-index:0; }
+.quantity-basket-front { z-index:2; clip-path:inset(57% 0 0); }
+.quantity-basket-art { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+.quantity-placed { position:absolute; inset:0; z-index:1; pointer-events:none; }
+.quantity-nest-fruit { position:absolute; left:var(--fruit-x); bottom:var(--fruit-bottom); transform:translateX(-50%) rotate(var(--fruit-turn)); transform-origin:50% 85%; animation:quantity-settle .25s ease-out; }
+.quantity-placed .quantity-fruit { width:clamp(32px,5vw,46px); height:clamp(42px,7vw,60px); filter:drop-shadow(1px 2px 1px #573b2526); }
+.quantity-basket-count { font-size:22px; font-weight:800; line-height:1.2; }
+.quantity-status { text-align:center; padding:8px 12px; background:#fff9e9d9; border-radius:16px; margin:0; font-size:14px; }
+.quantity-source [data-wrong] { animation:quantity-return .35s ease-out; }
+@keyframes quantity-return { 25% { transform:translateX(-8px); } 75% {transform:translateX(8px);} }
+@keyframes quantity-settle { from { opacity:.4; translate:0 -12px; } }
+@media(max-width:600px) {
+  .quantity-board { padding:14px 8px; gap:10px; }
+  .quantity-baskets { gap:8px; }
+  .quantity-basket { width:calc((100% - 16px)/3); min-width:94px; padding:8px 3px; border-radius:18px; }
+  .quantity-basket:only-child { width:min(100%,280px); }
+  .quantity-basket-body { height:clamp(110px,25vw,150px); }
+  .quantity-order { gap:2px; font-size:13px; }
+  .quantity-order-picture { width:24px; height:28px; }
+  .quantity-basket-title { font-size:16px; }
+  .quantity-placed .quantity-fruit { width:26px; height:36px; }
+}
+@media(prefers-reduced-motion:reduce) { .quantity-source [data-wrong],.quantity-nest-fruit { animation:none; } }
+
+/* Index 43: picture-first controls over the shared scenery. Text remains accessible to screen readers. */
+.game-runtime-quantity_comparison_change.is-expanded { display:flex; flex-direction:column; }
+.game-runtime-quantity_comparison_change > header { flex-shrink:0; }
+.game-runtime-quantity_comparison_change.is-expanded > .game-forest-scene { flex:1; display:flex; min-height:0; }
+.game-runtime-quantity_comparison_change .game-forest-scene > fieldset { display:flex; flex-direction:column; width:100%; min-width:0; }
+.game-runtime-quantity_comparison_change > [data-feedback] { display:none; }
+.comparison-board { min-width:0; position:relative; display:flex; flex-direction:column; justify-content:center; gap:20px; width:100%; max-width:1540px; flex:1; margin:auto; padding:24px 32px 100px; }
+.comparison-steps { display:flex; justify-content:center; align-items:center; gap:13px; list-style:none; margin:0; padding:0; min-height:26px; }
+.comparison-steps li { width:18px; height:18px; flex:0 0 18px; border:3px solid #b7bad9; border-radius:50%; background:#ffffffeb; }
+.comparison-steps [aria-current] { border-color:#9265bc; box-shadow:0 0 0 2px #ffffffb3; }
+.comparison-steps [data-done] { background:#bee7dd; border-color:#8abfb6; }
+.comparison-question { display:flex; flex-direction:column; gap:20px; }
+.comparison-pair { display:grid; grid-template-columns:minmax(0,1fr) 94px minmax(0,1fr); align-items:center; gap:24px; }
+.comparison-group { position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:0; min-height:clamp(230px,37vh,430px); padding:24px; border:3px solid #ffffffbd; border-radius:32px; background:#eafbff66; color:#244e68; box-shadow:0 5px 0 #18577724; }
+.comparison-group[data-hovered] { border-color:#f9cf65; background:#fff5cd8c; }
+.comparison-objects { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:clamp(10px,2vw,24px); align-content:center; align-items:center; justify-items:center; width:100%; padding:8px 0; }
+.comparison-object { width:clamp(44px,7vw,94px); max-width:100%; height:clamp(56px,11vh,108px); }
+.comparison-objects > .comparison-draggable { display:grid; place-items:center; width:100%; max-width:100%; }
+.comparison-empty { grid-column:1/-1; align-self:center; color:#effbff; font-size:48px; font-weight:800; }
+.comparison-slot { min-width:84px; min-height:94px; border:3px dashed #e2f8ff; border-radius:24px; background:#f4fdffad; color:#345e78; font-size:52px; font-weight:800; }
+.comparison-symbols,.comparison-actions { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:18px; }
+.comparison-symbols .comparison-draggable { width:92px; height:82px; font-size:50px; font-weight:800; color:#285270; background:#fff5d8; border:3px solid #fff; box-shadow:0 4px 0 #c5aa68; border-radius:22px; }
+.comparison-draggable { touch-action:none; border-radius:14px; padding:3px; min-width:0; }
+.comparison-draggable:focus-visible,.comparison-slot:focus-visible { outline:4px solid #f2bb3e; outline-offset:2px; }
+.comparison-draggable:disabled { opacity:1; }
+.comparison-goal { display:flex; align-items:center; gap:10px; align-self:center; padding:8px 18px; border:2px solid #fff; border-radius:20px; background:#fff2c8d9; color:#64502e; font-size:28px; }
+.comparison-goal .comparison-object { width:38px; height:40px; }
+.comparison-editing { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px; }
+.comparison-outside { background:#d7eeff52; }
+.comparison-actions button { display:grid; place-items:center; width:64px; height:64px; min-height:64px; padding:12px; border-radius:20px; }
+.comparison-actions .asset-button-primary { width:76px; background:#285e50; color:#fff; box-shadow:0 4px 0 #184c40; }
+@media(min-width:701px) and (max-width:1100px) {
+ .comparison-editing .comparison-objects { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .comparison-pair .comparison-objects { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+ .comparison-board { padding:16px 10px 84px; gap:14px; }
+ .comparison-pair { grid-template-columns:minmax(0,1fr) 52px minmax(0,1fr); gap:8px; }
+ .comparison-slot { min-width:48px; font-size:34px; min-height:64px; border-radius:16px; }
+ .comparison-group { min-height:170px; padding:14px 8px; border-radius:22px; }
+ .comparison-pair .comparison-objects { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+ .comparison-pair .comparison-object { width:clamp(26px,7vw,44px); height:clamp(34px,9vw,54px); }
+ .comparison-editing { grid-template-columns:minmax(0,1fr); gap:14px; }
+ .comparison-editing .comparison-object { width:clamp(36px,10vw,58px); height:clamp(48px,13vw,68px); }
+ .comparison-objects { gap:10px; }
+ .comparison-actions button { width:56px; height:56px; min-height:56px; }
+ .comparison-symbols .comparison-draggable { width:72px; height:68px; font-size:42px; }
+}
+@media(min-width:701px) and (max-height:700px) {
+ .comparison-board { padding-top:12px; padding-bottom:72px; gap:12px; }
+ .comparison-group { min-height:210px; }
+ .comparison-object { height:72px; width:66px; }
+ .comparison-actions button { height:52px; min-height:52px; }
+}
+.game-picture-only:has(> [data-scene-theme="ocean"]) { background:#307b9e; box-shadow:0 5px 0 #235e7c; }
+.game-picture-only:has(> [data-scene-theme="ocean"]) > header { background:linear-gradient(90deg,#e1f7ff,#f7fdff); color:#31566b; }

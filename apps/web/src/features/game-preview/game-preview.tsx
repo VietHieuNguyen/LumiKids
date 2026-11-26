@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { gameContentSchema } from "@lumikids/shared";
+import { withLegacyInstruction, gameContentSchema } from "@lumikids/shared";
 import type { GameContent, GameInteraction } from "@lumikids/shared";
 import { GameRuntime } from "../game-runtime/game-runtime";
 import { gameRegistry } from "../game-runtime/registry";
@@ -206,7 +206,7 @@ function ValidatedPreview({
 /** Reusable boundary for a future Backend/AI payload; no demo data, auth or persistence inside. */
 export function GamePreview(props: GamePreviewProps) {
   const parsed = useMemo(
-    () => gameContentSchema.safeParse(props.content),
+    () => gameContentSchema.safeParse(withLegacyInstruction(props.content)),
     [props.content],
   );
   if (!parsed.success)

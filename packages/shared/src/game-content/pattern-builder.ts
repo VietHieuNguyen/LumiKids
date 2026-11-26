@@ -1,4 +1,5 @@
 import type { AssetItem } from "./common.js";
+import { GAME_INSTRUCTIONS } from "./voice-instruction.js";
 import {
   PATTERN_RULE_UNITS,
   patternLetterCount,
@@ -16,7 +17,7 @@ export interface BuildPatternInput {
   instruction?: string;
 }
 
-const DEFAULT_INSTRUCTION = "Con hãy tìm hình tiếp theo cho đúng quy tắc nhé!";
+const DEFAULT_INSTRUCTION = "Bé hãy chọn hình tiếp theo để điền vào ô trống nhé!";
 /** Shortest visible length per period length (spec table: AB 5–6, 3-period 6–7, 4-period 8). */
 const BASE_LENGTH: Record<number, number> = { 2: 5, 3: 6, 4: 8 };
 
@@ -67,6 +68,7 @@ export function buildPatternContent(input: BuildPatternInput): PatternContent {
     ];
     sequences.push({
       id: `seq-${index + 1}`,
+      instruction: DEFAULT_INSTRUCTION,
       rule,
       cells,
       choiceIds: shuffle([correctItemId, ...distractors.slice(0, choiceCount - 1)], random),
@@ -77,6 +79,7 @@ export function buildPatternContent(input: BuildPatternInput): PatternContent {
     schemaVersion: 1,
     gameType: "PATTERN",
     instruction: input.instruction ?? DEFAULT_INSTRUCTION,
+    instructions: GAME_INSTRUCTIONS.PATTERN,
     items: input.items.map((item) => ({ ...item })),
     sequences,
     completionRule: "ALL_SEQUENCES_COMPLETED",

@@ -27,6 +27,7 @@ export function PatternGame({
   onAction,
   onAssetError,
   hint,
+  onDisplayedSequence,
 }: RendererCommonProps & { content: PatternContent; state: PatternState }) {
   const current = currentPatternSequence(content, state);
   const last = state.lastInteraction;
@@ -42,6 +43,10 @@ export function PatternGame({
   }, [heldId]);
   const solvedRow = heldId ? (content.sequences.find((entry) => entry.id === heldId) ?? null) : null;
   const sequence = solvedRow ?? current;
+  const displayedId = sequence?.id;
+  useEffect(() => {
+    if (displayedId) onDisplayedSequence?.(displayedId);
+  }, [displayedId, onDisplayedSequence]);
 
   const scope = useRef<HTMLDivElement>(null);
   const rowPanel = useRef<HTMLElement>(null);

@@ -22,7 +22,8 @@ class CandidateAsset(StrictModel):
 
 class GenerationRequest(StrictModel):
     request_id: UUID = Field(alias='requestId')
-    game_type: Literal['COUNTING', 'MATCHING', 'CLASSIFICATION'] = Field(alias='gameType')
+    game_type: Literal['COUNTING', 'MATCHING', 'CLASSIFICATION', 'QUANTITY_COMPARISON_CHANGE'] = Field(alias='gameType')
+    comparison_difficulty: Literal['EASY', 'MEDIUM', 'HARD'] | None = Field(default=None, alias='comparisonDifficulty')
     prompt: str = Field(min_length=1, max_length=2000)
     candidates: list[CandidateAsset] = Field(min_length=1, max_length=40)
     response_schema: dict[str, JsonValue] = Field(alias='responseSchema')

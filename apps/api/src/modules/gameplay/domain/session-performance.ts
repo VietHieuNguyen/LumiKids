@@ -22,6 +22,17 @@ export function scoredItemIds(content: GameContent): string[] {
       return content.pairs.map((pair) => pair.sourceId);
     case 'CLASSIFICATION':
       return content.items.map((item) => item.id);
+    case 'QUANTITY':
+      return content.baskets.flatMap((b) =>
+        b.requirements.flatMap((r) =>
+          Array.from(
+            { length: r.count },
+            (_, index) => `${b.id}:${r.assetId}:${index + 1}`,
+          ),
+        ),
+      );
+    case 'QUANTITY_COMPARISON_CHANGE':
+      return content.questions.map((q) => q.id);
     case 'PATTERN':
       return content.sequences.map((sequence) => sequence.id);
   }
@@ -29,6 +40,8 @@ export function scoredItemIds(content: GameContent): string[] {
 
 /** A hint names its task the same way an answer names its item (see getHintTargets). */
 function itemOf(content: GameContent, event: GameInteraction): string {
+  if (content.gameType === 'QUANTITY' && event.actionType === 'QUANTITY_DROP')
+    return `${event.targetId}:${content.items.find((i) => i.id === event.sourceId)?.assetId}`;
   return content.gameType === 'COUNTING' ? COUNTING_ITEM_ID : event.sourceId;
 }
 
@@ -60,11 +73,27 @@ export function computeSessionPerformance(
     (a, b) => a.attemptIndex - b.attemptIndex,
   );
   const hintTasks = new Set(getHintTargets(input.content).map((t) => t.taskId));
+  const quantities = new Map<string, number>();
   for (const event of ordered) {
     if (event.actionType === 'REQUEST_HINT' && !hintTasks.has(event.sourceId))
       continue;
-    const itemId = itemOf(input.content, event);
-    // A wrong MATCH_DROP/CLASSIFY_DROP always names an existing source; anything else is ignored.
+    let itemId = itemOf(input.content, event);
+    if (
+      input.content.gameType === 'QUANTITY' &&
+      event.actionType === 'QUANTITY_DROP'
+    ) {
+      const key = itemId;
+      const assetId = input.content.items.find(
+        (i) => i.id === event.sourceId,
+      )?.assetId;
+      const required =
+        input.content.baskets
+          .find((b) => b.id === event.targetId)
+          ?.requirements.find((r) => r.assetId === assetId)?.count ?? 0;
+      const placed = quantities.get(key) ?? 0;
+      itemId = `${key}:${Math.min(placed + 1, required)}`;
+      if (event.result === 'CORRECT') quantities.set(key, placed + 1);
+    }
     if (!known.has(itemId)) continue;
     steps.get(itemId)?.push('result' in event ? event.result : 'HINT');
   }
@@ -85,7 +114,8 @@ export function computeSessionPerformance(
     else if (before.length === 0) firstAttemptCorrectCount++;
     else retryCorrectCount++;
   }
-  const finalized = firstAttemptCorrectCount + retryCorrectCount + hintCorrectCount;
+  const finalized =
+    firstAttemptCorrectCount + retryCorrectCount + hintCorrectCount;
   const criterionPerformance: CriterionPerformance = {
     totalScoredItems: items.length,
     finalizedScoredItems: finalized,
@@ -100,7 +130,10 @@ export function computeSessionPerformance(
     finalizedItemCount: finalized,
     attemptCount,
     completionDurationSeconds: input.endedAt
-      ? Math.max(0, (input.endedAt.getTime() - input.startedAt.getTime()) / 1000)
+      ? Math.max(
+          0,
+          (input.endedAt.getTime() - input.startedAt.getTime()) / 1000,
+        )
       : null,
     criterionCode: input.criterionCode,
     criterionPerformance,

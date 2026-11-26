@@ -95,7 +95,7 @@ test("authorization follows generation permission, never role alone", () => {
       true,
     );
 });
-test("creator renders four choices, prompt limit, samples, disabled empty submission and draft notice", () => {
+test("creator renders six choices, prompt limit, samples, disabled empty submission and draft notice", () => {
   const api = new GameGenerationApi(
     "fixture",
     "http://api.example.test",
@@ -110,12 +110,12 @@ test("creator renders four choices, prompt limit, samples, disabled empty submis
     }),
   );
   assert.match(html, /Thiết kế trò chơi bằng AI/);
-  assert.equal((html.match(/type="radio"/g) ?? []).length, 4);
+  assert.equal((html.match(/type="radio"/g) ?? []).length, 6);
   assert.match(html, new RegExp(`maxLength="${MAX_GAME_PROMPT_LENGTH}"`, "i"));
   assert.match(html, /Tạo trò chơi từ mô tả/);
   assert.match(html, /disabled=""/);
   assert.match(html, /có thể mất khi tải lại hoặc rời trang/);
-  assert.equal(gameCreationOptions.length, 4);
+  assert.equal(gameCreationOptions.length, 6);
 });
 test("invalid prompt and unsupported type are rejected before network", async () => {
   const api = new GameGenerationApi("fixture", "http://api.example.test", () =>

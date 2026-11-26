@@ -25,6 +25,7 @@ export function patternLetterCount(rule: PatternRule): number {
 
 export const patternSequenceSchema = z.strictObject({
   id: gameElementIdSchema,
+  instruction: z.string().trim().min(1).max(500).optional(),
   rule: patternRuleSchema,
   // Visible cells in display order; the blank always follows the last cell.
   cells: z.array(gameElementIdSchema).min(4).max(8),

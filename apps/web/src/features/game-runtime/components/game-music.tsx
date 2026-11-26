@@ -2,19 +2,23 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { GameContent } from "@lumikids/shared";
+import { duckMusic } from "../model/music-volume";
 
 const tracks: Record<GameContent["gameType"], string> = {
   CLASSIFICATION: "/audio/game/classification.mp3",
   MATCHING: "/audio/game/matching.mp3",
   COUNTING: "/audio/game/counting.mp3",
   // No dedicated track yet: the calm matching loop suits sequence play.
+  QUANTITY_COMPARISON_CHANGE: "/audio/game/matching.mp3",
+  QUANTITY: "/audio/game/matching.mp3",
   PATTERN: "/audio/game/matching.mp3",
 };
 
 /** Child play only: quiet looping music, unlocked by an interaction when autoplay is blocked. */
-export function GameMusic({ gameType, paused, target }: {
+export function GameMusic({ gameType, paused, target, ducked = false }: {
   gameType: GameContent["gameType"];
   paused: boolean;
+  ducked?: boolean;
   target: RefObject<HTMLElement | null>;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
@@ -22,6 +26,13 @@ export function GameMusic({ gameType, paused, target }: {
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
   const src = tracks[gameType];
+
+  useEffect(() => {
+    if (audio.current) audio.current.volume = 0.22;
+  }, []);
+  useEffect(() => {
+    if (ducked && audio.current) return duckMusic(audio.current);
+  }, [ducked]);
 
   useEffect(() => {
     const player = audio.current;
@@ -32,7 +43,6 @@ export function GameMusic({ gameType, paused, target }: {
     const player = audio.current;
     const board = target.current;
     if (!player) return;
-    player.volume = 0.22;
     function resume() {
       if (player && enabled && !paused && !failed && !document.hidden)
         void player.play().catch(() => { /* A later gesture can unlock browser autoplay. */ });

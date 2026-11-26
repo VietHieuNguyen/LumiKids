@@ -45,11 +45,20 @@ export const hintInteractionSchema = z.strictObject({
   ...identityShape,
   actionType: z.literal("REQUEST_HINT"),
 });
+export const quantityInteractionSchema = z.strictObject({...eventShape,actionType:z.literal("QUANTITY_DROP"),targetId:gameElementIdSchema});
+export type QuantityInteraction = z.infer<typeof quantityInteractionSchema>;
+export const compareQuantitiesInteractionSchema=z.strictObject({...eventShape,actionType:z.literal("COMPARE_QUANTITIES"),targetId:z.enum(["GT","LT","EQ"])});
+export const confirmQuantityChangeInteractionSchema=z.strictObject({...eventShape,actionType:z.literal("CONFIRM_QUANTITY_CHANGE"),count:z.number().int().min(0).max(10)});
+export type CompareQuantitiesInteraction=z.infer<typeof compareQuantitiesInteractionSchema>;
+export type ConfirmQuantityChangeInteraction=z.infer<typeof confirmQuantityChangeInteractionSchema>;
 export const gameInteractionSchema = z.discriminatedUnion("actionType", [
   countingInteractionSchema,
   matchingInteractionSchema,
   classificationInteractionSchema,
   patternInteractionSchema,
+  quantityInteractionSchema,
+  compareQuantitiesInteractionSchema,
+  confirmQuantityChangeInteractionSchema,
   hintInteractionSchema,
 ]);
 export type CountingInteraction = z.infer<typeof countingInteractionSchema>;

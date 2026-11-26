@@ -7,6 +7,8 @@ export const gameTypeSchema = z.enum([
   "MATCHING",
   "CLASSIFICATION",
   "PATTERN",
+  "QUANTITY",
+  "QUANTITY_COMPARISON_CHANGE",
 ]);
 export type GameType = z.infer<typeof gameTypeSchema>;
 
@@ -22,12 +24,15 @@ export const completionRuleSchema = z.enum([
   "ALL_PAIRS_CORRECT",
   "ALL_ITEMS_CLASSIFIED_CORRECTLY",
   "ALL_SEQUENCES_COMPLETED",
+  "ALL_BASKETS_FILLED",
+  "ALL_QUESTIONS_COMPLETED",
 ]);
 export type CompletionRule = z.infer<typeof completionRuleSchema>;
 
 export const baseContentShape = {
   schemaVersion: z.literal(GAME_CONTENT_SCHEMA_VERSION),
   instruction: z.string().trim().min(1).max(1000),
+  instructions: z.string().trim().min(1).max(500).optional(),
 };
 
 export const assetItemSchema = z.strictObject({

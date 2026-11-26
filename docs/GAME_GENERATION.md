@@ -244,3 +244,15 @@ Bước 6B chỉ cần gọi endpoint này bằng API client có access token, l
 - Cập nhật `pnpm-lock.yaml`, `docs/SETUP.md`; tạo tài liệu này.
 
 Không sửa migration, schema Prisma/shared, Runtime, Frontend hoặc Docker Compose. `.gitkeep` cũ được giữ nguyên.
+
+
+## Chỉ số 43: QUANTITY_COMPARISON_CHANGE
+
+- Gửi `gameType: "QUANTITY_COMPARISON_CHANGE"`, `prompt` và `comparisonDifficulty: "EASY" | "MEDIUM" | "HARD"`.
+- Luôn có ba câu nối tiếp: COMPARE → ADD → REMOVE. `initialCount`/`targetCount` là số lượng hai bên ở COMPARE; là số ban đầu/mục tiêu ở ADD/REMOVE. Số nguyên 0–10; ADD tăng, REMOVE giảm.
+- LLM dùng asset thật đã được Nest chọn; BASKET là học liệu giỏ. Mọi loại học liệu đếm được đều được hỗ trợ, không giới hạn trái cây. Server tự tính dấu và kiểm tra số lượng, sinh lại instruction từng câu từ dữ liệu đã validate, không nhận đáp án/hint do LLM khai báo.
+- Điều chỉnh và hoàn tác ở frontend không phát InteractionEvent. Chỉ COMPARE_QUANTITIES và CONFIRM_QUANTITY_CHANGE được đánh giá. Giá trị `count` được giữ trong JSON actionData, bao gồm số không; server replay và kiểm tra lại kết quả.
+- Chỉ lưu với Chỉ số 43, Chuẩn 15. Không đổi công thức CE: ba câu tạo ba nhiệm vụ; ngưỡng tối thiểu năm vẫn áp dụng (`minimumItemsMet=false`).
+- Preview và gameplay dùng nền forest giống trò Matching. Mã và asset của nền ocean được giữ lại để dùng sau. SpeechService, mascot, SFX và nhạc nền dùng chung với runtime.
+
+Kiểm tra thủ công: kéo dấu và chạm chọn, thêm quá mục tiêu rồi lấy lại, bớt về không rồi hoàn tác, xác nhận sai/đúng, nghe lại, đổi câu/thoát, tạm dừng do ảnh lỗi, màn hình hẹp, giảm chuyển động và WebGL không khả dụng.
