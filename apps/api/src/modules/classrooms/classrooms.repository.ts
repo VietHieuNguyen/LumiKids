@@ -264,7 +264,7 @@ export class ClassroomsRepository {
     return this.prisma.child.findMany({
       where: { enrollments: { none: { endedAt: null } } },
       orderBy: { fullName: 'asc' },
-      select: childSelect,
+      select: { ...childSelect, _count: { select: { guardians: true } } },
     });
   }
   /** Opens the first enrollment of a child without a class; the partial unique index refuses a second one. */
@@ -272,6 +272,24 @@ export class ClassroomsRepository {
     await this.prisma.classroomEnrollment.create({
       data: { classId, childId, startedAt: now },
     });
+  }
+  async placeSchoolChild(childId: string, classId: string, now: Date) {
+    return this.prisma.$transaction(async (tx) => {
+      const child = await tx.child.findUnique({
+        where: { childId },
+        select: {
+          status: true,
+          _count: { select: { guardians: true, enrollments: { where: { endedAt: null } } } },
+        },
+      });
+      if (!child || child.status !== 'ACTIVE') return 'NOT_ELIGIBLE' as const;
+      if (child._count.guardians) return 'FAMILY_PROFILE' as const;
+      if (child._count.enrollments) return 'HAS_CLASS' as const;
+      const target = await tx.classroom.findFirst({ where: { classId, status: 'ACTIVE' }, select: { classId: true } });
+      if (!target) return 'NOT_ELIGIBLE' as const;
+      await tx.classroomEnrollment.create({ data: { classId, childId, startedAt: now } });
+      return 'COMPLETED' as const;
+    }, { isolationLevel: 'Serializable' });
   }
   findCurrentEnrollment(childId: string) {
     return this.prisma.classroomEnrollment.findFirst({
@@ -424,6 +442,8 @@ export class ClassroomsRepository {
   ) {
     const where: Prisma.PlaySessionWhereInput = {
       childId,
+      // Home practice stays with the family; legacy sessions have no context.
+      AND: [{ OR: [{ context: null }, { context: 'SCHOOL' }] }],
       OR: periods.map((period) => ({
         startedAt: {
           gte: period.startedAt,

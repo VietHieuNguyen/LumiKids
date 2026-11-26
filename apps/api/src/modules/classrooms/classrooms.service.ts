@@ -10,6 +10,8 @@ import type {
   ClassGroup,
   CreateClassGroupInput,
   UpdateClassGroupInput,
+  ClassroomBatchResult,
+  InitialCodesResult,
   ClassroomChild,
   ClassroomChildDetail,
   ClassroomDetail,
@@ -346,8 +348,26 @@ export class ClassroomsService {
     return childProfile(child);
   }
   async listUnassignedChildren() {
-    return (await this.repository.listUnassignedChildren()).map(childProfile);
+    return (await this.repository.listUnassignedChildren()).map((child) => ({
+      ...childProfile(child), managedByFamily: child._count.guardians > 0,
+    }));
   }
+  async enrollSchoolChildren(classId: string, childIds: readonly string[]): Promise<ClassroomBatchResult> {
+    await this.requireActiveClassroom(classId);
+    const result: ClassroomBatchResult = { completedIds: [], skipped: [] };
+    const now = new Date();
+    for (const id of childIds) {
+      try {
+        const status = await this.repository.placeSchoolChild(id, classId, now);
+        if (status === 'COMPLETED') result.completedIds.push(id);
+        else result.skipped.push({ id, reason: status });
+      } catch (error) {
+        result.skipped.push({ id, reason: isUniqueViolation(error) ? 'HAS_CLASS' : 'FAILED' });
+      }
+    }
+    return result;
+  }
+
   /**
    * Moves a child to another class, mid-year included; the old period stays in the history. A child without
    * a class (a profile from before classrooms) is simply placed in it.
@@ -614,6 +634,22 @@ export class ClassroomsService {
       },
     };
   }
+  /** First codes for a class at the start of the year: children that already have a code are skipped, never replaced. */
+  async issueInitialCodes(teacher: Principal, classId: string, childIds: readonly string[]): Promise<InitialCodesResult> {
+    await this.requireTeacherOfActive(teacher, classId);
+    const result: InitialCodesResult = { issued: [], skipped: [] };
+    for (const id of childIds) {
+      try {
+        const issued = await this.childAuth.issueFirstCodeInClass(id, classId, teacher.userId);
+        if (issued) result.issued.push({ childId: id, code: issued.code, issuedAt: issued.issuedAt.toISOString() });
+        else result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
+      } catch {
+        result.skipped.push({ id, reason: 'FAILED' });
+      }
+    }
+    return result;
+  }
+
   /** Only a teacher of the child's current class may issue a code; the previous code stops working. */
   async issueLoginCode(
     teacher: Principal,

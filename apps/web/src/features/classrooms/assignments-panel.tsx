@@ -1,14 +1,32 @@
 "use client";
 import Link from "next/link";
+import { useId, useState } from "react";
 import type { AssignmentApi } from "./api";
 import { ErrorBanner, Panel, StatusPill } from "./classroom-shell";
 import { assignmentStateLabels, assignmentStateTones, formatDateTime } from "./format";
 import { useResource } from "./use-resource";
 
 export function AssignmentsPanel({ api, classId, canAssign }: { api: AssignmentApi; classId: string; canAssign: boolean }) {
+  const filterId = useId();
+  const [filter, setFilter] = useState("all");
   const list = useResource((signal) => api.list(signal), classId);
+  const items = (list.data ?? []).filter((item) => filter === "all" || (filter === "replay" ? item.pendingReplayCount > 0 : item.state === filter));
   return (
-    <Panel title="Bài đã giao" description="Hoàn thành = trẻ chơi xong mỗi trò trong bài ít nhất một lần (kể cả sau hạn).">
+    <Panel title="Bài đã giao">
+      {!!list.data?.length && <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-0 grow sm:max-w-xs">
+          <label className="asset-label" htmlFor={filterId}>Lọc bài giao</label>
+          <select id={filterId} className="asset-input mt-1" value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <option value="all">Tất cả</option>
+            <option value="OPEN">Đang mở</option>
+            <option value="UPCOMING">Chưa mở</option>
+            <option value="CLOSED">Đã hết hạn</option>
+            <option value="CANCELLED">Đã hủy</option>
+            <option value="replay">Có yêu cầu chơi lại</option>
+          </select>
+        </div>
+        <p role="status" className="pb-2 text-sm text-ink-soft">{items.length} bài hiển thị</p>
+      </div>}
       {list.error && <ErrorBanner message={list.error} onRetry={list.reload} />}
       {list.loading && !list.data && <p role="status" className="text-sm text-ink-soft">Đang tải bài giao…</p>}
       {list.data?.length === 0 && (
@@ -20,8 +38,9 @@ export function AssignmentsPanel({ api, classId, canAssign }: { api: AssignmentA
           {canAssign && <Link className="lumi-button-sun mt-4" href={`/teacher/classrooms/${classId}/assignments/new`}>Giao bài mới</Link>}
         </div>
       )}
+      {!!list.data?.length && !items.length && <p className="py-4 text-sm text-ink-soft">Không có bài ở trạng thái này.</p>}
       <ul className="grid gap-3">
-        {(list.data ?? []).map((item) => {
+        {items.map((item) => {
           const percent = item.recipientCount ? Math.round((item.completedCount / item.recipientCount) * 100) : 0;
           return (
             <li key={item.assignmentId}>

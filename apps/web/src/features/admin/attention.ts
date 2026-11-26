@@ -25,15 +25,15 @@ export function attentionItems(overview: AdminOverview): AttentionItem[] {
   const { attention: a, schoolYear } = overview;
   const items: AttentionItem[] = [];
   if (!schoolYear)
-    items.push({ id: "no-year", tone: "block", title: "Chưa có năm học", detail: "Tạo năm học trước, rồi mới tạo lớp và xếp trẻ.", href: "/admin/classrooms", action: "Tạo năm học" });
+    items.push({ id: "no-year", tone: "block", title: "Chưa có năm học", detail: "Tạo năm học trước, rồi mới tạo lớp và xếp trẻ.", href: "/admin/school-years", action: "Tạo năm học" });
   else if (!schoolYear.hasNextYear && schoolYear.daysLeft < 0)
-    items.push({ id: "year-ended", tone: "block", title: `Năm học ${schoolYear.name} đã kết thúc`, detail: "Tạo năm học mới và chuyển lớp cho trẻ.", href: "/admin/classrooms", action: "Tạo năm học" });
+    items.push({ id: "year-ended", tone: "block", title: `Năm học ${schoolYear.name} đã kết thúc`, detail: "Tạo năm học mới và chuyển lớp cho trẻ.", href: "/admin/school-years", action: "Tạo năm học" });
   else if (!schoolYear.hasNextYear && schoolYear.daysLeft <= 45)
-    items.push({ id: "year-ending", tone: "warn", title: `Năm học ${schoolYear.name} còn ${schoolYear.daysLeft} ngày`, detail: "Chưa có năm học kế tiếp. Chuẩn bị lớp mới trước khi hết năm.", href: "/admin/classrooms", action: "Tạo năm học" });
+    items.push({ id: "year-ending", tone: "warn", title: `Năm học ${schoolYear.name} còn ${schoolYear.daysLeft} ngày`, detail: "Chưa có năm học kế tiếp. Chuẩn bị lớp mới trước khi hết năm.", href: "/admin/school-years", action: "Tạo năm học" });
   if (a.classesWithoutTeacher.length)
     items.push({ id: "no-teacher", tone: "block", title: `${a.classesWithoutTeacher.length} lớp chưa có giáo viên`, detail: `${names(a.classesWithoutTeacher)}: không ai cấp mã hay giao bài được cho trẻ.`, href: classHref(a.classesWithoutTeacher), action: "Phân công" });
   if (a.unassignedChildren)
-    items.push({ id: "unassigned", tone: "block", title: `${a.unassignedChildren} trẻ chưa được xếp lớp`, detail: "Trẻ chưa có lớp thì không đăng nhập được. Xếp lớp ở trang chi tiết của một lớp.", href: "/admin/classrooms", action: "Xếp lớp" });
+    items.push({ id: "unassigned", tone: "warn", title: `${a.unassignedChildren} trẻ chưa xếp lớp`, detail: "Mở danh sách hồ sơ để chọn trẻ và lớp tiếp nhận.", href: "/admin/children", action: "Xếp lớp" });
   if (a.classesWithoutOpenAssignment.length)
     items.push({ id: "no-assignment", tone: "warn", title: `${a.classesWithoutOpenAssignment.length} lớp không có bài đang mở`, detail: `${names(a.classesWithoutOpenAssignment)}: trẻ đăng nhập sẽ không có trò nào để chơi.`, href: classHref(a.classesWithoutOpenAssignment), action: "Xem lớp" });
   if (a.childrenWithoutCode)

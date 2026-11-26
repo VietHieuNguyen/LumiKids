@@ -19,7 +19,7 @@ export function ClassroomShell({
 }) {
   return (
     <StaffPage>
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+      <main className="classroom-workspace mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
         {back && (
           <Link className="mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg text-sm font-semibold text-leaf hover:text-ink" href={back.href}>
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H4m3.5-3.5L4 8l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -118,13 +118,13 @@ export function Dialog({ title, onClose, children, wide = false }: { title: stri
 /** A tab strip whose tabs are links (so each tab has its own URL and survives reloads). */
 export function TabLinks({ tabs, current }: { tabs: { id: string; label: string; href: string; badge?: number }[]; current: string }) {
   return (
-    <nav aria-label="Mục" className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-paper p-1">
+    <nav aria-label="Mục" className="mb-5 flex flex-wrap gap-1.5 rounded-2xl border border-line bg-paper p-1.5">
       {tabs.map((tab) => (
         <Link
           key={tab.id}
           href={tab.href}
           aria-current={tab.id === current ? "page" : undefined}
-          className={`flex min-h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-bold transition ${
+          className={`flex min-h-11 min-w-0 flex-1 basis-22 items-center justify-center gap-2 rounded-xl px-2 text-center text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf ${
             tab.id === current ? "bg-ink text-white" : "text-ink-soft hover:bg-cream hover:text-ink"
           }`}
         >

@@ -90,6 +90,7 @@ function setup() {
     }),
     transfer: vi.fn(() => Promise.resolve(true)),
     enroll: vi.fn(() => Promise.resolve()),
+    placeSchoolChild: vi.fn((): Promise<'COMPLETED' | 'NOT_ELIGIBLE' | 'FAMILY_PROFILE' | 'HAS_CLASS'> => Promise.resolve('COMPLETED')),
     countCurrentChildren: vi.fn(() => Promise.resolve(1)),
     updateClassroom: vi.fn(() => Promise.resolve({})),
     isActiveTeacher: vi.fn(() => Promise.resolve(false)),
@@ -97,6 +98,7 @@ function setup() {
     findAgeGroup: vi.fn(() => Promise.resolve({})),
   };
   const childAuth = {
+    issueFirstCodeInClass: vi.fn().mockResolvedValue(null),
     issueLoginCode: vi.fn(() =>
       Promise.resolve({
         code: 'K7MQ-2HXA',
@@ -166,6 +168,48 @@ describe('ClassroomsService — teacher scope', () => {
       2,
       10,
     );
+  });
+
+  it('reports missing-code batch outcomes without replacing existing codes', async () => {
+    const { service, childAuth, classA, childId } = setup();
+    const skipped = randomUUID();
+    childAuth.issueFirstCodeInClass.mockResolvedValueOnce({
+      code: 'K7MQ-2HXA', issuedAt: new Date('2026-11-16T08:00:00.000Z'),
+    });
+    await expect(service.issueInitialCodes(teacher, classA, [childId, skipped]))
+      .resolves.toEqual({
+        issued: [{ childId, code: 'K7MQ-2HXA', issuedAt: '2026-11-16T08:00:00.000Z' }],
+        skipped: [{ id: skipped, reason: 'NOT_ELIGIBLE' }],
+      });
+    expect(childAuth.issueLoginCode).not.toHaveBeenCalled();
+  });
+
+  it('places school-managed children in bulk and reports the rest without stopping', async () => {
+    const { service, repository, classA } = setup();
+    const [ok, family, placed, raced, broken] = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    repository.placeSchoolChild
+      .mockResolvedValueOnce('COMPLETED')
+      .mockResolvedValueOnce('FAMILY_PROFILE')
+      .mockResolvedValueOnce('HAS_CLASS')
+      .mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' }))
+      .mockRejectedValueOnce(new Error('db down'));
+    await expect(service.enrollSchoolChildren(classA, [ok, family, placed, raced, broken]))
+      .resolves.toEqual({
+        completedIds: [ok],
+        skipped: [
+          { id: family, reason: 'FAMILY_PROFILE' },
+          { id: placed, reason: 'HAS_CLASS' },
+          { id: raced, reason: 'HAS_CLASS' },
+          { id: broken, reason: 'FAILED' },
+        ],
+      });
+  });
+
+  it('refuses bulk placement into an archived class', async () => {
+    const { service, repository, classA, statuses } = setup();
+    statuses.set(classA, 'ARCHIVED');
+    await expect(service.enrollSchoolChildren(classA, [randomUUID()])).rejects.toEqual(problem('CLASSROOM_ARCHIVED'));
+    expect(repository.placeSchoolChild).not.toHaveBeenCalled();
   });
 
   it('issues a login code only for a current, active child of an active class', async () => {

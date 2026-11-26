@@ -45,6 +45,8 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
   const classrooms = {
     listClassrooms: vi.fn(() => Promise.resolve([])),
     createChild: vi.fn(() => Promise.resolve({})),
+    issueInitialCodes: vi.fn(() => Promise.resolve({ issued: [], skipped: [] })),
+    enrollSchoolChildren: vi.fn(() => Promise.resolve({ completedIds: [], skipped: [] })),
     teacherClassrooms: vi.fn(() => Promise.resolve([])),
     classPlayHistory: vi.fn(() =>
       Promise.resolve({
@@ -203,6 +205,33 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
       classId,
       child.childId,
     );
+  });
+
+  it('protects and validates batch issuance and disables response caching', async () => {
+    const classId = randomUUID();
+    const path = `/api/v1/teacher/classrooms/${classId}/children/initial-login-codes`;
+    const headers = { type: 'bearer' as const };
+    const payload = { childIds: [child.childId] };
+    actor = { ...teacher, permissions: ['READ_OWN_CLASSROOMS'] };
+    await request(app.getHttpServer()).post(path).auth(await token(), headers).send(payload).expect(403);
+    actor = teacher;
+    await request(app.getHttpServer()).post(path).auth(await token(), headers)
+      .send({ childIds: [child.childId, child.childId] }).expect(400);
+    await request(app.getHttpServer()).post(path).auth(await token(), headers)
+      .send(payload).expect(201).expect('Cache-Control', 'no-store');
+    expect(classrooms.issueInitialCodes).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ userId: teacher.userId }), classId, [child.childId],
+    );
+  });
+
+  it('restricts school batch enrollment to administrators', async () => {
+    const classId = randomUUID();
+    const path = '/api/v1/admin/children/enrollments/batch';
+    const payload = { classId, childIds: [child.childId] };
+    await request(app.getHttpServer()).post(path).auth(await token(), { type: 'bearer' }).send(payload).expect(403);
+    actor = admin;
+    await request(app.getHttpServer()).post(path).auth(await token(), { type: 'bearer' }).send(payload).expect(201);
+    expect(classrooms.enrollSchoolChildren).toHaveBeenCalledExactlyOnceWith(classId, [child.childId]);
   });
 
   it('needs RESET_CHILD_LOGIN_CODES to issue a code', async () => {

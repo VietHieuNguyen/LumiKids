@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import type { ClassGroup, ClassroomDetail } from "@lumikids/shared";
 import { classroomError } from "./api";
 import type { AssignmentApi } from "./api";
 import { Dialog, ErrorBanner, Panel } from "./classroom-shell";
 import { useResource } from "./use-resource";
+import { childNameMatches } from "./classroom-workflow";
 
 /** Fixed groups inside a class (e.g. "needs more counting practice"), to assign games to. */
 export function GroupsPanel({ api, classroom, canEdit }: { api: AssignmentApi; classroom: ClassroomDetail; canEdit: boolean }) {
@@ -135,20 +136,28 @@ export function ChildPicker({
   picked: Set<string>;
   onChange: (value: Set<string>) => void;
 }) {
+  const id = useId();
+  const [query, setQuery] = useState("");
+  const visible = options.filter((child) => childNameMatches(child.fullName, query));
   return (
     <fieldset>
+      <legend className="asset-label">Chọn trẻ ({picked.size}/{options.length})</legend>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <legend className="asset-label">Chọn trẻ ({picked.size}/{options.length})</legend>
+        <div className="min-w-0 grow basis-48">
+          <label className="sr-only" htmlFor={id}>Tìm trẻ để chọn</label>
+          <input id={id} type="search" className="asset-input mt-1" placeholder="Tìm tên trẻ" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </div>
         <div className="flex gap-1">
-          <button type="button" className="asset-text-button" onClick={() => onChange(new Set(options.map((child) => child.childId)))}>Chọn hết</button>
-          <button type="button" className="asset-text-button" onClick={() => onChange(new Set())}>Bỏ chọn</button>
+          <button type="button" className="asset-text-button min-h-11" onClick={() => onChange(new Set(options.map((child) => child.childId)))}>Chọn cả danh sách</button>
+          <button type="button" className="asset-text-button min-h-11" onClick={() => onChange(new Set())}>Bỏ chọn</button>
         </div>
       </div>
       {options.length === 0 ? (
         <p className="mt-2 text-sm text-ink-soft">Lớp chưa có trẻ.</p>
       ) : (
         <div className="mt-2 grid max-h-72 gap-1.5 overflow-y-auto rounded-2xl border border-line bg-white p-2 sm:grid-cols-2">
-          {options.map((child) => {
+          {!visible.length && <p className="p-2 text-sm text-ink-soft">Không tìm thấy tên phù hợp.</p>}
+          {visible.map((child) => {
             const checked = picked.has(child.childId);
             return (
               <label key={child.childId} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 text-sm font-medium transition ${checked ? "bg-leaf-soft text-ink" : "hover:bg-cream"}`}>

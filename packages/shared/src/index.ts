@@ -168,3 +168,5 @@ export type { QuantityState } from "./game-runtime/types.js";
 export * from "./game-content/comparison-change.schema.js";
 export * from "./game-runtime/comparison-change.js";
 export type {ComparisonChangeState} from "./game-runtime/types.js";
+
+export * from "./classroom-batch.js";

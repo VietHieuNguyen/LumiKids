@@ -128,3 +128,19 @@ test("level labels: one per LEVEL, no judgemental wording", async () => {
   assert.deepEqual(Object.keys(criterionLevelLabels), ["LEVEL_0", "LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4"]);
   for (const label of Object.values(criterionLevelLabels)) assert.doesNotMatch(label, /yếu|kém/i);
 });
+
+import { childMatches, openingAgeBand } from "../src/features/classrooms/classroom-workflow.ts";
+
+test("roster search ignores Vietnamese diacritics and can show only children without a code", () => {
+  const child = { fullName: "Đỗ  Ngọc Anh", loginCodeIssuedAt: null, status: "ACTIVE" };
+  assert.equal(childMatches(child, "  do anh  ", "missing-code"), true);
+  assert.equal(childMatches({ ...child, status: "DISABLED" }, "do", "missing-code"), false);
+  assert.equal(childMatches(child, "anh nguyen", "all"), false);
+});
+
+test("assignment game age band uses the opening day and detects mixed or unsupported ages", () => {
+  const children = [{ dob: "2021-11-26" }, { dob: "2021-07-01" }];
+  assert.equal(openingAgeBand(children, "2026-11-25"), "mixed");
+  assert.equal(openingAgeBand(children, "2026-11-26"), 5);
+  assert.equal(openingAgeBand([{ dob: "2020-11-26" }], "2026-11-26"), "unsupported");
+});

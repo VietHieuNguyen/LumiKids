@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { AssignmentDetail, AssignmentRecipient } from "@lumikids/shared";
+import { vietnamDate } from "@lumikids/shared";
+import type { AssignmentDetail } from "@lumikids/shared";
 import { GameSymbol } from "../game-runtime/components/game-symbol";
 import { gameTypeLabels } from "../game-library/library-page";
 import { AssignmentApi, classroomError } from "./api";
+import { childNameMatches } from "./classroom-workflow";
 import type { ClassroomApi, ClassroomScope } from "./api";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
 import {
@@ -13,6 +15,7 @@ import {
   assignmentStateTones,
   completionLabels,
   endOfLocalDay,
+  formatDateOnly,
   formatDateTime,
   localToday,
   toLocalDateInput,
@@ -70,7 +73,7 @@ function Detail({
 }) {
   const assignments = useMemo(() => new AssignmentApi(api, classId, scope), [api, classId, scope]);
   const detail = useResource((signal) => assignments.detail(assignmentId, signal), assignmentId);
-  const back = { href: `/${scope}/classrooms/${classId}`, label: scope === "admin" ? "Lớp học" : "Bài đã giao" };
+  const back = { href: `/${scope}/classrooms/${classId}?tab=assignments`, label: "Bài đã giao" };
   if (!detail.data)
     return (
       <ClassroomShell title="Bài giao" back={back}>
@@ -156,7 +159,7 @@ function ReplayRequests({ api, detail, editable, onChange }: { api: AssignmentAp
             {editable && (
               <div className="flex gap-2">
                 <button type="button" className="asset-button-secondary" disabled={mutation.busy} onClick={() => void mutation.run(async () => onChange(await api.decide(detail.assignmentId, recipient.pendingReplay?.requestId ?? "", { approve: false })))}>
-                  Chưa cho
+                  Từ chối
                 </button>
                 <button type="button" className="asset-button-primary" disabled={mutation.busy || !until} onClick={() => void mutation.run(async () => onChange(await api.decide(detail.assignmentId, recipient.pendingReplay?.requestId ?? "", { approve: true, until: endOfLocalDay(until) })))}>
                   Đồng ý
@@ -185,70 +188,114 @@ function Recipients({
   onChange: (value: AssignmentDetail) => void;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [until, setUntil] = useState(() => addDays(localToday(), 3));
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const today = vietnamDate(new Date()).toISOString().slice(0, 10);
+  const [until, setUntil] = useState(() => addDays(today, 3));
+  const [message, setMessage] = useState("");
   const mutation = useMutation();
-  const unfinished = detail.recipients.filter((recipient) => recipient.completionStatus !== "COMPLETED" && recipient.inClass);
-  function toggle(recipient: AssignmentRecipient) {
-    const next = new Set(picked);
-    if (next.has(recipient.childId)) next.delete(recipient.childId);
-    else next.add(recipient.childId);
-    setPicked(next);
+  const visible = detail.recipients.filter((recipient) => childNameMatches(recipient.fullName, query) &&
+    (filter === "all" || (filter === "unfinished" ? recipient.completionStatus !== "COMPLETED" : recipient.completionStatus === "COMPLETED")));
+  const visibleUnfinished = visible.filter((recipient) => recipient.completionStatus !== "COMPLETED" && recipient.inClass);
+  const selected = detail.recipients.filter((recipient) => recipient.inClass && picked.has(recipient.childId));
+  const selectedIds = new Set(selected.map((recipient) => recipient.childId));
+  const hiddenSelected = selected.length - visible.filter((recipient) => selectedIds.has(recipient.childId)).length;
+
+  function toggle(childId: string) {
+    setPicked((previous) => {
+      const next = new Set(previous);
+      if (next.has(childId)) next.delete(childId);
+      else next.add(childId);
+      return next;
+    });
   }
+
   return (
-    <Panel
-      title="Tiến độ từng trẻ"
-      description="Mỗi ô là một trò; ô xanh là trẻ đã chơi xong trò đó."
-      actions={editable && unfinished.length > 0 ? (
-        <button type="button" className="asset-text-button" onClick={() => setPicked(new Set(unfinished.map((recipient) => recipient.childId)))}>
-          Chọn trẻ chưa xong ({unfinished.length})
-        </button>
-      ) : undefined}
-    >
+    <Panel title="Tiến độ từng trẻ">
+      <div className="mb-3 flex flex-wrap items-end gap-3 border-b border-line pb-3">
+        <div className="min-w-0 grow basis-44">
+          <label htmlFor="recipient-search" className="asset-label">Tìm tên trẻ</label>
+          <input id="recipient-search" type="search" className="asset-input mt-1" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </div>
+        <div className="min-w-0 grow sm:grow-0">
+          <label htmlFor="recipient-filter" className="asset-label">Tiến độ</label>
+          <select id="recipient-filter" className="asset-input mt-1" value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <option value="all">Tất cả</option>
+            <option value="unfinished">Chưa hoàn thành</option>
+            <option value="completed">Đã hoàn thành</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p role="status" className="text-sm text-ink-soft">{visible.length}/{detail.recipients.length} trẻ hiển thị</p>
+        {editable && visibleUnfinished.length > 0 && (
+          <button type="button" className="asset-button-secondary" onClick={() => setPicked(new Set(visibleUnfinished.map((recipient) => recipient.childId)))}>
+            Chọn trẻ chưa xong đang hiển thị ({visibleUnfinished.length})
+          </button>
+        )}
+      </div>
+      {message && <p role="status" className="mt-3 rounded-xl bg-leaf-soft p-3 text-sm text-ink">{message}</p>}
+      {!visible.length && <p className="py-4 text-sm text-ink-soft">{detail.recipients.length ? "Không tìm thấy trẻ theo bộ lọc này." : "Bài giao chưa có người nhận."}</p>}
       <ul className="divide-y divide-line">
-        {detail.recipients.map((recipient) => {
+        {visible.map((recipient) => {
           const done = new Set(recipient.completedVersionIds);
+          const missing = detail.games.filter((game) => !done.has(game.versionId));
           return (
-            <li key={recipient.childId} className="flex flex-wrap items-center gap-3 py-3">
-              {editable && (
-                <input type="checkbox" className="h-5 w-5 accent-[#2f8a4d]" checked={picked.has(recipient.childId)} onChange={() => toggle(recipient)} aria-label={`Chọn ${recipient.fullName}`} disabled={!recipient.inClass} />
+            <li key={recipient.childId} className="flex items-start gap-3 py-4">
+              {editable && recipient.inClass && (
+                <label className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg hover:bg-cream">
+                  <input type="checkbox" className="size-5 accent-leaf" checked={selectedIds.has(recipient.childId)} onChange={() => toggle(recipient.childId)} aria-label={`Chọn ${recipient.fullName} để gia hạn`} />
+                </label>
               )}
-              <span className="min-w-0 flex-1">
-                <Link className="block break-words font-semibold hover:text-leaf hover:underline" href={`/${api.scope}/classrooms/${classId}/children/${recipient.childId}`}>
-                  {recipient.fullName}
-                </Link>
-                <span className="block text-xs text-ink-soft">
-                  {!recipient.inClass ? "Đã chuyển lớp" : recipient.extendedUntil ? `Được chơi đến ${formatDateTime(recipient.extendedUntil)}` : " "}
-                </span>
-              </span>
-              <span className="flex gap-1" aria-label={`${done.size}/${detail.games.length} trò xong`}>
-                {detail.games.map((game) => (
-                  <span key={game.versionId} title={game.name} className={`h-6 w-6 rounded-lg ${done.has(game.versionId) ? "bg-leaf" : "bg-ink/10"}`} />
-                ))}
-              </span>
-              <StatusPill tone={completionTones[recipient.completionStatus]}>{completionLabels[recipient.completionStatus]}</StatusPill>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link className="break-words font-semibold hover:text-leaf hover:underline" href={`/${api.scope}/classrooms/${classId}/children/${recipient.childId}`}>
+                    {recipient.fullName}
+                  </Link>
+                  <StatusPill tone={completionTones[recipient.completionStatus]}>{completionLabels[recipient.completionStatus]}</StatusPill>
+                </div>
+                <p className="mt-1 text-sm text-ink-soft">
+                  <span className="font-semibold text-ink">{detail.games.length - missing.length}/{detail.games.length} trò đã xong</span>
+                  {!recipient.inClass ? " · Đã chuyển lớp" : recipient.extendedUntil ? ` · Được chơi đến ${formatDateTime(recipient.extendedUntil)}` : ""}
+                </p>
+                {missing.length > 0 && (
+                  <details className="mt-2 text-sm text-ink-soft">
+                    <summary className="min-h-11 cursor-pointer rounded-lg py-3 font-medium text-ink [overflow-wrap:anywhere]">
+                      Còn {missing.length} trò: {missing.slice(0, 2).map((game) => game.name).join(", ")}{missing.length > 2 ? "…" : ""}
+                    </summary>
+                    <ul className="list-disc space-y-1 pl-5">
+                      {missing.map((game) => <li key={game.versionId} className="break-words">{game.name}{!game.available ? " (đã lưu trữ)" : ""}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </div>
             </li>
           );
         })}
       </ul>
-      {editable && picked.size > 0 && (
-        <div className="sticky bottom-4 mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-ink p-3 text-white shadow-xl">
-          <span className="text-sm font-semibold">Mở lại cho {picked.size} trẻ đến hết ngày</span>
-          <input type="date" className="asset-input w-auto text-ink" min={localToday()} value={until} onChange={(event) => setUntil(event.target.value)} aria-label="Hạn mới" />
-          <button
-            type="button"
-            className="lumi-button-sun"
-            disabled={mutation.busy || !until}
-            onClick={() =>
-              void mutation.run(async () => {
-                onChange(await api.extend(detail.assignmentId, { childIds: [...picked], until: endOfLocalDay(until) }));
-                setPicked(new Set());
-              })
-            }
-          >
-            Giao lại
-          </button>
-          <button type="button" className="text-sm font-semibold text-white/80 underline" onClick={() => setPicked(new Set())}>Bỏ chọn</button>
-        </div>
+      {editable && selected.length > 0 && (
+        <form className="mt-4 space-y-3 rounded-2xl border border-line bg-cream p-3" onSubmit={(event) => {
+          event.preventDefault();
+          if (!until || until < today) return;
+          setMessage("");
+          void mutation.run(async () => {
+            onChange(await api.extend(detail.assignmentId, { childIds: selected.map((recipient) => recipient.childId), until: new Date(`${until}T23:59:59.999+07:00`).toISOString() }));
+            setMessage(`Đã gia hạn cho ${selected.length} trẻ đến hết ngày ${formatDateOnly(until)}.`);
+            setPicked(new Set());
+          });
+        }}>
+          <p className="text-sm font-semibold">Đã chọn {selected.length} trẻ{hiddenSelected > 0 ? `, gồm ${hiddenSelected} trẻ ngoài bộ lọc hiện tại` : ""}</p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label htmlFor="recipient-until" className="asset-label">Gia hạn đến hết ngày</label>
+              <input id="recipient-until" type="date" className="asset-input mt-1" min={today} value={until} onChange={(event) => setUntil(event.target.value)} required />
+            </div>
+            <button type="submit" className="asset-button-primary" disabled={mutation.busy || !until || until < today}>
+              {mutation.busy ? "Đang gia hạn…" : "Gia hạn cho trẻ đã chọn"}
+            </button>
+            <button type="button" className="asset-button-secondary" onClick={() => setPicked(new Set())}>Bỏ chọn</button>
+          </div>
+        </form>
       )}
       {mutation.error && <p role="alert" className="asset-error mt-3">{mutation.error}</p>}
     </Panel>

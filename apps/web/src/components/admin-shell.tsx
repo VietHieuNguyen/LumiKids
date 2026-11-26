@@ -25,6 +25,7 @@ const icons = {
 /** Admin navigation, grouped so the school catalogue, accounts, content and system stay apart. */
 const adminSections = [
   { href: "/admin", label: "Tổng quan", permission: "MANAGE_CLASSROOMS", icon: icons.overview },
+  { href: "/admin/children", label: "Quản lý trẻ", permission: "MANAGE_CLASSROOMS", icon: icons.teachers, group: "Trường học" },
   { href: "/admin/classrooms", label: "Quản lý lớp", permission: "MANAGE_CLASSROOMS", icon: icons.classrooms, group: "Trường học" },
   { href: "/admin/school-years", label: "Năm học", permission: "MANAGE_CLASSROOMS", icon: icons.calendar, group: "Trường học" },
   { href: "/admin/age-groups", label: "Nhóm tuổi", permission: "MANAGE_CLASSROOMS", icon: icons.ageGroups, group: "Trường học" },

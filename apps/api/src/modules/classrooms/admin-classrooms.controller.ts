@@ -18,6 +18,7 @@ import {
   createChildSchema,
   createClassroomSchema,
   createSchoolYearSchema,
+  enrollmentBatchSchema,
   playHistoryQuerySchema,
   reorderAgeGroupsSchema,
   updateAgeGroupSchema,
@@ -172,6 +173,12 @@ export class AdminClassroomsController {
   unassignedChildren() {
     return this.classrooms.listUnassignedChildren();
   }
+  @Post('children/enrollments/batch')
+  enrollBatch(@Body() value: unknown) {
+    const { classId, childIds } = parse(enrollmentBatchSchema, value, 'Chọn lớp và danh sách trẻ hợp lệ.');
+    return this.classrooms.enrollSchoolChildren(classId, childIds);
+  }
+
   @Post('children')
   createChild(@Body() value: unknown) {
     return this.classrooms.createChild(

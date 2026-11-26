@@ -52,6 +52,24 @@ export class ChildAuthRepository {
     return enrolled + guardians > 0;
   }
 
+  /** Atomically installs a first code only while the teacher still manages this active enrollment. */
+  async insertFirstClassCode(childId: string, classId: string, teacherId: string, digest: string, issuedAt: Date) {
+    try {
+      const result = await this.prisma.child.updateMany({
+        where: {
+          childId, status: 'ACTIVE', loginCodeDigest: null, loginCodeIssuedAt: null,
+          enrollments: { some: { classId, endedAt: null, classroom: { status: 'ACTIVE', teachers: { some: { userId: teacherId } } } } },
+        },
+        data: { loginCodeDigest: digest, loginCodeIssuedAt: issuedAt },
+      });
+      return result.count ? 'SAVED' as const : 'NOT_ELIGIBLE' as const;
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002')
+        return 'COLLISION' as const;
+      throw error;
+    }
+  }
+
   /**
    * Replaces the child's login code and signs the child out everywhere: whoever held the old code (or a
    * session opened with it) loses access at once. False if the digest collides with another child's code.

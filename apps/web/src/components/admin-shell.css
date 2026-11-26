@@ -72,6 +72,7 @@
 .admin-content .lumi-button-sun:hover { background: var(--color-ink-hover); }
 .admin-content .asset-button-primary:not(:where(.game-picture-only *)) { background: var(--color-ink); }
 .admin-content .asset-button-primary:hover:not(:where(.game-picture-only *)) { background: var(--color-ink-hover); }
+.admin-content .classroom-workspace :where(.asset-input, .asset-button-primary, .asset-button-secondary, .asset-button-danger, .lumi-button-sun) { min-height: 44px; }
 .admin-content .asset-button-secondary:not(:where(.game-picture-only *)) { border-color: var(--color-line); background: var(--color-paper); color: var(--color-ink); }
 .admin-content .asset-button-secondary.text-berry { color: var(--color-berry); }
 .admin-content .asset-button-secondary:hover:not(:where(.game-picture-only *)) { border-color: var(--admin-sage); background: var(--color-leaf-soft); }

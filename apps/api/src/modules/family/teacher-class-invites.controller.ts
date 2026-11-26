@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
-import { createClassInviteSchema, decideJoinRequestSchema } from '@lumikids/shared';
+import { createClassInviteSchema, decideJoinRequestSchema, joinRequestBatchSchema } from '@lumikids/shared';
 import { CurrentUser, Permissions } from '../auth/decorators/auth.decorators.js';
 import type { Principal } from '../../common/security/principal.js';
 import { ClassInvitesService } from './class-invites.service.js';
@@ -40,6 +40,16 @@ export class TeacherClassInvitesController {
   @Get('join-requests')
   joinRequests(@CurrentUser() teacher: Principal, @Param('classId', ParseUUIDPipe) classId: string) {
     return this.invites.joinRequests(teacher, classId);
+  }
+  @Post('join-requests/approve-batch')
+  @HttpCode(200)
+  approveBatch(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Body() value: unknown,
+  ) {
+    const { requestIds } = parse(joinRequestBatchSchema, value, 'Chọn các yêu cầu cần duyệt.');
+    return this.invites.approveBatch(teacher, classId, requestIds);
   }
   @Post('join-requests/:requestId/decision')
   @HttpCode(200)

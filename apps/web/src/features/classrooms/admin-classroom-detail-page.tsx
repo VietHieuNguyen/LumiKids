@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { ClassroomChild, ClassroomDetail } from "@lumikids/shared";
+import type { ChildProfile, ClassroomDetail } from "@lumikids/shared";
 import { AssignmentApi, classroomError } from "./api";
 import type { ClassroomApi } from "./api";
 import { AssignmentsPanel } from "./assignments-panel";
@@ -10,8 +10,9 @@ import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill, TabLink
 import { childStatusLabels, classroomStatusLabels, formatDateOnly, genderLabels, localToday } from "./format";
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
+import { RosterTools, useRoster } from "./roster-tools";
 
-export type AdminClassroomTab = "overview" | "assignments";
+export type AdminClassroomTab = "overview" | "teachers" | "settings" | "assignments";
 
 export function AdminClassroomDetailPage({ classId, tab = "overview" }: { classId: string; tab?: AdminClassroomTab }) {
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
@@ -64,51 +65,57 @@ function AdminClassroom({ api, classId, tab }: { api: ClassroomApi; classId: str
       <TabLinks
         current={tab}
         tabs={[
-          { id: "overview", label: `Trẻ (${data.children.length}) & giáo viên (${data.teachers.length})`, href: base },
+          { id: "overview", label: "Danh sách trẻ", href: base, badge: data.children.length },
+          { id: "teachers", label: "Giáo viên", href: `${base}?tab=teachers`, badge: data.teachers.length },
+          { id: "settings", label: "Thông tin lớp", href: `${base}?tab=settings` },
           { id: "assignments", label: "Bài đã giao", href: `${base}?tab=assignments` },
         ]}
       />
-      {tab === "assignments" ? (
-        <AssignmentsPanel api={assignments} classId={classId} canAssign={false} />
-      ) : (
-      <div className="admin-classroom-columns grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-6">
-          <ChildrenPanel api={api} classroom={data} onChange={classroom.replace} reload={classroom.reload} />
-        </div>
-        <aside className="space-y-6">
-          <TeachersPanel api={api} classroom={data} onChange={classroom.replace} />
-          <SettingsPanel api={api} classroom={data} onChange={classroom.replace} />
-        </aside>
-      </div>
-      )}
+      {tab === "assignments" && <AssignmentsPanel api={assignments} classId={classId} canAssign={false} />}
+      {tab === "overview" && <ChildrenPanel api={api} classroom={data} onChange={classroom.replace} reload={classroom.reload} />}
+      {tab === "teachers" && <TeachersPanel api={api} classroom={data} onChange={classroom.replace} />}
+      {tab === "settings" && <SettingsPanel api={api} classroom={data} onChange={classroom.replace} />}
     </ClassroomShell>
   );
 }
 
-function ChildrenPanel({
+export function ChildrenPanel({
   api,
   classroom,
   onChange,
   reload,
+  directoryMemoryKey,
 }: {
   api: ClassroomApi;
   classroom: ClassroomDetail;
   onChange: (value: ClassroomDetail) => void;
   reload: () => void;
+  directoryMemoryKey?: string;
 }) {
   const archived = classroom.status === "ARCHIVED";
-  const [editing, setEditing] = useState<ClassroomChild | null>(null);
-  const [moving, setMoving] = useState<ClassroomChild | null>(null);
+  const [editing, setEditing] = useState<ChildProfile | null>(null);
+  const [moving, setMoving] = useState<ChildProfile | null>(null);
+  const [adding, setAdding] = useState(false);
+  const roster = useRoster(classroom.children, directoryMemoryKey);
+  const [message, setMessage] = useState("");
+  const directory = "/admin/children";
   return (
-    <Panel title={`Trẻ trong lớp (${classroom.children.length})`} description="Bấm tên trẻ để xem kết quả chơi. Trẻ đăng nhập bằng mã do giáo viên của lớp cấp.">
+    <Panel title={`Trẻ trong lớp (${classroom.children.length})`} actions={!archived && (
+      <div className="flex flex-wrap gap-2">
+        <Link href={`${directory}?target=${classroom.classId}`} className="asset-button-secondary">Xếp trẻ có hồ sơ</Link>
+        <button type="button" className="asset-button-primary" onClick={() => setAdding(true)}>Thêm hồ sơ</button>
+      </div>
+    )}>
+      {message && <p role="status" className="mb-3 rounded-xl bg-leaf-soft p-3 text-sm text-leaf">{message}</p>}
+      {classroom.children.length > 0 && <RosterTools {...roster} count={roster.children.length} />}
       {classroom.children.length === 0 ? (
         <p className="text-sm text-ink-soft">Lớp chưa có trẻ.</p>
       ) : (
         <ul className="divide-y divide-line">
-          {classroom.children.map((child) => (
+          {roster.children.map((child) => (
             <li key={child.childId} className="flex flex-wrap items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
-                <Link className="break-words font-semibold text-leaf hover:underline" href={`/admin/classrooms/${classroom.classId}/children/${child.childId}`}>
+                <Link className="break-words font-semibold text-leaf hover:underline" href={`/admin/classrooms/${classroom.classId}/children/${child.childId}${directoryMemoryKey ? "?from=directory" : ""}`}>
                   {child.fullName}
                 </Link>
                 <p className="text-sm text-ink-soft">
@@ -126,16 +133,25 @@ function ChildrenPanel({
           ))}
         </ul>
       )}
-      {!archived && <UnassignedChildren api={api} classroom={classroom} onPlaced={onChange} />}
-      {!archived && <AddChildForm api={api} classId={classroom.classId} onAdded={onChange} />}
+      {classroom.children.length > 0 && roster.children.length === 0 && <p className="py-5 text-sm text-ink-soft">Không tìm thấy trẻ. Thử từ khóa hoặc trạng thái khác.</p>}
+      {adding && <Dialog title="Thêm hồ sơ vào lớp" onClose={() => setAdding(false)} wide>
+        <AddChildForm api={api} classId={classroom.classId} onAdded={(value, name) => {
+          onChange(value);
+          setAdding(false);
+          roster.setQuery("");
+          roster.setFilter("all");
+          setMessage(`Đã thêm ${name} vào lớp ${classroom.className}.`);
+        }} />
+      </Dialog>}
       {editing && <EditChildDialog api={api} child={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
       {moving && (
         <TransferDialog
           api={api}
           child={moving}
-          classroom={classroom}
+          fromClassId={classroom.classId}
           onClose={() => setMoving(null)}
-          onMoved={() => {
+          onMoved={(destination) => {
+            setMessage(`Đã chuyển ${moving.fullName} sang lớp ${destination.className}.`);
             setMoving(null);
             reload();
           }}
@@ -145,58 +161,20 @@ function ChildrenPanel({
   );
 }
 
-/** Profiles without a class (e.g. created before classrooms) cannot sign in until they are placed in one. */
-function UnassignedChildren({ api, classroom, onPlaced }: { api: ClassroomApi; classroom: ClassroomDetail; onPlaced: (value: ClassroomDetail) => void }) {
-  const unassigned = useResource((signal) => api.unassignedChildren(signal), `unassigned:${classroom.children.length}`);
-  const mutation = useMutation();
-  if (!unassigned.data?.length && !unassigned.error) return null;
-  return (
-    <div className="mt-6 rounded-xl border border-sun-edge/40 bg-sun-soft p-4">
-      <h3 className="font-semibold text-[#6b4600]">Trẻ chưa có lớp</h3>
-      <p className="mt-1 text-sm text-[#6b4600]">Trẻ chưa có lớp thì chưa đăng nhập được. Xếp trẻ vào lớp này rồi giáo viên cấp mã.</p>
-      {unassigned.error && <ErrorBanner message={unassigned.error} onRetry={unassigned.reload} />}
-      <ul className="mt-3 divide-y divide-sun-edge/20">
-        {(unassigned.data ?? []).map((child) => (
-          <li key={child.childId} className="flex flex-wrap items-center gap-3 py-2">
-            <span className="min-w-0 flex-1 break-words text-sm">
-              <span className="font-semibold">{child.fullName}</span> · {formatDateOnly(child.dob)} · {genderLabels[child.gender]}
-            </span>
-            <button
-              type="button"
-              className="asset-button-secondary"
-              disabled={mutation.busy}
-              onClick={() => void mutation.run(async () => onPlaced(await api.transferChild(child.childId, classroom.classId)))}
-            >
-              Xếp vào lớp {classroom.className}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {mutation.error && <p role="alert" className="asset-error mt-3">{mutation.error}</p>}
-    </div>
-  );
-}
-
-function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: string; onAdded: (value: ClassroomDetail) => void }) {
+function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: string; onAdded: (value: ClassroomDetail, name: string) => void }) {
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"MALE" | "FEMALE">("FEMALE");
   const mutation = useMutation();
-  const [done, setDone] = useState("");
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setDone("");
     void mutation.run(async () => {
       const name = fullName.trim();
-      onAdded(await api.createChild({ fullName: name, dob, gender, classId }));
-      setFullName("");
-      setDob("");
-      setDone(`Đã thêm ${name}. Giáo viên của lớp cấp mã đăng nhập cho trẻ.`);
+      onAdded(await api.createChild({ fullName: name, dob, gender, classId }), name);
     });
   }
   return (
-    <form className="mt-6 rounded-xl border border-dashed border-line p-4" onSubmit={submit}>
-      <h3 className="mb-3 font-semibold">Thêm trẻ vào lớp</h3>
+    <form onSubmit={submit}>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div>
           <label className="asset-label" htmlFor="child-name">Họ tên</label>
@@ -215,13 +193,12 @@ function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: s
         </div>
       </div>
       {mutation.error && <p role="alert" className="asset-error mt-3">{mutation.error}</p>}
-      {done && <p role="status" className="mt-3 text-sm text-leaf">{done}</p>}
       <button className="asset-button-primary mt-4" disabled={mutation.busy || !fullName.trim() || !dob}>{mutation.busy ? "Đang thêm…" : "Thêm trẻ"}</button>
     </form>
   );
 }
 
-function EditChildDialog({ api, child, onClose, onSaved }: { api: ClassroomApi; child: ClassroomChild; onClose: () => void; onSaved: () => void }) {
+export function EditChildDialog({ api, child, onClose, onSaved }: { api: ClassroomApi; child: ChildProfile; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState(child.fullName);
   const [dob, setDob] = useState(child.dob);
   const [gender, setGender] = useState(child.gender);
@@ -276,44 +253,39 @@ function EditChildDialog({ api, child, onClose, onSaved }: { api: ClassroomApi; 
   );
 }
 
-function TransferDialog({
-  api,
-  child,
-  classroom,
-  onClose,
-  onMoved,
+export function TransferDialog({
+  api, child, fromClassId, initialTarget, onClose, onMoved,
 }: {
   api: ClassroomApi;
-  child: ClassroomChild;
-  classroom: ClassroomDetail;
+  child: ChildProfile;
+  fromClassId?: string;
+  initialTarget?: string;
   onClose: () => void;
-  onMoved: () => void;
+  onMoved: (value: ClassroomDetail) => void;
 }) {
   const targets = useResource((signal) => api.adminClassrooms(new URLSearchParams({ status: "ACTIVE" }), signal), "targets");
-  const options = (targets.data ?? []).filter((item) => item.classId !== classroom.classId);
-  const [classId, setClassId] = useState("");
+  const options = (targets.data ?? []).filter((item) => item.classId !== fromClassId);
+  const [classId, setClassId] = useState(initialTarget ?? "");
   const mutation = useMutation();
-  const target = classId || options[0]?.classId || "";
+  const target = options.find((option) => option.classId === classId);
+  const action = fromClassId ? "Chuyển lớp" : "Xếp lớp";
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void mutation.run(async () => {
-      await api.transferChild(child.childId, target);
-      onMoved();
-    });
+    if (target) void mutation.run(async () => onMoved(await api.transferChild(child.childId, target.classId)));
   }
+
   return (
-    <Dialog title={`Chuyển lớp cho ${child.fullName}`} onClose={onClose}>
+    <Dialog title={`${action} cho ${child.fullName}`} onClose={onClose}>
       <form className="space-y-4" onSubmit={submit}>
-        <p className="text-sm leading-6 text-ink-soft">
-          Từ hôm nay trẻ học lớp mới. Giáo viên lớp {classroom.className} vẫn xem được các lượt chơi trong thời gian trẻ học lớp mình; giáo viên lớp mới chỉ thấy các lượt chơi từ khi trẻ chuyển đến.
-        </p>
         {targets.error && <ErrorBanner message={targets.error} onRetry={targets.reload} />}
-        {targets.loading && !targets.data && <p role="status" className="text-sm">Đang tải danh sách lớp…</p>}
-        {targets.data && options.length === 0 && <p className="text-sm text-ink-soft">Chưa có lớp đang học nào khác.</p>}
+        {targets.loading && !targets.error && !targets.data && <p role="status">Đang tải lớp…</p>}
+        {targets.data && options.length === 0 && <p className="text-sm text-ink-soft">Chưa có lớp đang mở để chọn.</p>}
         {options.length > 0 && (
           <div>
-            <label className="asset-label" htmlFor="transfer-target">Lớp mới</label>
-            <select id="transfer-target" className="asset-input mt-1" value={target} onChange={(event) => setClassId(event.target.value)}>
+            <label className="asset-label" htmlFor="transfer-target">Lớp nhận trẻ</label>
+            <select id="transfer-target" className="asset-input mt-1" value={target?.classId ?? ""} onChange={(event) => setClassId(event.target.value)} required disabled={mutation.busy}>
+              <option value="">Chọn lớp</option>
               {options.map((item) => (
                 <option key={item.classId} value={item.classId}>
                   {item.className} · {item.ageGroup.name} · {item.schoolYear.name}
@@ -323,9 +295,9 @@ function TransferDialog({
           </div>
         )}
         {mutation.error && <p role="alert" className="asset-error">{mutation.error}</p>}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="asset-button-secondary" onClick={onClose} disabled={mutation.busy}>Hủy</button>
-          <button className="asset-button-primary" disabled={mutation.busy || !target}>{mutation.busy ? "Đang chuyển…" : "Chuyển lớp"}</button>
+          <button className="asset-button-primary" disabled={mutation.busy || !target}>{mutation.busy ? "Đang lưu…" : action}</button>
         </div>
       </form>
     </Dialog>
