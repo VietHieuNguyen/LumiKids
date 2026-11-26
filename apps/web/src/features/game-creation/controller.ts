@@ -89,7 +89,7 @@ export function createGameCreationController(
         revision++;
         publish({
           status: "ready",
-          draft: { game, source: input, revision, difficulty: null },
+          draft: { game, source: input, revision, difficulty: input.gameType === "QUANTITY_COMPARISON_CHANGE" ? input.comparisonDifficulty ?? "MEDIUM" : null },
           error: null,
         });
         return true;

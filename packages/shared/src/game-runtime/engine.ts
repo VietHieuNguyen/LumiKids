@@ -1,3 +1,4 @@
+import {evaluateComparisonChange} from "./comparison-change.js";
 import { evaluateQuantity } from "./quantity.js";
 import {
   GAME_INTERACTION_SCHEMA_VERSION,
@@ -28,6 +29,7 @@ export function createInitialState(content: GameContent): GameState {
       return { ...base, gameType: "MATCHING", matches: [] };
     case "CLASSIFICATION":
       return { ...base, gameType: "CLASSIFICATION", placements: [] };
+    case "QUANTITY_COMPARISON_CHANGE": return {...base,gameType:"QUANTITY_COMPARISON_CHANGE",solvedQuestionIds:[]};
     case "QUANTITY":
       return {...base,gameType:"QUANTITY",placements:[]};
     case "PATTERN":
@@ -79,6 +81,7 @@ export function getGameProgress(
               ).length
             : 0,
       };
+    case "QUANTITY_COMPARISON_CHANGE": return {total:content.questions.length,correct:state.gameType==="QUANTITY_COMPARISON_CHANGE"?state.solvedQuestionIds.length:0};
     case "QUANTITY":
       return { total:content.baskets.flatMap(b=>b.requirements).reduce((n,r)=>n+r.count,0),correct:state.gameType==="QUANTITY"?state.placements.length:0 };
     case "PATTERN":
@@ -99,6 +102,7 @@ export function checkCompletion(
     case "CORRECT_CHOICE":
     case "ALL_PAIRS_CORRECT":
     case "ALL_ITEMS_CLASSIFIED_CORRECTLY":
+    case "ALL_QUESTIONS_COMPLETED":
     case "ALL_BASKETS_FILLED":
     case "ALL_SEQUENCES_COMPLETED":
       return progress.correct === progress.total;
@@ -148,6 +152,9 @@ export function applyGameAction(
     case "CLASSIFICATION":
       if (state.gameType === "CLASSIFICATION")
         evaluation = evaluateClassification(content, state, action);
+      break;
+    case "QUANTITY_COMPARISON_CHANGE":
+      if(state.gameType==="QUANTITY_COMPARISON_CHANGE") evaluation=evaluateComparisonChange(content,state,action);
       break;
     case "QUANTITY":
       if(state.gameType==="QUANTITY") evaluation=evaluateQuantity(content,state,action);

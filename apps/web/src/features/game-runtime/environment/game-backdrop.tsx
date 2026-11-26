@@ -18,7 +18,7 @@ export function GameBackdrop({ theme = "forest", className = "", onStatus }: { t
       callback.current?.(value);
     };
     // Each world is its own lazy chunk: the savanna (classification) has a separate perspective stage.
-    const mount = theme === "savanna"
+    const mount = theme === "ocean" ? import("./ocean-stage").then(({mountOceanStage})=>(target:HTMLCanvasElement)=>mountOceanStage(target,update)) : theme === "savanna"
       ? import("./savanna/savanna-stage").then(({ mountSavannaStage }) => (target: HTMLCanvasElement) => mountSavannaStage(target, update))
       : import("./scenery-stage").then(({ mountSceneryStage }) => (target: HTMLCanvasElement) => mountSceneryStage(target, update, theme));
     void mount.then((start) => {

@@ -31,6 +31,8 @@ export function scoredItemIds(content: GameContent): string[] {
           ),
         ),
       );
+    case 'QUANTITY_COMPARISON_CHANGE':
+      return content.questions.map((q) => q.id);
     case 'PATTERN':
       return content.sequences.map((sequence) => sequence.id);
   }

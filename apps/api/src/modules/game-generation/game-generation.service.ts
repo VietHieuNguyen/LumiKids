@@ -38,6 +38,7 @@ import { validateGeneratedContent } from './game-validation.js';
 import { normalizeHabitatAnswers } from './habitat-validation.js';
 import { pickPatternAssets } from './pattern-composition.js';
 import { composeQuantity } from './quantity-composition.js';
+import { prepareComparisonVoice } from './comparison-change-validation.js';
 import { prepareVoiceInstructions } from './voice-instruction.js';
 
 @Injectable()
@@ -103,13 +104,33 @@ export class GameGenerationService {
         return await this.composePattern(user, input, requestId);
       if (!this.config.url || !this.config.token)
         throw new ApiProblem('AI_NOT_CONFIGURED');
-      checkRequestedLimits(input.gameType, input.prompt);
+      if (input.gameType !== 'QUANTITY_COMPARISON_CHANGE')
+        checkRequestedLimits(input.gameType, input.prompt);
       const candidates = selectCandidates(
         input.prompt,
-        await this.assets.generationCandidates(user, searchTerms(input.prompt)),
+        await this.assets.generationCandidates(
+          user,
+          searchTerms(
+            input.gameType === 'QUANTITY_COMPARISON_CHANGE'
+              ? `${input.prompt} basket`
+              : input.prompt,
+          ),
+        ),
         input.gameType,
       );
-      checkRequestedLimits(input.gameType, input.prompt, candidates);
+      if (input.gameType !== 'QUANTITY_COMPARISON_CHANGE')
+        checkRequestedLimits(input.gameType, input.prompt, candidates);
+      if (
+        input.gameType === 'QUANTITY_COMPARISON_CHANGE' &&
+        !candidates.some((a) => a.objectType === 'BASKET')
+      ) {
+        const basket = (
+          await this.assets.generationCandidates(user, ['basket'])
+        ).find((a) => a.status === 'ACTIVE' && a.objectType === 'BASKET');
+        if (!basket) throw new ApiProblem('ASSETS_INSUFFICIENT');
+        if (candidates.length >= 40) candidates.pop();
+        candidates.push(toCandidate(basket));
+      }
       const responseSchema = gameResponseSchema(
         input.gameType,
         candidates.map((asset) => asset.id),
@@ -151,7 +172,9 @@ export class GameGenerationService {
             throw new AiClientError('AI_OUTPUT_INVALID', true);
           }
           const voiced = gameContentSchema.safeParse(
-            prepareVoiceInstructions(validation.content),
+            validation.content.gameType === 'QUANTITY_COMPARISON_CHANGE'
+              ? prepareComparisonVoice(validation.content, candidates)
+              : prepareVoiceInstructions(validation.content),
           );
           if (!voiced.success) {
             validationErrors = ['VOICE_INSTRUCTION_INVALID'];

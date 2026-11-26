@@ -21,6 +21,7 @@ function freezeSnapshot(state: GameState): GameState {
     state.placements.forEach(Object.freeze);
     Object.freeze(state.placements);
   }
+  if(state.gameType === "QUANTITY_COMPARISON_CHANGE") Object.freeze(state.solvedQuestionIds);
   return Object.freeze(state);
 }
 

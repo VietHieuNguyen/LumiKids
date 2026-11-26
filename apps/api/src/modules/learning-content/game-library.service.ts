@@ -110,6 +110,7 @@ export class GameLibraryService {
     this.authorize(user, 'SAVE_GAMES');
     this.authorize(user, 'READ_GAMES');
     if(input.content.gameType==='QUANTITY' && (input.criterionCodes.length!==1 || input.criterionCodes[0]!=='42')) throw new BadRequestException('Quantity games require criterion 42.');
+    if(input.content.gameType==='QUANTITY_COMPARISON_CHANGE' && (input.criterionCodes.length!==1 || input.criterionCodes[0]!=='43')) throw new BadRequestException('Comparison games require criterion 43.');
     const fingerprint = contentDigest({
       name: input.name,
       description: input.description,

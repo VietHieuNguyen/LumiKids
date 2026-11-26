@@ -160,15 +160,26 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
 
   it("shows the child's own corner, with no scores, and only to the child", async () => {
     sessions.finishedPlays.mockResolvedValue([
-      { versionId: randomUUID(), title: 'Đếm quả', gameType: 'COUNTING', endedAt: new Date() },
+      {
+        versionId: randomUUID(),
+        title: 'Đếm quả',
+        gameType: 'COUNTING',
+        endedAt: new Date(),
+      },
     ]);
     sessions.currentClassroom.mockResolvedValue(null);
     const response = await request(app.getHttpServer())
       .get('/api/v1/gameplay/me')
       .auth(await token(), { type: 'bearer' })
       .expect(200);
-    expect(response.body.data).toMatchObject({ fullName: child.fullName, classroom: null, finishedGames: 1 });
-    expect(JSON.stringify(response.body.data)).not.toMatch(/score|performance/i);
+    expect(response.body.data).toMatchObject({
+      fullName: child.fullName,
+      classroom: null,
+      finishedGames: 1,
+    });
+    expect(JSON.stringify(response.body.data)).not.toMatch(
+      /score|performance/i,
+    );
     expect(sessions.finishedPlays).toHaveBeenCalledWith(child.childId, 1000);
     await request(app.getHttpServer())
       .get('/api/v1/gameplay/me')
@@ -216,7 +227,94 @@ describe('Gameplay HTTP contract (offline; database mocked)', () => {
       expect.objectContaining({
         expectedEventCount: 0,
         completion: expect.objectContaining({
-          evaluation: expect.objectContaining({ criterionCode: '50', score: 100 }),
+          evaluation: expect.objectContaining({
+            criterionCode: '50',
+            score: 100,
+          }),
+        }),
+      }),
+    );
+  });
+  it('finishes the three comparison/change rounds and evaluates only confirmations for criterion 43', async () => {
+    const assetId = randomUUID();
+    games.versionContent.mockResolvedValue(
+      gameContentSchema.parse({
+        schemaVersion: 1,
+        gameType: 'QUANTITY_COMPARISON_CHANGE',
+        instruction: 'Ba màn',
+        items: [{ id: 'object', assetId }],
+        basketAssetId: randomUUID(),
+        completionRule: 'ALL_QUESTIONS_COMPLETED',
+        questions: [
+          {
+            id: 'compare',
+            mode: 'COMPARE',
+            assetId,
+            initialCount: 3,
+            targetCount: 5,
+            instruction: 'So sánh',
+          },
+          {
+            id: 'add',
+            mode: 'ADD',
+            assetId,
+            initialCount: 2,
+            targetCount: 6,
+            instruction: 'Thêm',
+          },
+          {
+            id: 'remove',
+            mode: 'REMOVE',
+            assetId,
+            initialCount: 7,
+            targetCount: 0,
+            instruction: 'Bớt',
+          },
+        ],
+      }),
+    );
+    sessions.primaryCriterionCode.mockResolvedValue('43');
+    const answer = (index: number) => ({
+      schemaVersion: 1,
+      eventId: randomUUID(),
+      result: 'CORRECT',
+      timestamp: new Date().toISOString(),
+      attemptIndex: index,
+    });
+    await request(app.getHttpServer())
+      .post(events())
+      .auth(await token(), { type: 'bearer' })
+      .send({
+        events: [
+          {
+            ...answer(1),
+            actionType: 'COMPARE_QUANTITIES',
+            sourceId: 'compare',
+            targetId: 'LT',
+          },
+          {
+            ...answer(2),
+            actionType: 'CONFIRM_QUANTITY_CHANGE',
+            sourceId: 'add',
+            count: 6,
+          },
+          {
+            ...answer(3),
+            actionType: 'CONFIRM_QUANTITY_CHANGE',
+            sourceId: 'remove',
+            count: 0,
+          },
+        ],
+      })
+      .expect(200);
+    expect(sessions.commitAppend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        completion: expect.objectContaining({
+          evaluation: expect.objectContaining({
+            criterionCode: '43',
+            score: 100,
+            minimumItemsMet: false,
+          }),
         }),
       }),
     );

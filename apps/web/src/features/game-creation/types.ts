@@ -1,4 +1,4 @@
-import type { GameContent, GameType, PatternRule } from "@lumikids/shared";
+import type { GameContent, GameType, PatternRule, GameDifficulty } from "@lumikids/shared";
 
 export const MAX_GAME_PROMPT_LENGTH = 2000;
 export interface PatternGenerationOptions {
@@ -10,6 +10,7 @@ export interface GenerateGameInput {
   prompt: string;
   /** PATTERN only: the rules and number of sequences the adult chose. */
   pattern?: PatternGenerationOptions;
+  comparisonDifficulty?: GameDifficulty;
   quantity?: import("@lumikids/shared").QuantityOptions;
 }
 export interface GeneratedPreviewAccess {

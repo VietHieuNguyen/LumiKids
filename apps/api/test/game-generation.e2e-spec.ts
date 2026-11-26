@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AiClient, AiClientError } from '@lumikids/ai-client';
+import { comparisonChangeSchema } from '@lumikids/shared';
 import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
@@ -25,7 +26,12 @@ describe('Game generation HTTP (offline)', () => {
   const ai = { generate: vi.fn() };
   const usageDb = {
     user: { findMany: vi.fn() },
-    aiTokenUsage: { create: vi.fn(), groupBy: vi.fn(), findMany: vi.fn(), count: vi.fn() },
+    aiTokenUsage: {
+      create: vi.fn(),
+      groupBy: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
     $transaction: vi.fn(),
   };
   const assets = {
@@ -110,16 +116,49 @@ describe('Game generation HTTP (offline)', () => {
     vi.unstubAllEnvs();
   });
   it('protects token reports over HTTP and never accepts another teacher ID for own data', async () => {
-    const query = { from: '2026-11-01', to: '2026-11-20', userId: randomUUID() };
+    const query = {
+      from: '2026-11-01',
+      to: '2026-11-20',
+      userId: randomUUID(),
+    };
     const base = '/api/v1/token-usage';
-    await request(app.getHttpServer()).get(`${base}/me`).query(query).expect(401);
-    actor = { ...actor, roles: ['ROLE_TEACHER'], permissions: ['READ_OWN_ACCOUNT'] };
-    await request(app.getHttpServer()).get(`${base}/me`).auth(token, { type: 'bearer' }).query(query).expect(200);
-    expect(usageDb.user.findMany.mock.calls.at(-1)?.[0].where.userId).toBe(actor.userId);
-    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query(query).expect(403);
-    actor = { ...actor, roles: ['ROLE_ADMIN'], permissions: ['MANAGE_USERS', 'READ_OWN_ACCOUNT'] };
-    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query(query).expect(200);
-    await request(app.getHttpServer()).get(`${base}/teachers`).auth(token, { type: 'bearer' }).query({ ...query, to: 'bad-date' }).expect(400);
+    await request(app.getHttpServer())
+      .get(`${base}/me`)
+      .query(query)
+      .expect(401);
+    actor = {
+      ...actor,
+      roles: ['ROLE_TEACHER'],
+      permissions: ['READ_OWN_ACCOUNT'],
+    };
+    await request(app.getHttpServer())
+      .get(`${base}/me`)
+      .auth(token, { type: 'bearer' })
+      .query(query)
+      .expect(200);
+    expect(usageDb.user.findMany.mock.calls.at(-1)?.[0].where.userId).toBe(
+      actor.userId,
+    );
+    await request(app.getHttpServer())
+      .get(`${base}/teachers`)
+      .auth(token, { type: 'bearer' })
+      .query(query)
+      .expect(403);
+    actor = {
+      ...actor,
+      roles: ['ROLE_ADMIN'],
+      permissions: ['MANAGE_USERS', 'READ_OWN_ACCOUNT'],
+    };
+    await request(app.getHttpServer())
+      .get(`${base}/teachers`)
+      .auth(token, { type: 'bearer' })
+      .query(query)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`${base}/teachers`)
+      .auth(token, { type: 'bearer' })
+      .query({ ...query, to: 'bad-date' })
+      .expect(400);
   });
   const post = () =>
     request(app.getHttpServer()).post(base).auth(token, { type: 'bearer' });
@@ -129,6 +168,76 @@ describe('Game generation HTTP (offline)', () => {
       .send({ gameType: 'COUNTING', prompt: 'Bóng' })
       .expect(401);
     expect(ai.generate).not.toHaveBeenCalled();
+  });
+  it('generates three comparison/change questions with real assets, difficulty and per-question voice', async () => {
+    const basket = {
+      ...assetFixture,
+      id: randomUUID(),
+      objectType: 'BASKET',
+      name: 'Giỏ',
+      attributes: {},
+      tags: [],
+    };
+    assets.searchForGeneration.mockResolvedValue([assetFixture, basket]);
+    assets.findForGeneration.mockResolvedValue([assetFixture, basket]);
+    ai.generate.mockImplementation(async (input) => ({
+      requestId: input.requestId,
+      model: 'fixture',
+      gameContent: {
+        schemaVersion: 1,
+        gameType: 'QUANTITY_COMPARISON_CHANGE',
+        instruction: 'Ba màn',
+        instructions: 'Cùng bé chơi',
+        items: [{ id: 'ball', assetId: assetFixture.id }],
+        basketAssetId: basket.id,
+        completionRule: 'ALL_QUESTIONS_COMPLETED',
+        questions: [
+          {
+            id: 'compare',
+            mode: 'COMPARE',
+            assetId: assetFixture.id,
+            initialCount: 3,
+            targetCount: 5,
+            instruction: 'So sánh',
+          },
+          {
+            id: 'add',
+            mode: 'ADD',
+            assetId: assetFixture.id,
+            initialCount: 2,
+            targetCount: 6,
+            instruction: 'Thêm',
+          },
+          {
+            id: 'remove',
+            mode: 'REMOVE',
+            assetId: assetFixture.id,
+            initialCount: 7,
+            targetCount: 0,
+            instruction: 'Bớt',
+          },
+        ],
+      },
+    }));
+    const response = await request(app.getHttpServer())
+      .post(base)
+      .auth(token, { type: 'bearer' })
+      .send({
+        gameType: 'QUANTITY_COMPARISON_CHANGE',
+        prompt: 'bóng',
+        comparisonDifficulty: 'HARD',
+      })
+      .expect(200);
+    expect(
+      comparisonChangeSchema
+        .parse(response.body.data.gameContent)
+        .questions.map((q) => q.mode),
+    ).toEqual(['COMPARE', 'ADD', 'REMOVE']);
+    expect(response.body.data.gameContent.questions[2].instruction).toContain(
+      'không',
+    );
+    expect(response.body.data.generation.preview.token).toBeTruthy();
+    expect(ai.generate.mock.calls[0][0].comparisonDifficulty).toBe('HARD');
   });
   it.each(['ROLE_ADMIN', 'ROLE_TEACHER'] as const)(
     'allows %s with GENERATE without READ_GAME_ASSETS',

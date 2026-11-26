@@ -4,11 +4,13 @@ import type { GameRendererProps } from "./components/types";
 import { CountingGame } from "./components/counting-game";
 import { MatchingGame } from "./components/matching-game";
 import { ClassificationGame } from "./components/classification-game";
+import { ComparisonChangeGame } from "./components/comparison-change-game";
 import { QuantityGame } from "./components/quantity-game";
 import { PatternGame } from "./components/pattern-game";
 
 // A small exhaustive registry; each renderer receives its own narrowed content/state.
 export const gameRegistry = {
+ QUANTITY_COMPARISON_CHANGE: {label:"So sánh · Thêm · Bớt",render:({content,state,...props}:GameRendererProps)=>{if(content.gameType!=="QUANTITY_COMPARISON_CHANGE"||state.gameType!=="QUANTITY_COMPARISON_CHANGE") throw new Error("Invalid comparison game state");return <ComparisonChangeGame content={content} state={state} {...props}/>;}},
   QUANTITY: { label: "Tách / Gộp số lượng", render: ({content,state,...props}:GameRendererProps) => { if(content.gameType!=="QUANTITY"||state.gameType!=="QUANTITY") throw new Error("Invalid quantity state"); return <QuantityGame {...props} content={content} state={state}/>; } },
   COUNTING: {
     label: "Đếm số lượng",

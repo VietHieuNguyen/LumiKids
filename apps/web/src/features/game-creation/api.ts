@@ -1,6 +1,6 @@
 import {
   gameContentSchema,
-  quantityOptionsSchema,
+  quantityOptionsSchema, gameDifficultySchema,
   gameTypeSchema,
   getGameContentAssetIds,
 } from "@lumikids/shared";
@@ -111,6 +111,11 @@ export function validateGameRequest(
       400,
       "INVALID_INPUT",
     );
+  if(value.gameType === "QUANTITY_COMPARISON_CHANGE") {
+    const difficulty=gameDifficultySchema.safeParse(value.comparisonDifficulty ?? "MEDIUM");
+    if(!difficulty.success) throw new GameGenerationApiError("Độ khó không hợp lệ.",400,"INVALID_INPUT");
+    return {gameType:value.gameType,prompt,comparisonDifficulty:difficulty.data};
+  }
   if (value.gameType === "QUANTITY") {
     const parsed=quantityOptionsSchema.safeParse(value.quantity);
     if(!parsed.success) throw new GameGenerationApiError("Kiểm tra tên quả, tổng số quả tối đa mười và số lượng cần vào từng giỏ.",400,"INVALID_INPUT");

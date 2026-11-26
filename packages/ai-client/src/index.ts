@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   gameTypeSchema,
+  comparisonChangeStructureSchema, gameDifficultySchema,
   quantityContentStructureSchema, quantityOptionsSchema,
   countingContentV2StructureSchema,
   matchingContentStructureSchema,
@@ -20,11 +21,11 @@ export const patternGenerationOptionsSchema = z.strictObject({
   sequenceCount: z.number().int().min(3).max(6).default(5),
 });
 export const generateGameSchema = generateGameShape
-  .extend({ pattern: patternGenerationOptionsSchema.optional(), quantity: quantityOptionsSchema.optional() })
+  .extend({ pattern: patternGenerationOptionsSchema.optional(), quantity: quantityOptionsSchema.optional(), comparisonDifficulty:gameDifficultySchema.optional() })
   .refine((input) => input.gameType === "PATTERN" || input.pattern === undefined, {
     path: ["pattern"],
     message: "Pattern options are only accepted for PATTERN.",
-  });
+  }).refine(input=>input.gameType==="QUANTITY_COMPARISON_CHANGE"||input.comparisonDifficulty===undefined,{path:["comparisonDifficulty"],message:"Comparison difficulty is only for comparison/change games."});
 export type GenerateGameInput = z.infer<typeof generateGameSchema>;
 export const quantityRequestSchema = generateGameSchema.refine(input => input.gameType === "QUANTITY" ? !!input.quantity : input.quantity === undefined, {message:"Quantity options required only for QUANTITY."});
 export const candidateAssetSchema = z.strictObject({
@@ -45,6 +46,7 @@ export const candidateAssetSchema = z.strictObject({
 export type CandidateAsset = z.infer<typeof candidateAssetSchema>;
 export const aiRequestSchema = generateGameShape.extend({
   requestId: z.uuid(),
+  comparisonDifficulty:gameDifficultySchema.optional(),
   candidates: z.array(candidateAssetSchema).min(1).max(40),
   responseSchema: z.record(z.string(), z.unknown()),
   attempt: z.number().int().min(1).max(2),
@@ -111,6 +113,7 @@ const structures = {
   // PATTERN is composed in Nest without a model call; listed so the map stays exhaustive.
   PATTERN: patternContentStructureSchema,
   QUANTITY: quantityContentStructureSchema,
+  QUANTITY_COMPARISON_CHANGE:comparisonChangeStructureSchema,
 } satisfies Record<GameType, z.ZodType>;
 // Generated from the actual shared Zod structures; cross-field refinements stay in NestJS.
 export function gameResponseSchema(

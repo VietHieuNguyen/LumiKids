@@ -116,6 +116,26 @@ def test_new_generation_requires_general_voice_instructions(payload: dict) -> No
         parse_output(json.dumps(legacy), payload['responseSchema'])
 
 
+def test_comparison_change_contract_and_each_question_voice() -> None:
+    script = '''import {gameResponseSchema} from './packages/ai-client/dist/index.js';
+    const id='61aa17ec-2380-4f39-9229-045322b692d7';
+    console.log(JSON.stringify(gameResponseSchema('QUANTITY_COMPARISON_CHANGE',[id])));'''
+    schema = json.loads(subprocess.check_output(['node', '--input-type=module', '-e', script], cwd=ROOT))
+    asset_id = '61aa17ec-2380-4f39-9229-045322b692d7'
+    value = {'schemaVersion': 1, 'gameType': 'QUANTITY_COMPARISON_CHANGE',
+             'instruction': 'Ba màn chơi', 'instructions': 'Bé hãy cùng chơi nhé!',
+             'items': [{'id': 'object', 'assetId': asset_id}], 'basketAssetId': asset_id,
+             'completionRule': 'ALL_QUESTIONS_COMPLETED',
+             'questions': [{'id': mode.lower(), 'mode': mode, 'assetId': asset_id,
+                            'initialCount': initial, 'targetCount': target,
+                            'instruction': 'Bé hãy chơi rồi xác nhận nhé!'}
+                           for mode, initial, target in [('COMPARE', 0, 0), ('ADD', 0, 10), ('REMOVE', 10, 0)]]}
+    assert parse_output(json.dumps(value), schema) == value
+    del value['questions'][1]['instruction']
+    with pytest.raises(AiFailure, match='AI_OUTPUT_INVALID'):
+        parse_output(json.dumps(value), schema)
+
+
 def test_sdk_structured_output_and_single_attempt(payload: dict, settings: Settings) -> None:
     response = types.GenerateContentResponse(candidates=[types.Candidate(finish_reason='STOP', content=types.Content(parts=[types.Part(text=json.dumps(content()))]))])
     client, call = mock_client(response)

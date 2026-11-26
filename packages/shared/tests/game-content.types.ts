@@ -6,6 +6,7 @@ import type {
   MatchingContent,
   PatternContent,
   QuantityContent,
+  ComparisonChangeContent,
 } from "../dist/index.js";
 
 // Compile-only consumer checks: public declarations must preserve discrimination.
@@ -44,6 +45,12 @@ export function narrowContent(content: GameContent): number {
       const task:QuantityContent=content;
       return task.baskets.length;
     }
+    case "QUANTITY_COMPARISON_CHANGE": {
+      const task:ComparisonChangeContent=content;
+      // @ts-expect-error Comparison/change has no model-provided numeric answer key.
+      void task.correctChoiceId;
+      return task.questions.length;
+    }
     default: {
       const exhaustive: never = content;
       return exhaustive;
@@ -61,7 +68,12 @@ export function narrowInteraction(event: GameInteraction): string {
     case "CLASSIFY_DROP":
     case "FILL_PATTERN":
     case "QUANTITY_DROP":
+    case "COMPARE_QUANTITIES":
       return event.targetId;
+    case "CONFIRM_QUANTITY_CHANGE":
+      // @ts-expect-error A count confirmation has no drop target.
+      void event.targetId;
+      return String(event.count);
     case "REQUEST_HINT":
       // @ts-expect-error A hint request is not an answer: it has no result.
       void event.result;

@@ -3,6 +3,7 @@ import type { GameType } from "./common.js";
 
 /** Describes controls only; never derives a hint from answer keys. */
 export const GAME_INSTRUCTIONS: Record<GameType, string> = {
+  QUANTITY_COMPARISON_CHANGE: "Bé hãy so sánh, thêm và bớt đồ vật qua ba màn chơi nhé!",
   QUANTITY: "Bé hãy kéo từng quả vào giỏ theo số lượng được yêu cầu nhé!",
   COUNTING: "Bé hãy quan sát các hình, đếm rồi chạm vào số bé chọn nhé!",
   MATCHING: "Bé hãy chọn một hình rồi chạm hoặc kéo đến hình phù hợp để ghép cặp nhé!",
@@ -32,6 +33,7 @@ export function voiceInstructionText(text: string): string {
 }
 
 export function currentVoiceInstruction(content: GameContent, sequenceId?: string | null): string {
+  if(content.gameType==="QUANTITY_COMPARISON_CHANGE") return voiceInstructionText(content.questions.find(q=>q.id===sequenceId)?.instruction??content.questions[0].instruction);
   const sequence = content.gameType === "PATTERN"
     ? content.sequences.find((entry) => entry.id === sequenceId)
     : undefined;

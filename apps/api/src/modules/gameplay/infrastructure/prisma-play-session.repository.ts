@@ -28,21 +28,26 @@ function toRecord(row: SessionRow): PlaySessionRecord {
   return row;
 }
 
-function toInteraction(row: EventRow): GameInteraction {
-  const action = row.actionData as { sourceId: string; targetId?: string };
+export function toInteraction(row: EventRow): GameInteraction {
+  const action = row.actionData as {
+    sourceId: string;
+    targetId?: string;
+    count?: number;
+  };
   return gameInteractionSchema.parse({
     schemaVersion: row.schemaVersion,
     eventId: row.eventId,
     actionType: row.eventType,
     sourceId: action.sourceId,
     ...(action.targetId === undefined ? {} : { targetId: action.targetId }),
+    ...(action.count === undefined ? {} : { count: action.count }),
     ...(row.result === null ? {} : { result: row.result }),
     timestamp: row.clientTimestamp.toISOString(),
     attemptIndex: row.attemptIndex,
   });
 }
 
-function toEventData(
+export function toEventData(
   sessionId: string,
   event: GameInteraction,
 ): Prisma.InteractionEventCreateManyInput {
@@ -51,9 +56,11 @@ function toEventData(
     sessionId,
     eventType: event.actionType,
     actionData:
-      'targetId' in event
-        ? { sourceId: event.sourceId, targetId: event.targetId }
-        : { sourceId: event.sourceId },
+      'count' in event
+        ? { sourceId: event.sourceId, count: event.count }
+        : 'targetId' in event
+          ? { sourceId: event.sourceId, targetId: event.targetId }
+          : { sourceId: event.sourceId },
     result: 'result' in event ? event.result : null,
     attemptIndex: event.attemptIndex,
     schemaVersion: event.schemaVersion,
@@ -169,7 +176,9 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
       select: {
         versionId: true,
         endedAt: true,
-        version: { select: { gameType: true, activity: { select: { name: true } } } },
+        version: {
+          select: { gameType: true, activity: { select: { name: true } } },
+        },
       },
     });
     return rows.map((row) => ({
@@ -197,7 +206,9 @@ export class PrismaPlaySessionRepository extends PlaySessionRepository {
     if (!enrollment) return null;
     return {
       className: enrollment.classroom.className,
-      teacherNames: enrollment.classroom.teachers.map(({ teacher }) => teacher.fullName),
+      teacherNames: enrollment.classroom.teachers.map(
+        ({ teacher }) => teacher.fullName,
+      ),
     };
   }
   async abandon(sessionId: string) {

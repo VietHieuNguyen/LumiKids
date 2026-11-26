@@ -6,6 +6,7 @@ import pattern from "../../../../../packages/shared/examples/game-content/patter
 import type { ResolvedAssetUrls } from "./components/types";
 
 export const demoContents = {
+  QUANTITY_COMPARISON_CHANGE: gameContentSchema.parse({schemaVersion:1,gameType:"QUANTITY_COMPARISON_CHANGE",instruction:"So sánh, thêm, bớt",items:[counting.items[0]],basketAssetId:"00000000-0000-4000-8000-000000000001",questions:[{id:"compare",mode:"COMPARE",assetId:counting.items[0].assetId,initialCount:3,targetCount:5,instruction:"Bé hãy kéo dấu phù hợp vào ô nhé!"},{id:"add",mode:"ADD",assetId:counting.items[0].assetId,initialCount:2,targetCount:6,instruction:"Bé hãy thêm để có sáu đồ vật nhé!"},{id:"remove",mode:"REMOVE",assetId:counting.items[0].assetId,initialCount:7,targetCount:4,instruction:"Bé hãy bớt để còn bốn đồ vật nhé!"}],completionRule:"ALL_QUESTIONS_COMPLETED"}),
   QUANTITY: gameContentSchema.parse({schemaVersion:1,gameType:"QUANTITY",mode:"MERGE",instruction:"Bé hãy đưa hai quả táo vào giỏ nhé!",items:counting.items.slice(0,2),baskets:[{id:"basket",label:"Giỏ",requirements:[{assetId:counting.items[0].assetId,count:2}]}],completionRule:"ALL_BASKETS_FILLED"}),
   COUNTING: gameContentSchema.parse(counting),
   MATCHING: gameContentSchema.parse(matching),

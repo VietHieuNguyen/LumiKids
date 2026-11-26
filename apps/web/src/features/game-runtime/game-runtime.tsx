@@ -111,7 +111,7 @@ function GameRun({
   const { speak, stop: stopSpeech, isSpeaking, status: speechStatus } = useSpeech();
   const [started, setStarted] = useState(mode === "PREVIEW");
   const [displayedSequence, setDisplayedSequence] = useState<string | null>(
-    content.gameType === "PATTERN" ? content.sequences[0]?.id ?? null : null,
+    content.gameType === "QUANTITY_COMPARISON_CHANGE" ? content.questions[0].id : content.gameType === "PATTERN" ? content.sequences[0]?.id ?? null : null,
   );
   const lastReadSequence = useRef<string | null>(null);
   const onDisplayedSequence = useCallback((id: string) => {
@@ -163,7 +163,7 @@ function GameRun({
     if (mode !== "PLAY" || !started || paused || state.completed || mascotEvent || !displayedSequence
       || lastReadSequence.current === displayedSequence) return;
     lastReadSequence.current = displayedSequence;
-    if (content.gameType === "PATTERN" && content.sequences.find((entry) => entry.id === displayedSequence)?.instruction)
+    if ((content.gameType === "QUANTITY_COMPARISON_CHANGE" && content.questions.some(q=>q.id===displayedSequence)) || (content.gameType === "PATTERN" && content.sequences.find((entry) => entry.id === displayedSequence)?.instruction))
       speak(currentVoiceInstruction(content, displayedSequence));
   }, [mode, started, paused, state.completed, mascotEvent, displayedSequence, content, speak]);
   const [round, setRound] = useState(0);
@@ -192,6 +192,7 @@ function GameRun({
   function reset() {
     stopSpeech();
     lastReadSequence.current = null;
+    if(content.gameType === "QUANTITY_COMPARISON_CHANGE") setDisplayedSequence(content.questions[0].id);
     setStarted(mode === "PREVIEW");
     dismissMascot();
     if (content.gameType === "MATCHING")
@@ -271,7 +272,7 @@ function GameRun({
             {mode === "PREVIEW" ? "Chơi thử" : "Trò chơi"} ·{" "}
             {registration.label}
           </span>
-          {content.gameType !== "QUANTITY" && (
+          {content.gameType !== "QUANTITY" && content.gameType !== "QUANTITY_COMPARISON_CHANGE" && (
           <button
             type="button"
             className="asset-button-secondary game-hint-button"
@@ -366,7 +367,7 @@ function GameRun({
         </div>
       </header>
       {(speechStatus === "unsupported" || speechStatus === "no-voice" || speechStatus === "error") && (
-        <p className="game-voice-fallback px-4 py-2 text-center text-sm text-slate-700">{currentVoiceInstruction(content, displayedSequence)}</p>
+        <p className={content.gameType==="QUANTITY_COMPARISON_CHANGE" ? "sr-only" : "game-voice-fallback px-4 py-2 text-center text-sm text-slate-700"}>{currentVoiceInstruction(content, displayedSequence)}</p>
       )}
       <div className="game-forest-scene" data-scene-theme={theme}>
         <GameBackdrop theme={theme} className="game-forest-canvas" />
@@ -374,7 +375,7 @@ function GameRun({
           disabled={paused || !started}
           aria-label="Thao tác trò chơi"
           className="min-w-0 px-5 py-6 sm:px-8 disabled:opacity-60"
-          key={`${round}:${paused}`}
+          key={content.gameType === "QUANTITY_COMPARISON_CHANGE" ? round : `${round}:${paused}`}
         >
           {registration.render({
             presentationSeed,
@@ -386,6 +387,7 @@ function GameRun({
             onAssetError,
             hint,
             onDisplayedSequence,
+            onDisplayedQuestion:onDisplayedSequence,
           })}
         </fieldset>
       </div>

@@ -9,6 +9,7 @@ export type AssetErrorHandler = (
   revision?: number,
 ) => void;
 export interface RendererCommonProps {
+  onDisplayedQuestion?: (questionId:string)=>void;
   onDisplayedSequence?: (sequenceId: string) => void;
   presentationSeed?: string;
   assetUrls: ResolvedAssetUrls;
