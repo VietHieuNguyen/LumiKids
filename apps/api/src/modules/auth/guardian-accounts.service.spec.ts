@@ -1,3 +1,4 @@
+import { guardianQuerySchema } from '@lumikids/shared';
 import { randomUUID } from 'node:crypto';
 import type { ApiProblem } from '../../common/http/api-problem.js';
 import type { PasswordService } from './password.service.js';
@@ -44,7 +45,7 @@ function setup(
     },
   };
   const repository = {
-    list: vi.fn(() => Promise.resolve([row])),
+    page: vi.fn(() => Promise.resolve({ total: 1, rows: [row], counts: { all: 1, active: 1, pending: 0, disabled: 0, children: 2, unplacedChildren: 1 } })),
     find: vi.fn((id: string) => Promise.resolve(id === userId ? row : null)),
     setStatus: vi.fn(() => Promise.resolve()),
     setPassword: vi.fn(() => Promise.resolve()),
@@ -90,7 +91,9 @@ function setup(
 describe('GuardianAccountsService', () => {
   it('lists guardians with their children and the class each child is in now', async () => {
     const { service, classId } = setup();
-    const [account] = await service.list();
+    const page = await service.page(guardianQuerySchema.parse({}));
+    expect(page.total).toBe(1);
+    const [account] = page.items;
     expect(account.relationship).toBe('MOTHER');
     expect(
       account.children.map((child) => [

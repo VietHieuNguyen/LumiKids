@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import type { IssuedPassword, TeacherAccount } from "@lumikids/shared";
+import type { BulkAccountStatusResult, IssuedPassword, TeacherAccount } from "@lumikids/shared";
 import { classroomError } from "../classrooms/api";
 import type { ClassroomApi } from "../classrooms/api";
 import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel } from "../classrooms/classroom-shell";
@@ -13,7 +13,6 @@ import { lastSeenLabel } from "./format";
 import {
   AccountStatusDialog,
   AccountStatusPill,
-  BulkBar,
   BulkStatusDialog,
   DetailDrawer,
   DetailRows,
@@ -22,13 +21,28 @@ import {
   KpiRow,
   ResetPasswordDialog,
   SearchBox,
-  SelectBox,
   StatusFilter,
   openOnRowClick,
-  useSelection,
 } from "./account-ui";
-
-type Filter = "ACTIVE" | "DISABLED" | "ALL";
+import {
+  EmptyState,
+  FilterSelect,
+  Pagination,
+  ResultCount,
+  SelectBox,
+  SelectionBar,
+  SortHeader,
+  SortSelect,
+  Toolbar,
+  compareName,
+  pageOf,
+  pageSizeOf,
+  sortRows,
+  textMatches,
+  useCrossPageSelection,
+  useListState,
+} from "./data-table";
+import type { SortDir } from "./data-table";
 
 export function TeacherAccountsPage() {
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_USERS");
@@ -46,26 +60,41 @@ export function TeacherAccountsPage() {
 function Accounts({ api }: { api: ClassroomApi }) {
   const admin = useMemo(() => new AdminApi(api), [api]);
   const list = useResource((signal) => admin.teachers(signal), "teachers");
-  const [filter, setFilter] = useState<Filter>("ALL");
-  const [search, setSearch] = useState("");
+  const view = useListState({ q: "", status: "", classes: "", sort: "name", dir: "asc", page: "1", size: "25" });
+  const { state } = view;
   const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "edit" | "status" | "reset"; account: TeacherAccount } | null>(null);
   const [issued, setIssued] = useState<{ result: IssuedPassword; reason: "created" | "reset" } | null>(null);
   const [now] = useState(() => new Date());
 
   const all = list.data ?? [];
-  const count = (status: Filter) => (status === "ALL" ? all.length : all.filter((account) => account.status === status).length);
-  const query = search.trim().toLowerCase();
-  const shown = all.filter(
-    (account) =>
-      (filter === "ALL" || account.status === filter) &&
-      (!query || account.fullName.toLowerCase().includes(query) || account.email.includes(query)),
+  const count = (status: string) => (status ? all.filter((account) => account.status === status).length : all.length);
+  const activeClassCount = (account: TeacherAccount) => account.classes.filter((item) => item.status === "ACTIVE").length;
+  const sortDir: SortDir = state.dir === "desc" ? "desc" : "asc";
+  const compare: Record<string, (a: TeacherAccount, b: TeacherAccount) => number> = {
+    name: (a, b) => compareName(a.fullName, b.fullName),
+    classes: (a, b) => activeClassCount(a) - activeClassCount(b) || compareName(a.fullName, b.fullName),
+    // Never signed in sorts first in ascending order.
+    lastLogin: (a, b) => (a.lastLoginAt ?? "").localeCompare(b.lastLoginAt ?? "") || compareName(a.fullName, b.fullName),
+  };
+  const shown = sortRows(
+    all.filter(
+      (account) =>
+        (!state.status || account.status === state.status) &&
+        (state.classes !== "NONE" || activeClassCount(account) === 0) &&
+        (state.classes !== "HAS" || activeClassCount(account) > 0) &&
+        textMatches(state.q, account.fullName, account.email, account.specialization),
+    ),
+    compare[state.sort] ?? compare.name,
+    sortDir,
   );
+  const paged = pageOf(shown, Number(state.page) || 1, pageSizeOf(state.size));
+  const onSort = (sort: string, dir: SortDir) => view.update({ sort, dir });
   const replace = (account: TeacherAccount) => {
     if (list.data) list.replace(list.data.map((item) => (item.userId === account.userId ? account : item)));
   };
   const activeClasses = (account: TeacherAccount) => account.classes.filter((item) => item.status === "ACTIVE");
   const unassigned = all.filter((account) => account.status === "ACTIVE" && activeClasses(account).length === 0).length;
-  const selection = useSelection(shown.map((account) => account.userId));
+  const selection = useCrossPageSelection(paged.rows.map((account) => account.userId), shown.map((account) => account.userId));
   const [detailId, setDetailId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<"ACTIVE" | "DISABLED" | null>(null);
   const detail = all.find((account) => account.userId === detailId) ?? null;
@@ -97,44 +126,75 @@ function Accounts({ api }: { api: ClassroomApi }) {
       <Panel title="Tài khoản giáo viên" description="Tạo tài khoản kèm mật khẩu tạm, sửa thông tin, đặt lại mật khẩu hoặc vô hiệu hóa khi giáo viên nghỉ.">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <StatusFilter
-            value={filter}
-            onChange={setFilter}
+            value={state.status}
+            onChange={(status) => view.update({ status })}
             options={[
-              { value: "ALL", label: "Tất cả", count: count("ALL") },
+              { value: "", label: "Tất cả", count: count("") },
               { value: "ACTIVE", label: "Đang hoạt động", count: count("ACTIVE") },
               { value: "DISABLED", label: "Đã vô hiệu hóa", count: count("DISABLED") },
             ]}
           />
-          <SearchBox id="teacher-search" label="Tìm giáo viên" placeholder="Tên hoặc email…" value={search} onChange={setSearch} />
         </div>
-
-        {list.loading && !list.data && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải danh sách giáo viên…</p>}
-        {list.data && shown.length === 0 && (
-          <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center">
-            <p className="text-sm font-semibold">{all.length ? "Không có giáo viên phù hợp" : "Chưa có giáo viên nào"}</p>
-            <p className="mt-1 text-sm text-ink-soft">{all.length ? "Thử bỏ lọc hoặc tìm tên khác." : "Thêm tài khoản để phân công giáo viên vào lớp."}</p>
+        <Toolbar>
+          <SearchBox id="teacher-search" label="Tìm giáo viên" placeholder="Tên, email hoặc chuyên môn…" value={state.q} onChange={(q) => view.update({ q })} />
+          <FilterSelect
+            id="teacher-classes"
+            label="Phân lớp"
+            value={state.classes}
+            onChange={(classes) => view.update({ classes })}
+            options={[
+              { value: "", label: "Tất cả" },
+              { value: "HAS", label: "Đang phụ trách lớp" },
+              { value: "NONE", label: "Chưa được phân lớp" },
+            ]}
+          />
+          <SortSelect
+            id="teacher-sort"
+            sort={state.sort}
+            dir={sortDir}
+            onSort={onSort}
+            options={[
+              { field: "name", label: "Tên" },
+              { field: "classes", label: "Số lớp" },
+              { field: "lastLogin", label: "Đăng nhập gần nhất" },
+            ]}
+          />
+        </Toolbar>
+        {list.data && (
+          <div className="mb-3">
+            <ResultCount shown={shown.length} total={all.length} noun="giáo viên" changed={view.changed} onReset={view.reset} />
           </div>
         )}
 
-        <BulkBar count={selection.selected.length} onDeactivate={() => setBulk("DISABLED")} onActivate={() => setBulk("ACTIVE")} onClear={selection.clear} />
+        {list.loading && !list.data && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải danh sách giáo viên…</p>}
+        {list.data && shown.length === 0 && (
+          <EmptyState filtered={all.length > 0} title="Chưa có giáo viên nào" hint="Thêm tài khoản để phân công giáo viên vào lớp." onReset={view.reset} />
+        )}
+
+        <SelectionBar selection={selection} noun="giáo viên">
+          <button type="button" className="asset-button-secondary text-berry" onClick={() => setBulk("DISABLED")}>Vô hiệu hóa</button>
+          <button type="button" className="asset-button-secondary" onClick={() => setBulk("ACTIVE")}>Kích hoạt lại</button>
+        </SelectionBar>
         {shown.length > 0 && (
           <>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[820px] text-left text-sm">
-                <thead className="border-b border-line text-ink-soft">
+                <thead className="border-b border-line bg-cream/60 text-ink-soft">
                   <tr>
                     <th className="w-10 py-2 pl-3 pr-0">
-                      <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.toggleAll} label="Chọn tất cả giáo viên đang hiện" />
+                      <span className="flex h-8 items-center">
+                        <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.togglePage} label="Chọn tất cả giáo viên trên trang này" />
+                      </span>
                     </th>
-                    <th className="w-[32%] px-3 py-2 font-medium">Giáo viên</th>
-                    <th className="w-[22%] px-3 py-2 font-medium">Lớp phụ trách</th>
-                    <th className="whitespace-nowrap px-3 py-2 font-medium">Hoạt động</th>
+                    <SortHeader label="Giáo viên" field="name" sort={state.sort} dir={sortDir} onSort={onSort} className="w-[32%]" />
+                    <SortHeader label="Lớp phụ trách" field="classes" sort={state.sort} dir={sortDir} onSort={onSort} className="w-[22%]" />
+                    <SortHeader label="Hoạt động" field="lastLogin" sort={state.sort} dir={sortDir} onSort={onSort} className="whitespace-nowrap" />
                     <th className="px-3 py-2 font-medium">Trạng thái</th>
                     <th className="px-3 py-2 text-right font-medium"><span className="sr-only">Thao tác</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {shown.map((account) => (
+                  {paged.rows.map((account) => (
                     <tr
                       key={account.userId}
                       onClick={openOnRowClick(() => setDetailId(account.userId)).onClick}
@@ -170,8 +230,12 @@ function Accounts({ api }: { api: ClassroomApi }) {
               </table>
             </div>
 
+            <div className="mb-2 flex items-center gap-2 md:hidden">
+              <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.togglePage} label="Chọn tất cả giáo viên trên trang này" />
+              <span className="text-[13px] text-ink-soft">Chọn cả trang</span>
+            </div>
             <ul className="divide-y divide-line md:hidden">
-              {shown.map((account) => (
+              {paged.rows.map((account) => (
                 <li key={account.userId} className="py-4 first:pt-0">
                   <div className="flex items-start gap-3">
                     <span className="flex h-8 items-center">
@@ -192,6 +256,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
             </ul>
           </>
         )}
+        <Pagination page={paged.page} pages={paged.pages} total={shown.length} size={pageSizeOf(state.size)} onPage={(page) => view.update({ page: String(page) })} onSize={(size) => view.update({ size: String(size) })} />
       </Panel>
 
       {detail && (
@@ -218,9 +283,15 @@ function Accounts({ api }: { api: ClassroomApi }) {
                 ]
           }
           onConfirm={async () => {
-            const result = await admin.bulkTeacherStatus({ userIds: selection.selected, status: bulk });
+            // The API takes 100 accounts per call.
+            const merged: BulkAccountStatusResult = { updated: [], skipped: [] };
+            for (let start = 0; start < selection.selected.length; start += 100) {
+              const result = await admin.bulkTeacherStatus({ userIds: selection.selected.slice(start, start + 100), status: bulk });
+              merged.updated.push(...result.updated);
+              merged.skipped.push(...result.skipped);
+            }
             list.reload();
-            return result;
+            return merged;
           }}
           onClose={() => {
             setBulk(null);

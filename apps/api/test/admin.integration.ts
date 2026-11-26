@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { AdminOverviewRepository } from '../src/modules/admin-overview/admin-overview.repository.js';
 import { TeacherAccountsRepository } from '../src/modules/auth/teacher-accounts.repository.js';
+import { GuardianAccountsRepository } from '../src/modules/auth/guardian-accounts.repository.js';
+import { guardianQuerySchema } from '@lumikids/shared';
 
 const testUrl = process.env.TEST_DATABASE_URL;
 
@@ -156,6 +158,55 @@ describe.skipIf(!testUrl)(
       const row = classes.find((item) => item.classId === klass.classId);
       expect(row?._count).toEqual({ enrollments: 1, assignments: 0 });
       expect(row?.teachers).toEqual([]);
+    });
+
+    it('filters, sorts and pages guardian accounts in the database', async () => {
+      const guardians = new GuardianAccountsRepository(prisma);
+      let role = await prisma.role.findUnique({ where: { code: 'ROLE_GUARDIAN' } });
+      if (!role) {
+        role = await prisma.role.create({ data: { code: 'ROLE_GUARDIAN' } });
+        cleanups.push(async () => {
+          await prisma.role.delete({ where: { code: 'ROLE_GUARDIAN' } });
+        });
+      }
+      const tag = `fx${randomUUID().slice(0, 8)}`;
+      const child = await prisma.child.create({
+        data: { fullName: `Bé ${tag}`, dob: new Date('2021-05-01T00:00:00.000Z'), gender: 'FEMALE' },
+      });
+      const make = (name: string, withChild: boolean) =>
+        prisma.user.create({
+          data: {
+            fullName: `${name} ${tag}`,
+            email: `${randomUUID()}@example.test`,
+            phone: '',
+            address: '',
+            passwordHash: 'fixture',
+            roles: { create: { roleId: role.roleId } },
+            ...(withChild
+              ? { guardianProfile: { create: { relationship: 'MOTHER', children: { create: { childId: child.childId } } } } }
+              : {}),
+          },
+        });
+      const withChild = await make('An', true);
+      const without = await make('Bình', false);
+      cleanups.push(async () => {
+        for (const user of [withChild, without]) {
+          await prisma.userRole.deleteMany({ where: { userId: user.userId } });
+          await prisma.user.delete({ where: { userId: user.userId } });
+        }
+        await prisma.child.delete({ where: { childId: child.childId } });
+      });
+      const page = (value: object) => guardians.page(guardianQuerySchema.parse({ q: tag, ...value }));
+      expect((await page({ sort: 'name', dir: 'asc' })).rows.map((row) => row.userId)).toEqual([withChild.userId, without.userId]);
+      expect((await page({ children: 'UNPLACED' })).rows.map((row) => row.userId)).toEqual([withChild.userId]);
+      expect((await page({ children: 'NONE' })).rows.map((row) => row.userId)).toEqual([without.userId]);
+      // A child's name finds the guardian too.
+      expect((await guardians.page(guardianQuerySchema.parse({ q: `Bé ${tag}` }))).rows.map((row) => row.userId)).toEqual([withChild.userId]);
+      const second = await page({ sort: 'name', dir: 'asc', pageSize: 1, page: 2 });
+      expect([second.total, second.rows.map((row) => row.userId)]).toEqual([2, [without.userId]]);
+      // Fixture users keep the column default (DISABLED).
+      expect(await guardians.ids(guardianQuerySchema.parse({ q: tag, status: 'ACTIVE' }), 10)).toEqual([]);
+      expect((await guardians.ids(guardianQuerySchema.parse({ q: tag, status: 'DISABLED' }), 10)).map((row) => row.userId).sort()).toEqual([withChild.userId, without.userId].sort());
     });
 
     it('creates a teacher, and locking or resetting the password revokes sessions', async () => {

@@ -10,6 +10,8 @@ import {
   issuedClassInviteSchema,
   createAssignmentSchema,
   ageGroupListSchema,
+  adminChildIdsSchema,
+  adminChildPageSchema,
   classroomBatchResultSchema,
   initialCodesResultSchema,
   unassignedChildListSchema,
@@ -180,6 +182,17 @@ export class ClassroomApi {
   }
   async enrollSchoolChildren(classId: string, childIds: string[]) {
     return classroomBatchResultSchema.parse(await this.send("/admin/children/enrollments/batch", "POST", { classId, childIds }));
+  }
+  /** One page of the child directory; filters, sorting and paging run on the server. */
+  async adminChildren(params: URLSearchParams, signal?: AbortSignal) {
+    return adminChildPageSchema.parse(await this.request(`/admin/children?${params}`, { signal }));
+  }
+  /** Every child matching the filters (capped), with what a batch preview needs. */
+  async adminChildIds(params: URLSearchParams) {
+    return adminChildIdsSchema.parse(await this.request(`/admin/children/ids?${params}`));
+  }
+  async setChildrenStatus(childIds: string[], status: "ACTIVE" | "DISABLED") {
+    return classroomBatchResultSchema.parse(await this.send("/admin/children/status/batch", "POST", { childIds, status }));
   }
   async transferChild(childId: string, classId: string) {
     return classroomDetailSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/transfer`, "POST", { classId }));

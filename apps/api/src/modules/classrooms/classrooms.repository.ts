@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { Gender } from '../../generated/prisma/enums.js';
+import type { AdminChildFilter, AdminChildQuery } from '@lumikids/shared';
 
 const summaryInclude = {
   schoolYear: true,
@@ -19,6 +20,41 @@ const childSelect = {
   status: true,
   loginCodeIssuedAt: true,
 } as const satisfies Prisma.ChildSelect;
+
+const directoryChildSelect = {
+  ...childSelect,
+  createdAt: true,
+  _count: { select: { guardians: true } },
+  enrollments: {
+    where: { endedAt: null },
+    take: 1,
+    select: {
+      startedAt: true,
+      classroom: {
+        select: {
+          classId: true,
+          className: true,
+          schoolYear: { select: { name: true } },
+          ageGroup: { select: { name: true } },
+        },
+      },
+    },
+  },
+} as const satisfies Prisma.ChildSelect;
+
+function childDirectoryWhere(filter: AdminChildFilter): Prisma.ChildWhereInput {
+  const and: Prisma.ChildWhereInput[] = [];
+  for (const word of filter.q.split(/\s+/).filter(Boolean))
+    and.push({ fullName: { contains: word, mode: 'insensitive' } });
+  if (filter.classId === 'none') and.push({ enrollments: { none: { endedAt: null } } });
+  else if (filter.classId) and.push({ enrollments: { some: { endedAt: null, classId: filter.classId } } });
+  if (filter.managed === 'FAMILY') and.push({ guardians: { some: {} } });
+  if (filter.managed === 'SCHOOL') and.push({ guardians: { none: {} } });
+  if (filter.code === 'HAS') and.push({ loginCodeIssuedAt: { not: null } });
+  if (filter.code === 'NONE') and.push({ loginCodeIssuedAt: null });
+  if (filter.status) and.push({ status: filter.status });
+  return { AND: and };
+}
 
 const detailInclude = {
   ...summaryInclude,
@@ -258,6 +294,64 @@ export class ClassroomsRepository {
     data: Partial<ChildProfileData> & { status?: 'ACTIVE' | 'DISABLED' },
   ) {
     return this.prisma.child.update({ where: { childId }, data });
+  }
+  /** One page of the admin directory, filtered and sorted in the database. */
+  async pageChildren(query: AdminChildQuery) {
+    const where = childDirectoryWhere(query);
+    const orderBy: Prisma.ChildOrderByWithRelationInput[] =
+      query.sort === 'dob'
+        ? [{ dob: query.dir }, { fullName: 'asc' }]
+        : query.sort === 'createdAt'
+          ? [{ createdAt: query.dir }]
+          : [{ fullName: query.dir }];
+    const [total, rows, all, unassigned, withoutCode, disabled] = await this.prisma.$transaction([
+      this.prisma.child.count({ where }),
+      this.prisma.child.findMany({
+        where,
+        orderBy: [...orderBy, { childId: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        select: directoryChildSelect,
+      }),
+      this.prisma.child.count(),
+      this.prisma.child.count({ where: { enrollments: { none: { endedAt: null } } } }),
+      this.prisma.child.count({ where: { status: 'ACTIVE', loginCodeIssuedAt: null } }),
+      this.prisma.child.count({ where: { status: 'DISABLED' } }),
+    ]);
+    return { total, rows, counts: { all, unassigned, withoutCode, disabled } };
+  }
+  /** Ids matching the directory filters, one more than `limit` to tell when the list was cut. */
+  async childIds(filter: AdminChildFilter, limit: number) {
+    const rows = await this.prisma.child.findMany({
+      where: childDirectoryWhere(filter),
+      orderBy: [{ fullName: 'asc' }, { childId: 'asc' }],
+      take: limit + 1,
+      select: {
+        childId: true,
+        fullName: true,
+        status: true,
+        _count: { select: { guardians: true } },
+        enrollments: { where: { endedAt: null }, take: 1, select: { classId: true } },
+      },
+    });
+    return rows.map((row) => ({
+      childId: row.childId,
+      fullName: row.fullName,
+      status: row.status,
+      classId: row.enrollments[0]?.classId ?? null,
+      managedByFamily: row._count.guardians > 0,
+    }));
+  }
+  countGuardians(childId: string) {
+    return this.prisma.guardianChild.count({ where: { childId } });
+  }
+  /** True when the status changed; a child already in that status is left alone. */
+  async setChildStatus(childId: string, status: 'ACTIVE' | 'DISABLED') {
+    const result = await this.prisma.child.updateMany({
+      where: { childId, status: { not: status } },
+      data: { status },
+    });
+    return result.count === 1;
   }
   /** Children with no open enrollment (e.g. profiles created before classrooms existed). */
   listUnassignedChildren() {

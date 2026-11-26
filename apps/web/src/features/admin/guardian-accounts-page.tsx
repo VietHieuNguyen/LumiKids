@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import type { ChildSharing, GuardianAccount, IssuedGuardianPassword } from "@lumikids/shared";
+import { useEffect, useMemo, useState } from "react";
+import type { BulkAccountStatusResult, ChildSharing, GuardianAccount, GuardianPick, IssuedGuardianPassword } from "@lumikids/shared";
 import type { ClassroomApi } from "../classrooms/api";
 import { ClassroomShell, ErrorBanner, Notice, Panel } from "../classrooms/classroom-shell";
 import { useClassroomSession } from "../classrooms/use-classroom-session";
@@ -10,7 +10,6 @@ import { relationshipLabels } from "../family/api";
 import {
   AccountStatusDialog,
   AccountStatusPill,
-  BulkBar,
   BulkStatusDialog,
   DetailDrawer,
   DetailRows,
@@ -19,16 +18,30 @@ import {
   KpiRow,
   ResetPasswordDialog,
   SearchBox,
-  SelectBox,
   StatusFilter,
   openOnRowClick,
-  useSelection,
 } from "./account-ui";
+import {
+  EmptyState,
+  FilterSelect,
+  Pagination,
+  ResultCount,
+  SelectBox,
+  SelectionBar,
+  SortHeader,
+  SortSelect,
+  Toolbar,
+  pageSizeOf,
+  toParams,
+  useDebounced,
+  useListState,
+  useServerSelection,
+} from "./data-table";
+import type { SortDir } from "./data-table";
 import { AdminApi } from "./api";
 import { lastSeenLabel } from "./format";
 import { PasswordDialog } from "./teacher-accounts-page";
 
-type Filter = "ACTIVE" | "PENDING_VERIFICATION" | "DISABLED" | "ALL";
 type Pending = { kind: "status" | "reset"; account: GuardianAccount } | null;
 
 /** "2021-05-02" → whole years on `now`. */
@@ -55,89 +68,137 @@ export function GuardianAccountsPage() {
 
 function Accounts({ api }: { api: ClassroomApi }) {
   const admin = useMemo(() => new AdminApi(api), [api]);
-  const list = useResource((signal) => admin.guardians(signal), "guardians");
-  const [filter, setFilter] = useState<Filter>("ALL");
-  const [search, setSearch] = useState("");
+  const list = useListState({ q: "", status: "", children: "", sort: "createdAt", dir: "desc", page: "1", size: "25" });
+  const { state } = list;
+  const [search, setSearch] = useState(state.q);
+  const q = useDebounced(search.trim());
+  useEffect(() => {
+    if (q !== state.q) list.update({ q });
+    // Only the settled text pushes into the list state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+  const filter = { q: state.q, status: state.status, children: state.children };
+  const filterKey = toParams(filter).toString();
+  const params = toParams({ ...filter, sort: state.sort, dir: state.dir, page: state.page, pageSize: pageSizeOf(state.size) });
+  const accounts = useResource((signal) => admin.guardians(params, signal), params.toString());
   const [pending, setPending] = useState<Pending>(null);
   const [issued, setIssued] = useState<IssuedGuardianPassword | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<"ACTIVE" | "DISABLED" | null>(null);
   const [now] = useState(() => new Date());
 
-  const all = list.data ?? [];
-  const count = (status: Filter) => (status === "ALL" ? all.length : all.filter((account) => account.status === status).length);
-  const query = search.trim().toLowerCase();
-  const shown = all.filter(
-    (account) =>
-      (filter === "ALL" || account.status === filter) &&
-      (!query ||
-        account.fullName.toLowerCase().includes(query) ||
-        account.email.includes(query) ||
-        account.children.some((child) => child.fullName.toLowerCase().includes(query))),
-  );
+  const rows = accounts.data?.items ?? [];
+  const counts = accounts.data?.counts;
+  const total = accounts.data?.total ?? 0;
+  const page = Number(state.page) || 1;
+  const pages = Math.max(1, Math.ceil(total / pageSizeOf(state.size)));
+  useEffect(() => {
+    if (accounts.data && !accounts.loading && page > pages) list.update({ page: String(pages) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts.data, accounts.loading, page, pages]);
   const replace = (account: GuardianAccount) => {
-    if (list.data) list.replace(list.data.map((item) => (item.userId === account.userId ? account : item)));
+    if (accounts.data) accounts.replace({ ...accounts.data, items: accounts.data.items.map((item) => (item.userId === account.userId ? account : item)) });
   };
-  const children = all.flatMap((account) => account.children);
-  const selection = useSelection(shown.map((account) => account.userId));
-  const detail = all.find((account) => account.userId === detailId) ?? null;
+  const selection = useServerSelection<GuardianPick>({
+    idOf: (pick) => pick.userId,
+    pageRows: rows.map((account) => ({ userId: account.userId, fullName: account.fullName, status: account.status })),
+    total,
+    resetKey: filterKey,
+    loadAll: () => admin.guardianIds(toParams(filter)),
+  });
+  const detail = rows.find((account) => account.userId === detailId) ?? null;
+  const sortDir: SortDir = state.dir === "asc" ? "asc" : "desc";
+  const onSort = (sort: string, dir: SortDir) => list.update({ sort, dir });
+  const resetAll = () => {
+    setSearch("");
+    list.reset();
+  };
 
   return (
     <ClassroomShell title="Phụ huynh" eyebrow="Quản trị">
-      {list.error && <ErrorBanner message={list.error} onRetry={list.reload} />}
-      {list.data && (
+      {accounts.error && <ErrorBanner message={accounts.error} onRetry={accounts.reload} />}
+      {counts && (
         <KpiRow
           items={[
-            { label: "Tài khoản phụ huynh", value: all.length },
-            { label: "Đang hoạt động", value: count("ACTIVE") },
-            { label: "Chờ xác minh email", value: count("PENDING_VERIFICATION") },
-            { label: "Hồ sơ trẻ", value: children.length, hint: `${children.filter((child) => !child.classroom).length} trẻ chưa có lớp` },
+            { label: "Tài khoản phụ huynh", value: counts.all },
+            { label: "Đang hoạt động", value: counts.active },
+            { label: "Chờ xác minh email", value: counts.pending },
+            { label: "Hồ sơ trẻ", value: counts.children, hint: `${counts.unplacedChildren} trẻ chưa có lớp` },
           ]}
         />
       )}
 
       <Panel title="Tài khoản phụ huynh" description="Phụ huynh tự đăng ký và xác minh bằng email. Quản trị viên có thể vô hiệu hóa, kích hoạt lại hoặc đặt lại mật khẩu.">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="mb-3">
           <StatusFilter
-            value={filter}
-            onChange={setFilter}
+            value={state.status}
+            onChange={(status) => list.update({ status })}
             options={[
-              { value: "ALL", label: "Tất cả", count: count("ALL") },
-              { value: "ACTIVE", label: "Đang hoạt động", count: count("ACTIVE") },
-              { value: "PENDING_VERIFICATION", label: "Chờ xác minh", count: count("PENDING_VERIFICATION") },
-              { value: "DISABLED", label: "Đã vô hiệu hóa", count: count("DISABLED") },
+              { value: "", label: "Tất cả", count: counts?.all ?? 0 },
+              { value: "ACTIVE", label: "Đang hoạt động", count: counts?.active ?? 0 },
+              { value: "PENDING_VERIFICATION", label: "Chờ xác minh", count: counts?.pending ?? 0 },
+              { value: "DISABLED", label: "Đã vô hiệu hóa", count: counts?.disabled ?? 0 },
             ]}
           />
+        </div>
+        <Toolbar>
           <SearchBox id="guardian-search" label="Tìm phụ huynh" placeholder="Tên, email hoặc tên con…" value={search} onChange={setSearch} />
+          <FilterSelect
+            id="guardian-children"
+            label="Hồ sơ con"
+            value={state.children}
+            onChange={(children) => list.update({ children })}
+            options={[
+              { value: "", label: "Tất cả" },
+              { value: "UNPLACED", label: "Có con chưa vào lớp" },
+              { value: "NONE", label: "Chưa thêm hồ sơ con" },
+            ]}
+          />
+          <SortSelect
+            id="guardian-sort"
+            sort={state.sort}
+            dir={sortDir}
+            onSort={onSort}
+            options={[
+              { field: "createdAt", label: "Ngày đăng ký" },
+              { field: "name", label: "Họ tên" },
+            ]}
+          />
+        </Toolbar>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          {accounts.data && <ResultCount shown={total} total={counts?.all ?? total} noun="phụ huynh" changed={list.changed} onReset={resetAll} />}
+          {accounts.loading && accounts.data && <p role="status" className="text-[13px] text-ink-soft">Đang tải…</p>}
         </div>
 
-        {list.loading && !list.data && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải danh sách phụ huynh…</p>}
-        {list.data && shown.length === 0 && (
-          <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center">
-            <p className="text-sm font-semibold">{all.length ? "Không có phụ huynh phù hợp" : "Chưa có phụ huynh nào"}</p>
-            <p className="mt-1 text-sm text-ink-soft">{all.length ? "Thử bỏ lọc hoặc tìm tên khác." : "Phụ huynh tự đăng ký ở trang Đăng ký."}</p>
-          </div>
+        {!accounts.data && !accounts.error && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải danh sách phụ huynh…</p>}
+        {accounts.data && rows.length === 0 && !accounts.loading && (
+          <EmptyState filtered={list.changed > 0} title="Chưa có phụ huynh nào" hint="Phụ huynh tự đăng ký ở trang Đăng ký." onReset={resetAll} />
         )}
 
-        <BulkBar count={selection.selected.length} onDeactivate={() => setBulk("DISABLED")} onActivate={() => setBulk("ACTIVE")} onClear={selection.clear} />
-        {shown.length > 0 && (
-          <>
+        <SelectionBar selection={selection} noun="phụ huynh">
+          <button type="button" className="asset-button-secondary text-berry" onClick={() => setBulk("DISABLED")}>Vô hiệu hóa</button>
+          <button type="button" className="asset-button-secondary" onClick={() => setBulk("ACTIVE")}>Kích hoạt lại</button>
+        </SelectionBar>
+        {rows.length > 0 && (
+          <div className={accounts.loading ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={accounts.loading}>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[820px] text-left text-sm">
-                <thead className="border-b border-line text-ink-soft">
+                <thead className="border-b border-line bg-cream/60 text-ink-soft">
                   <tr>
-                    <th className="w-10 py-2 pl-3 pr-0">
-                      <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.toggleAll} label="Chọn tất cả phụ huynh đang hiện" />
+                    <th scope="col" className="w-10 py-2 pl-3 pr-0">
+                      <span className="flex h-8 items-center">
+                        <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.togglePage} label="Chọn tất cả phụ huynh trên trang này" />
+                      </span>
                     </th>
-                    <th className="w-[30%] px-3 py-2 font-medium">Phụ huynh</th>
-                    <th className="w-[28%] px-3 py-2 font-medium">Con</th>
-                    <th className="whitespace-nowrap px-3 py-2 font-medium">Hoạt động</th>
-                    <th className="px-3 py-2 font-medium">Trạng thái</th>
-                    <th className="px-3 py-2 text-right font-medium"><span className="sr-only">Thao tác</span></th>
+                    <SortHeader label="Phụ huynh" field="name" sort={state.sort} dir={sortDir} onSort={onSort} className="w-[30%]" />
+                    <th scope="col" className="w-[28%] px-3 py-2 font-medium">Con</th>
+                    <SortHeader label="Đăng ký" field="createdAt" sort={state.sort} dir={sortDir} onSort={onSort} className="whitespace-nowrap" />
+                    <th scope="col" className="px-3 py-2 font-medium">Trạng thái</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium"><span className="sr-only">Thao tác</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {shown.map((account) => (
+                  {rows.map((account) => (
                     <tr
                       key={account.userId}
                       onClick={openOnRowClick(() => setDetailId(account.userId)).onClick}
@@ -145,7 +206,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
                     >
                       <td className="py-3 pl-3 pr-0 align-top">
                         <span className="flex h-8 items-center">
-                          <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle(account.userId)} label={`Chọn ${account.fullName}`} />
+                          <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle({ userId: account.userId, fullName: account.fullName, status: account.status })} label={`Chọn ${account.fullName}`} />
                         </span>
                       </td>
                       <td className="px-3 py-3">
@@ -163,8 +224,8 @@ function Accounts({ api }: { api: ClassroomApi }) {
                       </td>
                       <td className="px-3 py-3"><ChildrenList account={account} now={now} /></td>
                       <td className="whitespace-nowrap px-3 py-3">
-                        <p>{lastSeenLabel(account.lastLoginAt, now)}</p>
-                        <p className="text-xs tabular-nums text-ink-soft">Đăng ký {dateLabel(account.createdAt)}</p>
+                        <p className="tabular-nums">{dateLabel(account.createdAt)}</p>
+                        <p className="text-xs text-ink-soft">Đăng nhập: {lastSeenLabel(account.lastLoginAt, now).toLowerCase()}</p>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3"><AccountStatusPill status={account.status} /></td>
                       <td className="px-3 py-3"><RowActions account={account} onPick={setPending} /></td>
@@ -174,13 +235,15 @@ function Accounts({ api }: { api: ClassroomApi }) {
               </table>
             </div>
 
+            <div className="mb-2 flex items-center gap-2 md:hidden">
+              <SelectBox checked={selection.allOnPage} mixed={selection.someOnPage} onChange={selection.togglePage} label="Chọn tất cả phụ huynh trên trang này" />
+              <span className="text-[13px] text-ink-soft">Chọn cả trang</span>
+            </div>
             <ul className="divide-y divide-line md:hidden">
-              {shown.map((account) => (
-                <li key={account.userId} className="py-4 first:pt-0">
+              {rows.map((account) => (
+                <li key={account.userId} className="py-4">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-8 items-center">
-                      <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle(account.userId)} label={`Chọn ${account.fullName}`} />
-                    </span>
+                    <SelectBox checked={selection.has(account.userId)} onChange={() => selection.toggle({ userId: account.userId, fullName: account.fullName, status: account.status })} label={`Chọn ${account.fullName}`} />
                     <Initial name={account.fullName} muted={account.status !== "ACTIVE"} />
                     <div className="min-w-0 flex-1">
                       <button type="button" className="break-words text-left font-semibold hover:text-leaf hover:underline" onClick={() => setDetailId(account.userId)}>{account.fullName}</button>
@@ -191,13 +254,14 @@ function Accounts({ api }: { api: ClassroomApi }) {
                     </div>
                     <AccountStatusPill status={account.status} />
                   </div>
-                  <div className="mt-3 pl-[4.25rem]"><ChildrenList account={account} now={now} /></div>
-                  <div className="mt-3 pl-[4.25rem]"><RowActions account={account} onPick={setPending} /></div>
+                  <div className="mt-3 pl-[6.5rem]"><ChildrenList account={account} now={now} /></div>
+                  <div className="mt-3 pl-[6.5rem]"><RowActions account={account} onPick={setPending} /></div>
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
+        <Pagination page={Math.min(page, pages)} pages={pages} total={total} size={pageSizeOf(state.size)} onPage={(value) => list.update({ page: String(value) })} onSize={(value) => list.update({ size: String(value) })} />
       </Panel>
 
       {detail && (
@@ -212,7 +276,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
       )}
       {bulk && (
         <BulkStatusDialog
-          names={new Map(all.filter((account) => selection.selected.includes(account.userId)).map((account) => [account.userId, account.fullName]))}
+          names={new Map(selection.selected.map((pick) => [pick.userId, pick.fullName]))}
           activate={bulk === "ACTIVE"}
           consequences={
             bulk === "ACTIVE"
@@ -224,9 +288,16 @@ function Accounts({ api }: { api: ClassroomApi }) {
                 ]
           }
           onConfirm={async () => {
-            const result = await admin.bulkGuardianStatus({ userIds: selection.selected, status: bulk });
-            list.reload();
-            return result;
+            // The API takes 100 accounts per call; a larger selection goes in turns.
+            const ids = selection.selectedIds;
+            const merged: BulkAccountStatusResult = { updated: [], skipped: [] };
+            for (let start = 0; start < ids.length; start += 100) {
+              const result = await admin.bulkGuardianStatus({ userIds: ids.slice(start, start + 100), status: bulk });
+              merged.updated.push(...result.updated);
+              merged.skipped.push(...result.skipped);
+            }
+            accounts.reload();
+            return merged;
           }}
           onClose={() => {
             setBulk(null);

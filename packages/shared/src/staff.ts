@@ -96,6 +96,39 @@ export const guardianAccountSchema = z.object({
   ),
 });
 export const guardianAccountListSchema = z.array(guardianAccountSchema);
+/** Server-side filters and paging for the admin guardian list (query string values). */
+export const guardianFilterSchema = z.object({
+  /** Matches the guardian's name or email, or a child's name. */
+  q: z.string().trim().max(100).default(""),
+  status: z.enum(["", "ACTIVE", "PENDING_VERIFICATION", "DISABLED"]).default(""),
+  /** UNPLACED: some child without a class; NONE: no child profile yet. */
+  children: z.enum(["", "UNPLACED", "NONE"]).default(""),
+}).strict();
+export const guardianQuerySchema = guardianFilterSchema.extend({
+  sort: z.enum(["name", "createdAt"]).default("createdAt"),
+  dir: z.enum(["asc", "desc"]).default("desc"),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+}).strict();
+export const guardianPageSchema = z.object({
+  items: z.array(guardianAccountSchema),
+  total: z.number().int(),
+  counts: z.object({
+    all: z.number().int(),
+    active: z.number().int(),
+    pending: z.number().int(),
+    disabled: z.number().int(),
+    children: z.number().int(),
+    unplacedChildren: z.number().int(),
+  }),
+});
+export const GUARDIAN_ID_LIMIT = 1000;
+export const guardianPickSchema = z.object({ userId: z.uuid(), fullName: z.string(), status: accountStatusSchema });
+export const guardianIdsSchema = z.object({ items: z.array(guardianPickSchema), truncated: z.boolean() });
+export type GuardianPick = z.infer<typeof guardianPickSchema>;
+export type GuardianFilter = z.infer<typeof guardianFilterSchema>;
+export type GuardianQuery = z.infer<typeof guardianQuerySchema>;
+export type GuardianPage = z.infer<typeof guardianPageSchema>;
 /** Lock or unlock. An account still waiting for email verification cannot be changed this way. */
 export const updateGuardianAccountSchema = z.object({ status: staffAccountStatusSchema }).strict();
 export const issuedGuardianPasswordSchema = z.object({

@@ -144,3 +144,39 @@ test("assignment game age band uses the opening day and detects mixed or unsuppo
   assert.equal(openingAgeBand(children, "2026-11-26"), 5);
   assert.equal(openingAgeBand([{ dob: "2020-11-26" }], "2026-11-26"), "unsupported");
 });
+
+test("admin lists: search ignores accents and case, every word must match", async () => {
+  const { textMatches } = await import("../src/features/admin/list-helpers.ts");
+  assert.equal(textMatches("ng an", "Nguyễn Thị An"), true);
+  assert.equal(textMatches("DUC", "Trần Đức"), true);
+  assert.equal(textMatches("an binh", "Nguyễn An"), false);
+  assert.equal(textMatches("  ", "anything"), true);
+  assert.equal(textMatches("la 1", "Lá 1", null, undefined), true);
+});
+
+test("admin lists: Vietnamese names sort by the given name, then the full name", async () => {
+  const { compareName, sortRows } = await import("../src/features/admin/list-helpers.ts");
+  const names = ["Trần Văn Bình", "Nguyễn An", "Lê Thị An", "Phạm Đức"];
+  assert.deepEqual(sortRows(names, compareName, "asc"), ["Lê Thị An", "Nguyễn An", "Trần Văn Bình", "Phạm Đức"]);
+  assert.deepEqual(sortRows(names, compareName, "desc"), ["Phạm Đức", "Trần Văn Bình", "Nguyễn An", "Lê Thị An"]);
+});
+
+test("admin lists: pages clamp to the range and the query string drops empty filters", async () => {
+  const { pageOf, toParams } = await import("../src/features/admin/list-helpers.ts");
+  const rows = Array.from({ length: 51 }, (_, index) => index);
+  assert.deepEqual([pageOf(rows, 3).page, pageOf(rows, 3).rows], [3, [50]]);
+  assert.equal(pageOf(rows, 9).page, 3);
+  assert.deepEqual([pageOf([], 1).page, pageOf([], 1).pages], [1, 1]);
+  assert.equal(toParams({ q: "", class: "none", page: 2, status: "" }).toString(), "class=none&page=2");
+});
+
+test("admin lists: page buttons keep first, last and neighbours, with gaps; bad sizes fall back", async () => {
+  const { pageNumbers, pageSizeOf } = await import("../src/features/admin/list-helpers.ts");
+  assert.deepEqual(pageNumbers(1, 1), [1]);
+  assert.deepEqual(pageNumbers(1, 4), [1, 2, 3, 4]);
+  assert.deepEqual(pageNumbers(6, 12), [1, "gap", 4, 5, 6, 7, 8, "gap", 12]);
+  assert.deepEqual(pageNumbers(4, 12), [1, 2, 3, 4, 5, 6, "gap", 12]);
+  assert.equal(pageSizeOf("50"), 50);
+  assert.equal(pageSizeOf("7"), 25);
+  assert.equal(pageSizeOf(undefined), 25);
+});

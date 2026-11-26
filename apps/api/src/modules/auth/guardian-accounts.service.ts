@@ -5,9 +5,13 @@ import type {
   ChildSharing,
   GuardianAccountDetail,
   GuardianAccount,
+  GuardianFilter,
+  GuardianPage,
+  GuardianQuery,
   IssuedGuardianPassword,
   UpdateGuardianAccountInput,
 } from '@lumikids/shared';
+import { GUARDIAN_ID_LIMIT } from '@lumikids/shared';
 import { ApiProblem } from '../../common/http/api-problem.js';
 import { PasswordService } from './password.service.js';
 import { AccountStatusRepository } from './account-status.repository.js';
@@ -88,8 +92,14 @@ export class GuardianAccountsService {
     return this.statuses.setMany('ROLE_GUARDIAN', input.userIds, input.status);
   }
 
-  async list(): Promise<GuardianAccount[]> {
-    return (await this.repository.list()).map(toGuardianAccount);
+  async page(query: GuardianQuery): Promise<GuardianPage> {
+    const { total, rows, counts } = await this.repository.page(query);
+    return { items: rows.map(toGuardianAccount), total, counts };
+  }
+
+  async ids(filter: GuardianFilter) {
+    const items = await this.repository.ids(filter, GUARDIAN_ID_LIMIT);
+    return { items: items.slice(0, GUARDIAN_ID_LIMIT), truncated: items.length > GUARDIAN_ID_LIMIT };
   }
 
   private async require(userId: string): Promise<GuardianAccount> {

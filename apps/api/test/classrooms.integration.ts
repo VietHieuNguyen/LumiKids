@@ -1,3 +1,4 @@
+import { adminChildQuerySchema } from '@lumikids/shared';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ClassroomsRepository } from '../src/modules/classrooms/classrooms.repository.js';
@@ -260,6 +261,18 @@ describe.skipIf(!testUrl)(
       await expect(classrooms.placeSchoolChild(school.childId, classA, new Date())).resolves.toBe('COMPLETED');
       await expect(classrooms.placeSchoolChild(school.childId, classB, new Date())).resolves.toBe('HAS_CLASS');
       expect(await classrooms.findCurrentEnrollment(home.childId)).toBeNull();
+      // The directory filters run in the database.
+      const page = (value: object) => classrooms.pageChildren(adminChildQuerySchema.parse(value));
+      const inA = await page({ classId: classA });
+      expect(inA.rows.map((row) => row.childId)).toEqual([school.childId]);
+      expect(inA.rows[0].enrollments[0].classroom.classId).toBe(classA);
+      const family = await page({ classId: 'none', managed: 'FAMILY' });
+      expect(family.rows.map((row) => row.childId)).toContain(home.childId);
+      expect(family.rows.map((row) => row.childId)).not.toContain(school.childId);
+      expect((await page({ classId: classA, pageSize: 1, page: 2 })).rows).toHaveLength(0);
+      expect(await classrooms.childIds(adminChildQuerySchema.parse({ classId: classA }), 10)).toEqual([
+        { childId: school.childId, fullName: profile.fullName, status: 'ACTIVE', classId: classA, managedByFamily: false },
+      ]);
       expect((await classrooms.findCurrentEnrollment(school.childId))?.classId).toBe(classA);
     });
 

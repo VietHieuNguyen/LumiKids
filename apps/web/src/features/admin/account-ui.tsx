@@ -183,59 +183,6 @@ export function ResetPasswordDialog({ name, onConfirm, onClose }: { name: string
 
 // ---------- Bulk selection ----------
 
-/** Selected row ids; ids that leave the list (filtered out, reloaded) drop out of the selection. */
-export function useSelection(visibleIds: readonly string[]) {
-  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const visible = new Set(visibleIds);
-  const selected = [...picked].filter((id) => visible.has(id));
-  const allOnPage = visibleIds.length > 0 && visibleIds.every((id) => picked.has(id));
-  const someOnPage = !allOnPage && visibleIds.some((id) => picked.has(id));
-  return {
-    selected,
-    has: (id: string) => picked.has(id),
-    toggle: (id: string) =>
-      setPicked((current) => {
-        const next = new Set(current);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      }),
-    toggleAll: () => setPicked(allOnPage ? new Set() : new Set(visibleIds)),
-    clear: () => setPicked(new Set()),
-    allOnPage,
-    someOnPage,
-  };
-}
-
-export function SelectBox({ checked, mixed = false, label, onChange, disabled = false }: { checked: boolean; mixed?: boolean; label: string; onChange: () => void; disabled?: boolean }) {
-  return (
-    <input
-      type="checkbox"
-      className="h-4 w-4 cursor-pointer accent-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-40"
-      checked={checked}
-      ref={(node) => {
-        if (node) node.indeterminate = mixed;
-      }}
-      onChange={onChange}
-      disabled={disabled}
-      aria-label={label}
-    />
-  );
-}
-
-/** Shown while rows are selected: the count and the two status actions (never a bulk password reset). */
-export function BulkBar({ count, onDeactivate, onActivate, onClear }: { count: number; onDeactivate: () => void; onActivate: () => void; onClear: () => void }) {
-  if (count === 0) return null;
-  return (
-    <div role="region" aria-label="Thao tác với tài khoản đã chọn" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-ink/15 bg-cream px-3 py-2">
-      <p className="mr-2 text-sm font-semibold" aria-live="polite">Đã chọn {count}</p>
-      <button type="button" className="asset-button-secondary text-berry" onClick={onDeactivate}>Vô hiệu hóa</button>
-      <button type="button" className="asset-button-secondary" onClick={onActivate}>Kích hoạt lại</button>
-      <button type="button" className="ml-auto text-sm font-medium text-ink-soft underline-offset-4 hover:text-ink hover:underline" onClick={onClear}>Bỏ chọn</button>
-    </div>
-  );
-}
-
 const skipReasons: Record<BulkAccountStatusResult["skipped"][number]["reason"], string> = {
   NOT_FOUND: "không còn tồn tại",
   PENDING_VERIFICATION: "chưa xác minh email",

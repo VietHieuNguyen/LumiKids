@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { sessionPerformanceSchema } from '@lumikids/shared';
+import { ADMIN_CHILD_ID_LIMIT, sessionPerformanceSchema } from '@lumikids/shared';
 import type { CriterionEvaluationView } from '@lumikids/shared';
 import type {
+  AdminChild,
+  AdminChildFilter,
+  AdminChildPage,
+  AdminChildQuery,
   AgeGroup,
   AgeGroupUsage,
   ReorderAgeGroupsInput,
@@ -352,17 +356,69 @@ export class ClassroomsService {
       ...childProfile(child), managedByFamily: child._count.guardians > 0,
     }));
   }
+  async pageChildren(query: AdminChildQuery): Promise<AdminChildPage> {
+    const { total, rows, counts } = await this.repository.pageChildren(query);
+    const items = rows.map((child): AdminChild => {
+      const enrollment = child.enrollments[0];
+      return {
+        ...childProfile(child),
+        createdAt: child.createdAt.toISOString(),
+        managedByFamily: child._count.guardians > 0,
+        currentClass: enrollment
+          ? {
+              classId: enrollment.classroom.classId,
+              className: enrollment.classroom.className,
+              schoolYearName: enrollment.classroom.schoolYear.name,
+              ageGroupName: enrollment.classroom.ageGroup.name,
+              since: enrollment.startedAt.toISOString(),
+            }
+          : null,
+      };
+    });
+    return { items, total, counts };
+  }
+  async childIds(filter: AdminChildFilter) {
+    const items = await this.repository.childIds(filter, ADMIN_CHILD_ID_LIMIT);
+    return { items: items.slice(0, ADMIN_CHILD_ID_LIMIT), truncated: items.length > ADMIN_CHILD_ID_LIMIT };
+  }
+  /**
+   * One target class for many children: unplaced school profiles are placed, children of another class are
+   * moved (history kept). Unplaced family profiles are skipped: they join through an invitation.
+   */
   async enrollSchoolChildren(classId: string, childIds: readonly string[]): Promise<ClassroomBatchResult> {
     await this.requireActiveClassroom(classId);
     const result: ClassroomBatchResult = { completedIds: [], skipped: [] };
     const now = new Date();
     for (const id of childIds) {
       try {
-        const status = await this.repository.placeSchoolChild(id, classId, now);
-        if (status === 'COMPLETED') result.completedIds.push(id);
-        else result.skipped.push({ id, reason: status });
+        const current = await this.repository.findCurrentEnrollment(id);
+        if (!current) {
+          const status = await this.repository.placeSchoolChild(id, classId, now);
+          if (status === 'COMPLETED') result.completedIds.push(id);
+          else result.skipped.push({ id, reason: status });
+        } else if (current.classId === classId) {
+          result.skipped.push({ id, reason: 'SAME_CLASS' });
+        } else if (await this.repository.transfer(current, id, classId, now)) {
+          result.completedIds.push(id);
+        } else {
+          result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
+        }
       } catch (error) {
         result.skipped.push({ id, reason: isUniqueViolation(error) ? 'HAS_CLASS' : 'FAILED' });
+      }
+    }
+    return result;
+  }
+  /** Locks or unlocks child profiles; a locked child is refused on the next request (checked per request). */
+  async setChildrenStatus(childIds: readonly string[], status: 'ACTIVE' | 'DISABLED'): Promise<ClassroomBatchResult> {
+    const result: ClassroomBatchResult = { completedIds: [], skipped: [] };
+    for (const id of childIds) {
+      try {
+        if (await this.repository.setChildStatus(id, status)) result.completedIds.push(id);
+        else if (await this.repository.findChild(id)) result.skipped.push({ id, reason: 'UNCHANGED' });
+        else result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
+      } catch {
+        result.skipped.push({ id, reason: 'FAILED' });
       }
     }
     return result;
@@ -381,6 +437,9 @@ export class ClassroomsService {
     await this.requireActiveClassroom(classId);
     const current = await this.repository.findCurrentEnrollment(childId);
     if (!current) {
+      // A family profile joins a class through an invitation, so the guardian confirms the sharing.
+      if (await this.repository.countGuardians(childId))
+        throw new ApiProblem('CHILD_FAMILY_MANAGED');
       try {
         await this.repository.enroll(childId, classId, new Date());
       } catch (error) {

@@ -12,6 +12,8 @@ const reasons: Record<ClassroomBatchResult["skipped"][number]["reason"], string>
   NOT_ELIGIBLE: "Điều kiện đã thay đổi. Kiểm tra lại hồ sơ.",
   FAMILY_PROFILE: "Hồ sơ gia đình. Gửi lời mời để phụ huynh xác nhận.",
   HAS_CLASS: "Trẻ đã có lớp.",
+  SAME_CLASS: "Trẻ đang học lớp này.",
+  UNCHANGED: "Hồ sơ đã ở trạng thái này.",
   ALREADY_DECIDED: "Yêu cầu đã được xử lý.",
   AGE_REVIEW: "Nhóm tuổi khác với lớp. Cần xem riêng.",
   FAILED: "Chưa xác nhận được kết quả. Kiểm tra danh sách trước khi thử lại.",

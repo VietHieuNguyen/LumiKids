@@ -47,6 +47,9 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     createChild: vi.fn(() => Promise.resolve({})),
     issueInitialCodes: vi.fn(() => Promise.resolve({ issued: [], skipped: [] })),
     enrollSchoolChildren: vi.fn(() => Promise.resolve({ completedIds: [], skipped: [] })),
+    pageChildren: vi.fn(() => Promise.resolve({ items: [], total: 0, counts: { all: 0, unassigned: 0, withoutCode: 0, disabled: 0 } })),
+    childIds: vi.fn(() => Promise.resolve({ items: [], truncated: false })),
+    setChildrenStatus: vi.fn(() => Promise.resolve({ completedIds: [], skipped: [] })),
     teacherClassrooms: vi.fn(() => Promise.resolve([])),
     classPlayHistory: vi.fn(() =>
       Promise.resolve({
@@ -230,8 +233,25 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     const payload = { classId, childIds: [child.childId] };
     await request(app.getHttpServer()).post(path).auth(await token(), { type: 'bearer' }).send(payload).expect(403);
     actor = admin;
-    await request(app.getHttpServer()).post(path).auth(await token(), { type: 'bearer' }).send(payload).expect(201);
+    await request(app.getHttpServer()).post(path).auth(await token(), { type: 'bearer' }).send(payload).expect(200);
     expect(classrooms.enrollSchoolChildren).toHaveBeenCalledExactlyOnceWith(classId, [child.childId]);
+  });
+
+  it('lists every child and locks children in bulk for administrators only', async () => {
+    const auth = { type: 'bearer' as const };
+    const statusPath = '/api/v1/admin/children/status/batch';
+    await request(app.getHttpServer()).get('/api/v1/admin/children').auth(await token(), auth).expect(403);
+    actor = admin;
+    await request(app.getHttpServer()).get('/api/v1/admin/children?classId=none&sort=dob&dir=desc&page=2').auth(await token(), auth).expect(200);
+    expect(classrooms.pageChildren).toHaveBeenCalledWith(expect.objectContaining({ classId: 'none', sort: 'dob', dir: 'desc', page: 2, pageSize: 25 }));
+    await request(app.getHttpServer()).get('/api/v1/admin/children?pageSize=500').auth(await token(), auth).expect(400);
+    await request(app.getHttpServer()).get('/api/v1/admin/children/ids?code=NONE').auth(await token(), auth).expect(200);
+    expect(classrooms.childIds).toHaveBeenCalledWith(expect.objectContaining({ code: 'NONE' }));
+    await request(app.getHttpServer()).post(statusPath).auth(await token(), auth)
+      .send({ childIds: [child.childId], status: 'ARCHIVED' }).expect(400);
+    await request(app.getHttpServer()).post(statusPath).auth(await token(), auth)
+      .send({ childIds: [child.childId], status: 'DISABLED' }).expect(200);
+    expect(classrooms.setChildrenStatus).toHaveBeenCalledExactlyOnceWith([child.childId], 'DISABLED');
   });
 
   it('needs RESET_CHILD_LOGIN_CODES to issue a code', async () => {

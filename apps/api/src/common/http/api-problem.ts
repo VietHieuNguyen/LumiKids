@@ -131,6 +131,10 @@ const problems = {
   ],
   TEACHER_INVALID: [422, 'Người dùng này không phải giáo viên đang hoạt động.'],
   CHILD_ALREADY_IN_CLASS: [409, 'Trẻ đang học lớp này.'],
+  CHILD_FAMILY_MANAGED: [
+    409,
+    'Hồ sơ do phụ huynh quản lý. Gửi lời mời lớp để phụ huynh xác nhận chia sẻ.',
+  ],
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],

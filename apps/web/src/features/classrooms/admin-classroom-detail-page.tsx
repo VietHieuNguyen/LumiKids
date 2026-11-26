@@ -11,6 +11,7 @@ import { childStatusLabels, classroomStatusLabels, formatDateOnly, genderLabels,
 import { useClassroomSession } from "./use-classroom-session";
 import { useResource } from "./use-resource";
 import { RosterTools, useRoster } from "./roster-tools";
+import { PAGE_SIZE, Pagination, pageOf } from "../admin/data-table";
 
 export type AdminClassroomTab = "overview" | "teachers" | "settings" | "assignments";
 
@@ -99,9 +100,13 @@ export function ChildrenPanel({
   const roster = useRoster(classroom.children, directoryMemoryKey);
   const [message, setMessage] = useState("");
   const directory = "/admin/children";
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(PAGE_SIZE);
+  const paged = pageOf(roster.children, page, size);
   return (
     <Panel title={`Trẻ trong lớp (${classroom.children.length})`} actions={!archived && (
       <div className="flex flex-wrap gap-2">
+        <Link href={`${directory}?class=${classroom.classId}`} className="asset-button-secondary">Chuyển / khóa hàng loạt</Link>
         <Link href={`${directory}?target=${classroom.classId}`} className="asset-button-secondary">Xếp trẻ có hồ sơ</Link>
         <button type="button" className="asset-button-primary" onClick={() => setAdding(true)}>Thêm hồ sơ</button>
       </div>
@@ -112,7 +117,7 @@ export function ChildrenPanel({
         <p className="text-sm text-ink-soft">Lớp chưa có trẻ.</p>
       ) : (
         <ul className="divide-y divide-line">
-          {roster.children.map((child) => (
+          {paged.rows.map((child) => (
             <li key={child.childId} className="flex flex-wrap items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <Link className="break-words font-semibold text-leaf hover:underline" href={`/admin/classrooms/${classroom.classId}/children/${child.childId}${directoryMemoryKey ? "?from=directory" : ""}`}>
@@ -132,6 +137,9 @@ export function ChildrenPanel({
             </li>
           ))}
         </ul>
+      )}
+      {classroom.children.length > 0 && (
+        <Pagination page={paged.page} pages={paged.pages} total={roster.children.length} size={size} onPage={setPage} onSize={(value) => { setSize(value); setPage(1); }} />
       )}
       {classroom.children.length > 0 && roster.children.length === 0 && <p className="py-5 text-sm text-ink-soft">Không tìm thấy trẻ. Thử từ khóa hoặc trạng thái khác.</p>}
       {adding && <Dialog title="Thêm hồ sơ vào lớp" onClose={() => setAdding(false)} wide>
@@ -161,7 +169,7 @@ export function ChildrenPanel({
   );
 }
 
-function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: string; onAdded: (value: ClassroomDetail, name: string) => void }) {
+export function AddChildForm({ api, classId, onAdded }: { api: ClassroomApi; classId: string; onAdded: (value: ClassroomDetail, name: string) => void }) {
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"MALE" | "FEMALE">("FEMALE");
