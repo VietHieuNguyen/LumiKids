@@ -4,7 +4,7 @@ import { assessmentCriterionLabels } from "@lumikids/shared";
 import type { TeacherAssessment, TeacherAssessmentDetail } from "@lumikids/shared";
 import { classroomError } from "./api";
 import type { ClassroomApi } from "./api";
-import { ErrorBanner, Panel, StatusPill } from "./classroom-shell";
+import { ErrorBanner, Panel } from "./classroom-shell";
 import { formatDateOnly, formatDateTime } from "./format";
 import { useResource } from "./use-resource";
 
