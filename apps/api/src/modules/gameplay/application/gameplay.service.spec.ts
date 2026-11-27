@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import {
   applyGameAction,
   createInitialState,
@@ -142,26 +142,30 @@ class MemoryRepository extends PlaySessionRepository {
   }
 }
 
-function setup() {
+function setup(source: 'TEACHER' | 'GUARDIAN' = 'TEACHER') {
   const repository = new MemoryRepository();
   const versionId = randomUUID();
+  const assignmentId = randomUUID();
   const games = {
-    detail: vi.fn((_player: ChildPrincipal, id: string) =>
-      id === versionId
-        ? Promise.resolve({ versionId, content })
-        : Promise.reject(new NotFoundException()),
-    ),
     versionContent: vi.fn(() => Promise.resolve(content)),
   } as unknown as PlayableGameService;
   const register = () => child(randomUUID());
+  const requirePlayableAssignment = vi.fn(() =>
+    Promise.resolve({
+      assignment: { source },
+      ageGroup: '5-6',
+      version: {
+        content,
+        difficulty: 'EASY',
+      },
+    }),
+  );
+  const assignments = { requirePlayableAssignment } as unknown as AssignmentsService;
   return {
-    service: new GameplayService(
-      repository,
-      games,
-      {} as unknown as AssignmentsService,
-    ),
+    service: new GameplayService(repository, games, assignments),
     repository,
     versionId,
+    assignmentId,
     register,
   };
 }
@@ -169,28 +173,53 @@ const problem = (code: string) =>
   expect.objectContaining({ publicCode: code }) as ApiProblem;
 
 describe('GameplayService (offline)', () => {
-  it('records the session for the signed-in child', async () => {
-    const { service, versionId, register, repository } = setup();
+  it('cannot reuse a start request on a different assignment for the same game', async () => {
+    const { service, versionId, assignmentId, register } = setup();
     const player = register();
-    const { sessionId } = await service.start(player, {
-      versionId,
-      startRequestId: randomUUID(),
-    });
-    expect(repository.sessions.get(sessionId)?.childId).toBe(player.childId);
+    const startRequestId = randomUUID();
+    const first = await service.start(player, { assignmentId, versionId, startRequestId });
+    expect(await service.start(player, { assignmentId, versionId, startRequestId })).toEqual(first);
+    await expect(
+      service.start(player, { assignmentId: randomUUID(), versionId, startRequestId }),
+    ).rejects.toEqual(problem('PLAY_SESSION_REQUEST_CONFLICT'));
   });
 
+  it.each([['TEACHER', 'SCHOOL'], ['GUARDIAN', 'HOME']] as const)(
+    'records the assignment and settings when the source is %s',
+    async (source, context) => {
+      const { service, versionId, assignmentId, register, repository } =
+        setup(source);
+      const player = register();
+      const { sessionId } = await service.start(player, {
+        assignmentId,
+        versionId,
+        startRequestId: randomUUID(),
+      });
+      expect(repository.sessions.get(sessionId)).toMatchObject({
+        childId: player.childId,
+        assignmentId,
+        versionId,
+        context,
+        ageGroup: '5-6',
+        difficulty: 'EASY',
+        hintLimitPerTask: 1,
+      });
+    },
+  );
+
   it('starts idempotently and abandons the previous running session', async () => {
-    const { service, versionId, register, repository } = setup();
+    const { service, versionId, assignmentId, register, repository } = setup();
     const user = register();
     const startRequestId = randomUUID();
-    const first = await service.start(user, { versionId, startRequestId });
-    expect(await service.start(user, { versionId, startRequestId })).toEqual(
+    const first = await service.start(user, { assignmentId, versionId, startRequestId });
+    expect(await service.start(user, { assignmentId, versionId, startRequestId })).toEqual(
       first,
     );
     await expect(
-      service.start(user, { versionId: randomUUID(), startRequestId }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+      service.start(user, { assignmentId, versionId: randomUUID(), startRequestId }),
+    ).rejects.toEqual(problem('PLAY_SESSION_REQUEST_CONFLICT'));
     const second = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -199,9 +228,10 @@ describe('GameplayService (offline)', () => {
   });
 
   it('records events, completes on the server and hides other children sessions', async () => {
-    const { service, versionId, register } = setup();
+    const { service, versionId, assignmentId, register } = setup();
     const user = register();
     const { sessionId } = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -227,9 +257,10 @@ describe('GameplayService (offline)', () => {
   });
 
   it('stores one score when the session completes, from the server-verified events', async () => {
-    const { service, versionId, register, repository } = setup();
+    const { service, versionId, assignmentId, register, repository } = setup();
     const user = register();
     const { sessionId } = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -257,10 +288,10 @@ describe('GameplayService (offline)', () => {
   });
 
   it("shows the child what they finished and where they learn, never a score", async () => {
-    const { service, versionId, register } = setup();
+    const { service, versionId, assignmentId, register } = setup();
     const user = register();
     expect(await service.corner(user)).toMatchObject({ finishedGames: 0, stickers: [] });
-    const { sessionId } = await service.start(user, { versionId, startRequestId: randomUUID() });
+    const { sessionId } = await service.start(user, { assignmentId, versionId, startRequestId: randomUUID() });
     await service.submit(user, sessionId, [event('two', 1), event('one', 2)]);
     const corner = await service.corner(user);
     expect(corner).toMatchObject({
@@ -274,10 +305,11 @@ describe('GameplayService (offline)', () => {
   });
 
   it('completes without a score when the version has no criterion', async () => {
-    const { service, versionId, register, repository } = setup();
+    const { service, versionId, assignmentId, register, repository } = setup();
     repository.criterionCode = null;
     const user = register();
     const { sessionId } = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -286,15 +318,17 @@ describe('GameplayService (offline)', () => {
   });
 
   it('rejects event IDs that belong to another session', async () => {
-    const { service, versionId, register } = setup();
+    const { service, versionId, assignmentId, register } = setup();
     const user = register();
     const a = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
     const reused = event('two');
     await service.submit(user, a.sessionId, [reused]);
     const b = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -304,9 +338,10 @@ describe('GameplayService (offline)', () => {
   });
 
   it('retries one lost optimistic race, then reports busy', async () => {
-    const { service, versionId, register, repository } = setup();
+    const { service, versionId, assignmentId, register, repository } = setup();
     const user = register();
     const { sessionId } = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });
@@ -323,9 +358,10 @@ describe('GameplayService (offline)', () => {
   });
 
   it('abandons only running sessions', async () => {
-    const { service, versionId, register } = setup();
+    const { service, versionId, assignmentId, register } = setup();
     const user = register();
     const { sessionId } = await service.start(user, {
+      assignmentId,
       versionId,
       startRequestId: randomUUID(),
     });

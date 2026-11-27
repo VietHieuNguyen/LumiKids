@@ -12,6 +12,7 @@ import type {
 
 const sessionSelect = {
   sessionId: true,
+  assignmentId: true,
   versionId: true,
   status: true,
   eventCount: true,

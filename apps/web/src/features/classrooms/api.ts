@@ -10,7 +10,11 @@ import {
   issuedClassInviteSchema,
   createAssignmentSchema,
   ageGroupListSchema,
-  childProfileListSchema,
+  adminChildIdsSchema,
+  adminChildPageSchema,
+  classroomBatchResultSchema,
+  initialCodesResultSchema,
+  unassignedChildListSchema,
   childProfileSchema,
   classroomChildDetailSchema,
   classroomDetailSchema,
@@ -168,13 +172,27 @@ export class ClassroomApi {
     );
   }
   async unassignedChildren(signal?: AbortSignal) {
-    return childProfileListSchema.parse(await this.request("/admin/children/unassigned", { signal }));
+    return unassignedChildListSchema.parse(await this.request("/admin/children/unassigned", { signal }));
   }
   async createChild(input: CreateChildInput) {
     return classroomDetailSchema.parse(await this.send("/admin/children", "POST", input));
   }
   async updateChild(childId: string, input: UpdateChildInput) {
     return childProfileSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}`, "PATCH", input));
+  }
+  async enrollSchoolChildren(classId: string, childIds: string[]) {
+    return classroomBatchResultSchema.parse(await this.send("/admin/children/enrollments/batch", "POST", { classId, childIds }));
+  }
+  /** One page of the child directory; filters, sorting and paging run on the server. */
+  async adminChildren(params: URLSearchParams, signal?: AbortSignal) {
+    return adminChildPageSchema.parse(await this.request(`/admin/children?${params}`, { signal }));
+  }
+  /** Every child matching the filters (capped), with what a batch preview needs. */
+  async adminChildIds(params: URLSearchParams) {
+    return adminChildIdsSchema.parse(await this.request(`/admin/children/ids?${params}`));
+  }
+  async setChildrenStatus(childIds: string[], status: "ACTIVE" | "DISABLED") {
+    return classroomBatchResultSchema.parse(await this.send("/admin/children/status/batch", "POST", { childIds, status }));
   }
   async transferChild(childId: string, classId: string) {
     return classroomDetailSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/transfer`, "POST", { classId }));
@@ -214,6 +232,12 @@ export class ClassroomApi {
   }
   async joinRequests(classId: string, signal?: AbortSignal) {
     return classJoinRequestListSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/join-requests`, { signal }));
+  }
+  async approveJoinRequests(classId: string, requestIds: string[]) {
+    return classroomBatchResultSchema.parse(await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/join-requests/approve-batch`, "POST", { requestIds }));
+  }
+  async issueInitialCodes(classId: string, childIds: string[]) {
+    return initialCodesResultSchema.parse(await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/initial-login-codes`, "POST", { childIds }));
   }
   async decideJoinRequest(classId: string, requestId: string, approve: boolean) {
     return classJoinRequestSchema.parse(

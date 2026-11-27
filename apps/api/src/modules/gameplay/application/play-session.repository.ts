@@ -1,4 +1,5 @@
 import type {
+  GameDifficulty,
   GameInteraction,
   PlaySessionStatus,
   SessionPerformance,
@@ -8,6 +9,7 @@ import type { FinishedPlay } from '../domain/child-corner.js';
 
 export interface PlaySessionRecord {
   sessionId: string;
+  assignmentId: string | null;
   versionId: string;
   childId: string;
   status: PlaySessionStatus;
@@ -17,8 +19,13 @@ export interface PlaySessionRecord {
 }
 export interface StartSessionData {
   childId: string;
+  assignmentId: string;
   versionId: string;
   startRequestId: string;
+  context: 'SCHOOL' | 'HOME';
+  ageGroup: string;
+  difficulty: GameDifficulty;
+  hintLimitPerTask: number;
 }
 export interface AppendCommit {
   sessionId: string;

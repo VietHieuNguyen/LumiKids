@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ageGroupAccepts,
   ageInMonths,
   assignmentState,
   canStart,
@@ -36,6 +37,15 @@ import type {
 
 const NOT_FOUND = 'Không tìm thấy bài giao.';
 
+function ageOnOpeningDay(dob: Date, opensAt: Date): number {
+  return ageInMonths(dob.toISOString().slice(0, 10), vietnamDate(opensAt));
+}
+
+function isPlayableForAge(version: AssignmentVersion, months: number): boolean {
+  const { ageGroup, status } = version.activity;
+  return status === 'ACTIVE' && !!ageGroup && ageGroupAccepts(ageGroup, months);
+}
+
 function game(version: AssignmentVersion): AssignmentGame {
   return {
     versionId: version.versionId,
@@ -62,9 +72,7 @@ export class AssignmentsService {
   ) {}
 
   /**
-   * Every game must have an age group. Its lower bound is the minimum playing age;
-   * older children may also play. Compare whole months on the opening day in Vietnam.
-   * Games must still be ACTIVE in the library.
+   * Every active game must match each recipient's age group on the opening day in Vietnam.
    */
   async requireAgeFit(
     versionIds: readonly string[],
@@ -77,16 +85,15 @@ export class AssignmentsService {
     const groups = versions.map((version) => version.activity.ageGroup);
     if (groups.some((group) => group === null))
       throw new ApiProblem('GAME_AGE_GROUP_MISSING');
-    const day = vietnamDate(opensAt);
     const children = await this.repository.childDobs(childIds);
     for (const child of children) {
-      const months = ageInMonths(child.dob.toISOString().slice(0, 10), day);
-      if (groups.some((group) => group && months < group.minAge * 12))
+      const months = ageOnOpeningDay(child.dob, opensAt);
+      if (versions.some((version) => !isPlayableForAge(version, months)))
         throw new ApiProblem('ASSIGNMENT_AGE_MISMATCH');
     }
   }
 
-  // ---------- Guardian: family picks (child without a class) ----------
+  // ---------- Guardian: family picks (home practice, with or without a class) ----------
 
   /** The caller (family service) has checked that the guardian manages this child. */
   async createFamilyPick(
@@ -94,8 +101,6 @@ export class AssignmentsService {
     childId: string,
     input: { title: string; versionIds: string[]; dueAt: string | null },
   ): Promise<FamilyActivity> {
-    if (await this.classrooms.currentClassId(childId))
-      throw new ApiProblem('FAMILY_CHILD_CLASS_MANAGED');
     const now = this.now();
     const dueAt = input.dueAt ? new Date(input.dueAt) : null;
     if (dueAt && dueAt <= now) throw new ApiProblem('ASSIGNMENT_PERIOD_INVALID');
@@ -132,7 +137,9 @@ export class AssignmentsService {
     return rows.map((row) => {
       const ids = row.items.map((item) => item.version.versionId);
       const done = new Set(
-        recipientProgress(ids, row.opensAt, sessions).completedVersionIds,
+        recipientProgress(
+          ids, row.opensAt, sessions, row.assignmentId,
+        ).completedVersionIds,
       );
       const state = assignmentState(row, now);
       return {
@@ -252,6 +259,7 @@ export class AssignmentsService {
           versionIds,
           row.opensAt,
           byChild.get(recipient.childId) ?? [],
+          row.assignmentId,
         ).completionStatus === 'COMPLETED',
     ).length;
     return {
@@ -313,6 +321,7 @@ export class AssignmentsService {
             versionIds,
             row.opensAt,
             byChild.get(recipient.childId) ?? [],
+            row.assignmentId,
           );
           const pending = recipient.replayRequests[0];
           return {
@@ -424,7 +433,7 @@ export class AssignmentsService {
 
   // ---------- Child ----------
 
-  /** The child's current-class assignments that have opened, open ones first. */
+  /** Opened work of the child (current class + home practice), open ones first. */
   async forChild(child: ChildPrincipal): Promise<ChildAssignment[]> {
     const classId = await this.classrooms.currentClassId(child.childId);
     const now = this.now();
@@ -447,13 +456,17 @@ export class AssignmentsService {
     );
     const items = rows.map((row): ChildAssignment => {
       const assignment = row.assignment;
+      const months = ageOnOpeningDay(row.child.dob, assignment.opensAt);
       const ids = assignment.items.map((item) => item.version.versionId);
-      const progress = recipientProgress(ids, assignment.opensAt, sessions);
+      const progress = recipientProgress(
+        ids, assignment.opensAt, sessions, assignment.assignmentId,
+      );
       const done = new Set(progress.completedVersionIds);
       const until = playableUntil(assignment, row.extendedUntil);
       const request = row.replayRequests[0];
       return {
         assignmentId: assignment.assignmentId,
+        source: assignment.source,
         title: assignment.title,
         note: assignment.note,
         dueAt: assignment.dueAt?.toISOString() ?? null,
@@ -467,7 +480,7 @@ export class AssignmentsService {
           difficulty: version.difficulty,
           coverAssetIds: coverAssetIds(version),
           completed: done.has(version.versionId),
-          available: version.activity.status === 'ACTIVE',
+          available: isPlayableForAge(version, months),
         })),
         replayRequest: request
           ? {
@@ -515,7 +528,33 @@ export class AssignmentsService {
     };
   }
 
-  /** Versions the child may start right now; the single gate used by every gameplay entry point. */
+  async requirePlayableAssignment(
+    childId: string,
+    assignmentId: string,
+    versionId: string,
+  ) {
+    const [recipient, classId] = await Promise.all([
+      this.repository.findRecipientGame(childId, assignmentId, versionId),
+      this.classrooms.currentClassId(childId),
+    ]);
+    if (!recipient) throw new NotFoundException(NOT_FOUND);
+    const { assignment, extendedUntil } = recipient;
+    const version = assignment.items[0]?.version;
+    // Family picks (no class) stay playable while the child is in a class; teacher work only for the current class.
+    const reachable =
+      assignment.source === 'GUARDIAN'
+        ? assignment.classId === null
+        : classId !== null && assignment.classId === classId;
+    if (!version || !reachable || !canStart(assignment, extendedUntil, this.now()))
+      throw new NotFoundException(NOT_FOUND);
+    const { ageGroup } = version.activity;
+    if (!ageGroup) throw new ApiProblem('GAME_AGE_GROUP_MISSING');
+    if (!ageGroupAccepts(ageGroup, ageOnOpeningDay(recipient.child.dob, assignment.opensAt)))
+      throw new ApiProblem('ASSIGNMENT_AGE_MISMATCH');
+    return { assignment, version, ageGroup: `${ageGroup.minAge}-${ageGroup.maxAge}` };
+  }
+
+  /** Versions visible to the child through any currently open assignment. */
   async playableVersionIds(childId: string): Promise<Set<string>> {
     const classId = await this.classrooms.currentClassId(childId);
     const now = this.now();
@@ -523,9 +562,12 @@ export class AssignmentsService {
     return new Set(
       rows
         .filter((row) => canStart(row.assignment, row.extendedUntil, now))
-        .flatMap((row) =>
-          row.assignment.items.map((item) => item.version.versionId),
-        ),
+        .flatMap(({ assignment, child }) => {
+          const months = ageOnOpeningDay(child.dob, assignment.opensAt);
+          return assignment.items
+            .filter(({ version }) => isPlayableForAge(version, months))
+            .map(({ version }) => version.versionId);
+        }),
     );
   }
 }

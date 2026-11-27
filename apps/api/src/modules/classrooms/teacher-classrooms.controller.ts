@@ -13,6 +13,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  childBatchSchema,
   createClassGroupSchema,
   playHistoryQuerySchema,
   updateClassGroupSchema,
@@ -109,6 +110,19 @@ export class TeacherClassroomsController {
     await this.classrooms.deleteGroup(teacher, classId, groupId);
     return null;
   }
+  @Post(':classId/children/initial-login-codes')
+  @Permissions('READ_OWN_CLASSROOMS', 'RESET_CHILD_LOGIN_CODES')
+  @Header('Cache-Control', 'no-store')
+  issueInitialCodes(
+    @CurrentUser() teacher: Principal,
+    @Param('classId', ParseUUIDPipe) classId: string,
+    @Body() value: unknown,
+  ) {
+    const parsed = childBatchSchema.safeParse(value);
+    if (!parsed.success) throw new BadRequestException('Danh sách trẻ cần cấp mã không hợp lệ.');
+    return this.classrooms.issueInitialCodes(teacher, classId, parsed.data.childIds);
+  }
+
   /** The new code is in this response only; never cached. */
   @Post(':classId/children/:childId/login-code')
   @Permissions('READ_OWN_CLASSROOMS', 'RESET_CHILD_LOGIN_CODES')

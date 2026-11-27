@@ -56,6 +56,11 @@ function Dashboard({ api }: { api: ClassroomApi }) {
 export function DashboardBody({ data }: { data: AdminOverview }) {
   return (
     <div className="admin-dashboard">
+      <nav aria-label="Thao tác quản trị" className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-paper p-3">
+        <Link href="/admin/children" className="asset-button-primary">Quản lý trẻ</Link>
+        <Link href="/admin/children#unassigned-children" className="asset-button-secondary">Xếp lớp{data.attention.unassignedChildren > 0 ? ` (${data.attention.unassignedChildren})` : ""}</Link>
+        <Link href="/admin/classrooms" className="asset-button-secondary">Quản lý lớp</Link>
+      </nav>
       <Attention items={attentionItems(data)} />
       <Kpis data={data} />
       <Activity data={data} />
@@ -144,7 +149,7 @@ function Kpis({ data }: { data: AdminOverview }) {
   const completion = percent(data.week.completed, data.week.sessions);
   const tiles = [
     { label: "Lớp đang mở", value: data.totals.activeClasses, note: `${data.totals.activeTeachers} giáo viên đang hoạt động`, href: "/admin/classrooms" },
-    { label: "Trẻ đang học", value: data.totals.enrolledChildren, note: `${data.totals.libraryGames} trò trong kho chung`, href: "/admin/classrooms" },
+    { label: "Trẻ đang học", value: data.totals.enrolledChildren, note: `${data.attention.unassignedChildren} hồ sơ chưa xếp lớp`, href: "/admin/children" },
     {
       label: "Trẻ chơi trong 7 ngày",
       value: data.week.activeChildren,

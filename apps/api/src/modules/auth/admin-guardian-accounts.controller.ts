@@ -9,9 +9,12 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   bulkAccountStatusSchema,
+  guardianFilterSchema,
+  guardianQuerySchema,
   updateGuardianAccountSchema,
 } from '@lumikids/shared';
 import { Permissions } from './decorators/auth.decorators.js';
@@ -24,8 +27,18 @@ export class AdminGuardianAccountsController {
   constructor(private readonly accounts: GuardianAccountsService) {}
 
   @Get()
-  list() {
-    return this.accounts.list();
+  list(@Query() value: unknown) {
+    const parsed = guardianQuerySchema.safeParse(value);
+    if (!parsed.success) throw new BadRequestException('Bộ lọc danh sách phụ huynh không hợp lệ.');
+    return this.accounts.page(parsed.data);
+  }
+
+  /** Every id matching the filters (capped), for "select all". Declared before `:userId`. */
+  @Get('ids')
+  ids(@Query() value: unknown) {
+    const parsed = guardianFilterSchema.safeParse(value);
+    if (!parsed.success) throw new BadRequestException('Bộ lọc danh sách phụ huynh không hợp lệ.');
+    return this.accounts.ids(parsed.data);
   }
 
   /** Deactivate or reactivate up to 100 accounts in one transaction; reports what was skipped. */

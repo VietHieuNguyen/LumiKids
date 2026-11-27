@@ -7,7 +7,7 @@ import {
   submitInteractionsResultSchema,
   submitInteractionsSchema,
 } from "@lumikids/shared";
-import type { GameInteraction } from "@lumikids/shared";
+import type { GameInteraction, StartPlaySessionInput } from "@lumikids/shared";
 import { parseAssetReadUrl } from "../game-assets/api";
 import type { AssetReadUrl } from "../game-assets/types";
 import type { PreviewAssetReader } from "../game-preview/asset-resolver";
@@ -32,6 +32,7 @@ const messages: Record<number, string> = {
   429: "Có quá nhiều yêu cầu. Đợi một chút nhé.",
 };
 const codeMessages: Record<string, string> = {
+  ASSIGNMENT_AGE_MISMATCH: "Trò này chưa phù hợp với nhóm tuổi của con.",
   REPLAY_NOT_NEEDED: "Bài vẫn đang mở, con vào chơi luôn nhé.",
   PLAY_SESSION_CLOSED: "Lượt chơi đã kết thúc. Con bấm Thử lại để chơi lượt mới nhé.",
 };
@@ -117,15 +118,16 @@ export class GameplayApi {
       await this.request(`/games?${params}`, { signal }),
     );
   }
-  async detail(versionId: string, signal?: AbortSignal) {
+  async detail(versionId: string, assignmentId: string, signal?: AbortSignal) {
+    const query = new URLSearchParams({ assignmentId });
     return playableGameDetailSchema.parse(
-      await this.request(`/games/${encodeURIComponent(versionId)}`, { signal }),
+      await this.request(`/games/${encodeURIComponent(versionId)}?${query}`, { signal }),
     );
   }
-  async start(versionId: string, startRequestId: string, signal?: AbortSignal) {
+  async start(input: StartPlaySessionInput, signal?: AbortSignal) {
     return playSessionSchema.parse(
       await this.request("/sessions", {
-        body: { versionId, startRequestId },
+        body: input,
         signal,
       }),
     );

@@ -7,7 +7,8 @@ import {
   ageGroupUsageListSchema,
   schoolYearUsageListSchema,
   siteSettingsSchema,
-  guardianAccountListSchema,
+  guardianIdsSchema,
+  guardianPageSchema,
   guardianAccountSchema,
   issuedGuardianPasswordSchema,
   issuedPasswordSchema,
@@ -41,8 +42,13 @@ export class AdminApi {
       await this.api.raw(`/admin/teacher-accounts/${encodeURIComponent(userId)}`, { method: "PATCH", body: input }),
     );
   }
-  async guardians(signal?: AbortSignal) {
-    return guardianAccountListSchema.parse(await this.api.raw("/admin/guardian-accounts", { signal }));
+  /** One page; filters, sorting and paging run on the server. */
+  async guardians(params: URLSearchParams, signal?: AbortSignal) {
+    return guardianPageSchema.parse(await this.api.raw(`/admin/guardian-accounts?${params}`, { signal }));
+  }
+  /** Every account matching the filters (capped), for "select all". */
+  async guardianIds(params: URLSearchParams) {
+    return guardianIdsSchema.parse(await this.api.raw(`/admin/guardian-accounts/ids?${params}`));
   }
   async updateGuardian(userId: string, input: UpdateGuardianAccountInput) {
     return guardianAccountSchema.parse(

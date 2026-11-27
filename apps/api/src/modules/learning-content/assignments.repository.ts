@@ -44,6 +44,7 @@ export type AssignmentRow = Prisma.ActivityAssignmentGetPayload<{
 }>;
 export interface SessionFact {
   childId: string;
+  assignmentId: string | null;
   versionId: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
   startedAt: Date;
@@ -177,31 +178,39 @@ export class AssignmentsRepository {
         versionId: { in: [...versionIds] },
         startedAt: { gte: since },
       },
-      select: { childId: true, versionId: true, status: true, startedAt: true },
+      select: {
+        childId: true,
+        assignmentId: true,
+        versionId: true,
+        status: true,
+        startedAt: true,
+      },
     });
   }
 
   // ---------- Child ----------
 
-  /** Opened, not cancelled assignments of the child's current class. */
   /**
-   * Opened assignments of a child. In a class: that class's teacher assignments only. Without a class:
-   * the guardian's family picks only (a class child plays what the teacher assigns).
+   * Opened assignments of a child: the guardian's family picks always, plus the current class's teacher
+   * assignments when the child is in a class. Work from a previous class is never returned.
    */
   forChild(childId: string, classId: string | null, now: Date) {
     return this.prisma.activityRecipient.findMany({
       where: {
         childId,
         assignment: {
-          ...(classId
-            ? { classId, source: 'TEACHER' }
-            : { classId: null, source: 'GUARDIAN' }),
+          // Home practice is always included; class work only from the current class.
+          OR: [
+            { classId: null, source: 'GUARDIAN' },
+            ...(classId ? [{ classId, source: 'TEACHER' as const }] : []),
+          ],
           status: 'ACTIVE',
           opensAt: { lte: now },
         },
       },
       select: {
         recipientId: true,
+        child: { select: { dob: true } },
         extendedUntil: true,
         replayRequests: {
           orderBy: { requestedAt: 'desc' },
@@ -211,6 +220,7 @@ export class AssignmentsRepository {
         assignment: {
           select: {
             assignmentId: true,
+            source: true,
             title: true,
             note: true,
             status: true,
@@ -235,6 +245,29 @@ export class AssignmentsRepository {
         extendedUntil: true,
         assignment: {
           select: { classId: true, status: true, opensAt: true, dueAt: true },
+        },
+      },
+    });
+  }
+
+  findRecipientGame(childId: string, assignmentId: string, versionId: string) {
+    return this.prisma.activityRecipient.findUnique({
+      where: { assignmentId_childId: { assignmentId, childId } },
+      select: {
+        child: { select: { dob: true } },
+        extendedUntil: true,
+        assignment: {
+          select: {
+            classId: true,
+            source: true,
+            status: true,
+            opensAt: true,
+            dueAt: true,
+            items: {
+              where: { versionId, version: { activity: { status: 'ACTIVE' } } },
+              select: { version: { select: versionSelect } },
+            },
+          },
         },
       },
     });

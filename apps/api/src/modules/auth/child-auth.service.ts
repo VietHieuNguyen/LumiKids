@@ -141,19 +141,30 @@ export class ChildAuthService {
   async issueLoginCode(
     childId: string,
   ): Promise<{ code: string; issuedAt: Date }> {
+    const issued = await this.generateAndStoreCode(async (digest, issuedAt) =>
+      await this.children.replaceLoginCode(childId, digest, issuedAt) ? 'SAVED' : 'COLLISION',
+    );
+    if (!issued) throw new Error('Could not issue a login code.');
+    return issued;
+  }
+
+  issueFirstCodeInClass(childId: string, classId: string, teacherId: string) {
+    return this.generateAndStoreCode((digest, issuedAt) =>
+      this.children.insertFirstClassCode(childId, classId, teacherId, digest, issuedAt),
+    );
+  }
+
+  private async generateAndStoreCode(
+    persist: (digest: string, issuedAt: Date) => Promise<'SAVED' | 'NOT_ELIGIBLE' | 'COLLISION'>,
+  ): Promise<{ code: string; issuedAt: Date } | null> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const code = generateLoginCode();
       const normalized = normalizeLoginCode(code);
       if (!normalized) continue;
       const issuedAt = new Date();
-      if (
-        await this.children.replaceLoginCode(
-          childId,
-          loginCodeDigest(normalized, this.config.codeSecret),
-          issuedAt,
-        )
-      )
-        return { code, issuedAt };
+      const status = await persist(loginCodeDigest(normalized, this.config.codeSecret), issuedAt);
+      if (status === 'SAVED') return { code, issuedAt };
+      if (status === 'NOT_ELIGIBLE') return null;
     }
     throw new Error('Could not issue a unique login code.');
   }

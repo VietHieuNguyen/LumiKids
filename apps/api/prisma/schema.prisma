@@ -276,12 +276,25 @@ enum InteractionResult {
   INCORRECT
 }
 
+enum PlayContext {
+  SCHOOL
+  HOME
+}
+
 model PlaySession {
   sessionId      String               @id @default(uuid()) @db.Uuid
   childId        String               @db.Uuid
   child          Child                @relation(fields: [childId], references: [childId], onDelete: Restrict)
   versionId      String               @db.Uuid
   version        ActivityVersion      @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  // Legacy sessions have no recorded assignment or configuration.
+  assignmentId   String?              @db.Uuid
+  assignmentItem ActivityAssignmentItem? @relation(fields: [assignmentId, versionId], references: [assignmentId, versionId], onDelete: Restrict)
+  recipient      ActivityRecipient?   @relation(fields: [assignmentId, childId], references: [assignmentId, childId], onDelete: Restrict)
+  context        PlayContext?
+  ageGroup       String?              @db.VarChar(3)
+  difficulty     GameDifficulty?
+  hintLimitPerTask Int?
   status         PlaySessionStatus    @default(IN_PROGRESS)
   startRequestId String               @db.Uuid
   eventCount     Int                  @default(0)
@@ -297,6 +310,7 @@ model PlaySession {
   @@index([childId, startedAt])
   @@index([childId, status])
   @@index([versionId])
+  @@index([assignmentId, childId])
 }
 
 model InteractionEvent {
@@ -632,6 +646,7 @@ model ActivityAssignmentItem {
   versionId    String             @db.Uuid
   version      ActivityVersion    @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
   position     Int
+  playSessions PlaySession[]
 
   @@id([assignmentId, versionId])
   @@unique([assignmentId, position])
@@ -649,6 +664,7 @@ model ActivityRecipient {
   extendedUntil  DateTime?          @db.Timestamptz(3)
   createdAt      DateTime           @default(now()) @db.Timestamptz(3)
   replayRequests ReplayRequest[]
+  playSessions   PlaySession[]
 
   @@unique([assignmentId, childId])
   @@index([childId])

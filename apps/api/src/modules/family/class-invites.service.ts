@@ -4,6 +4,7 @@ import { ageGroupAccepts, ageInMonths, vietnamDate } from '@lumikids/shared';
 import type {
   ClassInvite,
   ClassJoinRequest,
+  ClassroomBatchResult,
   CreateClassInviteInput,
   IssuedClassInvite,
 } from '@lumikids/shared';
@@ -119,6 +120,32 @@ export class ClassInvitesService {
   async joinRequests(teacher: Principal, classId: string): Promise<ClassJoinRequest[]> {
     await this.classrooms.requireTeacherOf(teacher, classId);
     return this.view(classId, await this.repository.listJoinRequests(classId));
+  }
+
+  async approveBatch(teacher: Principal, classId: string, requestIds: readonly string[]): Promise<ClassroomBatchResult> {
+    await this.classrooms.requireTeacherOfActive(teacher, classId);
+    const classroom = await this.classrooms.classroom(classId);
+    const result: ClassroomBatchResult = { completedIds: [], skipped: [] };
+    const now = this.now();
+    for (const id of requestIds) {
+      try {
+        const request = await this.repository.findJoinRequest(classId, id);
+        if (!request || request.child.status !== 'ACTIVE') {
+          result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
+        } else if (request.status !== 'PENDING') {
+          result.skipped.push({ id, reason: 'ALREADY_DECIDED' });
+        } else if (!ageGroupAccepts(classroom.ageGroup, ageInMonths(request.child.dob.toISOString().slice(0, 10), vietnamDate(now)))) {
+          result.skipped.push({ id, reason: 'AGE_REVIEW' });
+        } else {
+          const outcome = await this.repository.approve(request, teacher.userId, now);
+          if (outcome === 'OK') result.completedIds.push(id);
+          else result.skipped.push({ id, reason: outcome === 'HAS_CLASS' ? 'HAS_CLASS' : 'ALREADY_DECIDED' });
+        }
+      } catch {
+        result.skipped.push({ id, reason: 'FAILED' });
+      }
+    }
+    return result;
   }
 
   async decide(

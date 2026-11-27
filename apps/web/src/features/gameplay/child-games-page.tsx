@@ -55,10 +55,11 @@ function ChildHome({ api, name }: { api: GameplayApi; name: string }) {
     return () => abort.abort();
   }, [api, retry]);
 
-  const open = items?.filter((item) => item.state === "OPEN") ?? [];
+  const open = items?.filter((item) => item.state === "OPEN" && item.source === "TEACHER") ?? [];
+  const home = items?.filter((item) => item.state === "OPEN" && item.source === "GUARDIAN") ?? [];
   const closed = items?.filter((item) => item.state === "CLOSED") ?? [];
   const greeting = `Chào ${name}!`;
-  const lead = open.length ? "Hôm nay mình chơi gì nào?" : "Cùng xem cô giao gì nhé.";
+  const lead = open.length || home.length ? "Hôm nay mình chơi gì nào?" : "Cùng xem cô giao gì nhé.";
 
   return (
     <main className="ck-main">
@@ -93,6 +94,19 @@ function ChildHome({ api, name }: { api: GameplayApi; name: string }) {
           </h2>
           <div className="ck-stack">
             {open.map((item) => (
+              <OpenCard key={item.assignmentId} item={item} canSpeak={canSpeak} speak={speak} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {home.length > 0 && (
+        <section className="ck-section" aria-labelledby="home-heading">
+          <h2 id="home-heading" className="ck-sectionTitle">
+            <Star filled /> Bố mẹ chọn
+          </h2>
+          <div className="ck-stack">
+            {home.map((item) => (
               <OpenCard key={item.assignmentId} item={item} canSpeak={canSpeak} speak={speak} />
             ))}
           </div>
@@ -173,7 +187,7 @@ function OpenCard({ item, canSpeak, speak }: { item: ChildAssignment; canSpeak: 
       <ul className="ck-games">
         {item.games.map((game) => (
           <li key={game.versionId}>
-            <GameTile game={game} />
+            <GameTile assignmentId={item.assignmentId} game={game} />
           </li>
         ))}
       </ul>
@@ -186,7 +200,7 @@ function OpenCard({ item, canSpeak, speak }: { item: ChildAssignment; canSpeak: 
   );
 }
 
-function GameTile({ game }: { game: ChildAssignmentGame }) {
+function GameTile({ assignmentId, game }: { assignmentId: string; game: ChildAssignmentGame }) {
   const inner = (
     <>
       {game.completed && (
@@ -206,7 +220,7 @@ function GameTile({ game }: { game: ChildAssignmentGame }) {
             {game.completed ? "Chơi lại" : "Chơi"}
           </>
         ) : (
-          "Trò đang nghỉ"
+          "Chưa chơi được"
         )}
       </span>
     </>
@@ -214,12 +228,18 @@ function GameTile({ game }: { game: ChildAssignmentGame }) {
   const label = `${game.name}, trò ${gameTypeLabels[game.gameType].toLowerCase()}${game.completed ? ", con đã xong" : ""}`;
   if (!game.available)
     return (
-      <div className="ck-tile" data-type={game.gameType} data-off="true" aria-label={`${label}, trò đang nghỉ`}>
+      <div className="ck-tile" data-type={game.gameType} data-off="true" aria-label={`${label}, chưa chơi được`}>
         {inner}
       </div>
     );
   return (
-    <Link className="ck-tile" data-type={game.gameType} data-done={game.completed} href={`/child/games/${game.versionId}`} aria-label={label}>
+    <Link
+      className="ck-tile"
+      data-type={game.gameType}
+      data-done={game.completed}
+      href={{ pathname: `/child/games/${game.versionId}`, query: { assignmentId } }}
+      aria-label={label}
+    >
       {inner}
     </Link>
   );
@@ -260,7 +280,9 @@ function ClosedCard({ item, api, canSpeak, speak }: { item: ChildAssignment; api
             </div>
           </div>
         </div>
-        {pending ? (
+        {item.source === "GUARDIAN" ? (
+          <span className="ck-sent">Nhờ bố mẹ chọn lại nhé</span>
+        ) : pending ? (
           <span className="ck-sent" role="status">
             <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
             Đã nhờ cô, đợi cô nhé
@@ -276,7 +298,7 @@ function ClosedCard({ item, api, canSpeak, speak }: { item: ChildAssignment; api
         )}
         {canSpeak && (
           <SayButton
-            text={`${item.title}. Bài này đã hết giờ. ${progressSentence(done, item.games.length)} ${pending ? "Con đã nhờ cô rồi." : "Con bấm nút vàng để xin cô chơi lại."}`}
+            text={`${item.title}. Bài này đã hết giờ. ${progressSentence(done, item.games.length)} ${item.source === "GUARDIAN" ? "Con nhờ bố mẹ chọn lại nhé." : pending ? "Con đã nhờ cô rồi." : "Con bấm nút vàng để xin cô chơi lại."}`}
             speak={speak}
           />
         )}

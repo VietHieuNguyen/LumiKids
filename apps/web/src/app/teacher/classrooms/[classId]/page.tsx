@@ -12,6 +12,6 @@ export default async function Page({
 }) {
   const { classId } = await params;
   const { tab } = await searchParams;
-  const current = tabs.find((value) => value === tab) ?? "assignments";
+  const current = tabs.find((value) => value === tab) ?? "children";
   return <TeacherClassroomPage classId={classId} tab={current} />;
 }

@@ -23,23 +23,25 @@ describe('GameAsset metadata validation', () => {
       },
     );
   });
+  const tagsError = 'Invalid game asset tags.';
+  const attributesError = 'Invalid game asset attributes.';
   it.each([
-    { ...valid, tags: 'red,ball' },
-    { ...valid, attributes: '{bad' },
-    { ...valid, attributes: '[]' },
-    { ...valid, attributes: 'null' },
-    { ...valid, name: '' },
-    { ...valid, objectType: '../BALL' },
-    { ...valid, tags: '[1]' },
-    { ...valid, status: 'INACTIVE' },
-    { ...valid, objectKey: 'override.png' },
-    { ...valid, attributes: '{"__proto__":{"admin":true}}' },
-    { ...valid, attributes: { a: { b: { c: { d: { e: { f: 1 } } } } } } },
-    { ...valid, attributes: { value: 'a'.repeat(16385) } },
-  ])('rejects malformed/unexpected metadata (%#)', (value) => {
+    [{ ...valid, tags: 'red,ball' }, tagsError],
+    [{ ...valid, attributes: '{bad' }, attributesError],
+    [{ ...valid, attributes: '[]' }, attributesError],
+    [{ ...valid, attributes: 'null' }, attributesError],
+    [{ ...valid, name: '' }, 'Invalid game asset name.'],
+    [{ ...valid, objectType: '../BALL' }, 'Invalid game asset object type.'],
+    [{ ...valid, tags: '[1]' }, tagsError],
+    [{ ...valid, status: 'INACTIVE' }, 'Invalid game asset metadata or query.'],
+    [{ ...valid, objectKey: 'override.png' }, 'Invalid game asset metadata or query.'],
+    [{ ...valid, attributes: '{"__proto__":{"admin":true}}' }, attributesError],
+    [{ ...valid, attributes: { a: { b: { c: { d: { e: { f: 1 } } } } } } }, attributesError],
+    [{ ...valid, attributes: { value: 'a'.repeat(16385) } }, attributesError],
+  ])('rejects malformed/unexpected metadata (%#)', (value, message) => {
     expect(() =>
       new AssetValidationPipe(createAssetSchema).transform(value),
-    ).toThrow('Invalid game asset metadata or query.');
+    ).toThrow(message);
   });
   it.each([
     { objectKey: 'replacement' },

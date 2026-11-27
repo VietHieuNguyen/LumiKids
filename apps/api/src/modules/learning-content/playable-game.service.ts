@@ -62,8 +62,16 @@ export class PlayableGameService {
       }),
     };
   }
-  async detail(player: ChildPrincipal, versionId: string) {
+  async detail(player: ChildPrincipal, versionId: string, assignmentId?: string) {
     this.authorize(player);
+    if (assignmentId) {
+      const { version } = await this.assignments.requirePlayableAssignment(
+        player.childId,
+        assignmentId,
+        versionId,
+      );
+      return this.present(version);
+    }
     const allowed = await this.assignments.playableVersionIds(player.childId);
     const row = allowed.has(versionId)
       ? await this.repository.findPlayable(versionId)

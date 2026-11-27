@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import type { ClassInvite, ClassJoinRequest, IssuedClassInvite } from "@lumikids/shared";
 import { classroomError } from "./api";
@@ -6,6 +7,8 @@ import type { ClassroomApi } from "./api";
 import { Dialog, ErrorBanner, Panel, StatusPill } from "./classroom-shell";
 import { formatDateOnly, formatDateTime, genderLabels } from "./format";
 import { useResource } from "./use-resource";
+import { BatchOutcome, ClassroomBatchDialog } from "./classroom-batch-dialog";
+import type { BatchPerson } from "./classroom-batch-dialog";
 
 const relationshipLabels = { MOTHER: "Mẹ", FATHER: "Bố", GRANDPARENT: "Ông/Bà", OTHER: "Người giám hộ" } as const;
 const inviteStates = {
@@ -25,7 +28,9 @@ export function FamilyRequestsPanel({ api, classId, className, canEdit }: { api:
   const requests = useResource((signal) => api.joinRequests(classId, signal), `requests:${classId}`);
   const invites = useResource((signal) => api.invites(classId, signal), `invites:${classId}`);
   const [creating, setCreating] = useState(false);
+  const [batch, setBatch] = useState<BatchPerson[] | null>(null);
   const pending = requests.data?.filter((request) => request.status === "PENDING") ?? [];
+  const batchEligible = pending.filter((request) => request.ageMatches);
   const decided = requests.data?.filter((request) => request.status !== "PENDING") ?? [];
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -33,7 +38,16 @@ export function FamilyRequestsPanel({ api, classId, className, canEdit }: { api:
         <Panel
           title="Yêu cầu vào lớp"
           description="Phụ huynh dùng lời mời để xin cho con vào lớp. Duyệt thì trẻ vào lớp ngay và lớp được xem kết quả chơi theo phần phụ huynh đã đồng ý."
-          actions={pending.length ? <StatusPill tone="amber">{pending.length} chờ duyệt</StatusPill> : undefined}
+          actions={pending.length ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill tone="amber">{pending.length} chờ duyệt</StatusPill>
+              {canEdit && batchEligible.length > 0 && <button type="button" className="asset-button-primary" onClick={() => setBatch(batchEligible.map((request) => ({
+                id: request.requestId,
+                name: request.childName,
+                detail: `${formatDateOnly(request.dob)} · ${relationshipLabels[request.relationship]} ${request.guardianName}`,
+              })))}>Duyệt hàng loạt</button>}
+            </div>
+          ) : undefined}
         >
           {requests.error && <ErrorBanner message={requests.error} onRetry={requests.reload} />}
           {requests.loading && !requests.data && <p role="status" className="text-sm text-ink-soft">Đang tải yêu cầu…</p>}
@@ -83,6 +97,24 @@ export function FamilyRequestsPanel({ api, classId, className, canEdit }: { api:
           )}
         </Panel>
       </aside>
+      {batch && <ClassroomBatchDialog
+        title={`Duyệt yêu cầu vào lớp ${className}`}
+        action="Duyệt"
+        people={batch}
+        description="Chọn các yêu cầu đúng nhóm tuổi đã được phụ huynh xác nhận. Yêu cầu khác nhóm tuổi được xem riêng."
+        onClose={() => setBatch(null)}
+        onConfirm={async (ids) => {
+          const result = await api.approveJoinRequests(classId, ids);
+          requests.reload();
+          return result;
+        }}
+        resultView={(result) => (
+          <>
+            <BatchOutcome people={batch} completed={`Đã duyệt ${result.completedIds.length} yêu cầu`} skipped={result.skipped} />
+            {result.completedIds.length > 0 && <Link href={`/teacher/classrooms/${classId}?tab=children`} onClick={() => setBatch(null)} className="asset-button-secondary mt-3">Mở danh sách trẻ</Link>}
+          </>
+        )}
+      />}
       {creating && (
         <CreateInviteDialog
           api={api}

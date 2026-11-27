@@ -44,8 +44,8 @@ export class FamilyApi {
   async leaveClass(childId: string) {
     return familyChildSchema.parse(await this.api.raw(`/family/children/${id(childId)}/leave-class`, { method: "POST", body: {} }));
   }
-  async previewInvite(code: string) {
-    return invitePreviewSchema.parse(await this.api.raw("/family/invites/preview", { method: "POST", body: { code } }));
+  async previewInvite(code: string, signal?: AbortSignal) {
+    return invitePreviewSchema.parse(await this.api.raw("/family/invites/preview", { method: "POST", body: { code }, signal }));
   }
   async requestJoin(code: string, childId: string) {
     return familyChildSchema.parse(

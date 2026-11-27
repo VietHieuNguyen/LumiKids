@@ -63,7 +63,8 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
     schoolYearUsage: vi.fn(() => Promise.resolve([])),
   };
   const guardians = {
-    list: vi.fn(() => Promise.resolve([])),
+    page: vi.fn(() => Promise.resolve({ items: [], total: 0, counts: {} })),
+    ids: vi.fn(() => Promise.resolve({ items: [], truncated: false })),
     update: vi.fn(() => Promise.resolve({})),
     resetPassword: vi.fn(() =>
       Promise.resolve({ account: {}, temporaryPassword: 'abcd-efgh-jkmn' }),
@@ -150,9 +151,19 @@ describe('Admin HTTP contract (offline; services mocked)', () => {
       .expect(403);
     actor = admin;
     await request(app.getHttpServer())
-      .get('/api/v1/admin/guardian-accounts')
+      .get('/api/v1/admin/guardian-accounts?children=UNPLACED&sort=name&dir=asc&page=3')
       .auth(await token(), { type: 'bearer' })
       .expect(200);
+    expect(guardians.page).toHaveBeenCalledWith(expect.objectContaining({ children: 'UNPLACED', sort: 'name', page: 3, pageSize: 25 }));
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/guardian-accounts?sort=lastLogin')
+      .auth(await token(), { type: 'bearer' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/guardian-accounts/ids?status=DISABLED')
+      .auth(await token(), { type: 'bearer' })
+      .expect(200);
+    expect(guardians.ids).toHaveBeenCalledWith(expect.objectContaining({ status: 'DISABLED' }));
     for (const body of [
       { status: 'PENDING_VERIFICATION' },
       { status: 'ACTIVE', fullName: 'x' },

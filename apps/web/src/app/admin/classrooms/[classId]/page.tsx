@@ -1,7 +1,7 @@
 import { AdminClassroomDetailPage } from "@/features/classrooms/admin-classroom-detail-page";
 import type { AdminClassroomTab } from "@/features/classrooms/admin-classroom-detail-page";
 
-const tabs: readonly AdminClassroomTab[] = ["overview", "assignments"];
+const tabs: readonly AdminClassroomTab[] = ["overview", "teachers", "settings", "assignments"];
 
 export default async function Page({
   params,

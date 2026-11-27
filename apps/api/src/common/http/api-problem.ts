@@ -92,7 +92,7 @@ const problems = {
   CHILD_PROFILE_MISSING: [409, 'Tài khoản chưa có hồ sơ trẻ.'],
   PLAY_SESSION_REQUEST_CONFLICT: [
     409,
-    'Yêu cầu bắt đầu này đã được dùng cho trò chơi khác.',
+    'Yêu cầu bắt đầu này đã được dùng cho bài giao hoặc trò chơi khác.',
   ],
   PLAY_SESSION_CLOSED: [409, 'Lượt chơi đã kết thúc.'],
   PLAY_SESSION_BUSY: [
@@ -131,6 +131,10 @@ const problems = {
   ],
   TEACHER_INVALID: [422, 'Người dùng này không phải giáo viên đang hoạt động.'],
   CHILD_ALREADY_IN_CLASS: [409, 'Trẻ đang học lớp này.'],
+  CHILD_FAMILY_MANAGED: [
+    409,
+    'Hồ sơ do phụ huynh quản lý. Gửi lời mời lớp để phụ huynh xác nhận chia sẻ.',
+  ],
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
@@ -184,7 +188,7 @@ const problems = {
   ],
   ASSIGNMENT_AGE_MISMATCH: [
     422,
-    'Có trẻ chưa đủ tuổi tối thiểu của trò chơi (tính theo tháng tuổi tại ngày mở bài). Hãy chọn trò dành cho nhóm tuổi nhỏ hơn hoặc bỏ trẻ chưa đủ tuổi.',
+    'Nhóm tuổi của trò chơi không khớp với tuổi của trẻ vào ngày mở bài. Hãy chọn trò phù hợp hoặc điều chỉnh người nhận.',
   ],
   AGE_GROUP_INVALID: [422, 'Nhóm tuổi không tồn tại.'],
   INVITE_INVALID: [
@@ -201,7 +205,7 @@ const problems = {
   FAMILY_CHILD_NOT_FOUND: [404, 'Không tìm thấy hồ sơ trẻ của bạn.'],
   FAMILY_CHILD_CLASS_MANAGED: [
     409,
-    'Trẻ đang học ở lớp; lượt giao bài do giáo viên quản lý. Rời lớp để tự chọn trò cho trẻ.',
+    'Trẻ đang học ở lớp; mã đăng nhập do giáo viên của lớp cấp.',
   ],
   NOT_FAMILY_ENROLLMENT: [
     409,

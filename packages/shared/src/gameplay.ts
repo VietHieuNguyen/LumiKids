@@ -39,7 +39,7 @@ export const playableGamePageSchema = z.object({
   }),
 });
 export const startPlaySessionSchema = z
-  .object({ versionId: z.uuid(), startRequestId: z.uuid() })
+  .object({ assignmentId: z.uuid(), versionId: z.uuid(), startRequestId: z.uuid() })
   .strict();
 export const submitInteractionsSchema = z
   .object({
@@ -51,6 +51,7 @@ export const submitInteractionsSchema = z
   .strict();
 export const playSessionSchema = z.object({
   sessionId: z.uuid(),
+  assignmentId: z.uuid().nullable(),
   versionId: z.uuid(),
   status: playSessionStatusSchema,
   nextAttemptIndex: z.number().int().positive(),

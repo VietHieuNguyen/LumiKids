@@ -62,12 +62,23 @@ const cases = [
   ["MATCHING", matching, matchingContentSchema],
   ["CLASSIFICATION", classification, classificationContentSchema],
 ];
+// COUNTING/CLASSIFICATION accept v1 or v2, so the cause of a rejection can sit inside an invalid_union issue.
+function issuePaths(issues, prefix = []) {
+  return issues.flatMap((issue) => {
+    const path = [...prefix, ...issue.path];
+    const nested = issue.code === "invalid_union"
+      ? issue.errors.flatMap((branch) => issuePaths(branch, path))
+      : [];
+    return [path.join("."), ...nested];
+  });
+}
+
 function assertInvalid(schema, value, path) {
   const result = schema.safeParse(value);
   assert.equal(result.success, false);
   if (path)
     assert.ok(
-      result.error.issues.some((issue) => issue.path.join(".") === path),
+      issuePaths(result.error.issues).includes(path),
       JSON.stringify(result.error.issues),
     );
 }

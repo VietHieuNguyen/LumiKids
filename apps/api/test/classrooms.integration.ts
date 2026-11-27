@@ -1,3 +1,4 @@
+import { adminChildQuerySchema } from '@lumikids/shared';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ClassroomsRepository } from '../src/modules/classrooms/classrooms.repository.js';
@@ -117,7 +118,7 @@ describe.skipIf(!testUrl)(
       expect(inB).toEqual([{ startedAt: inA[0].endedAt, endedAt: null }]);
     });
 
-    it('lists only the play sessions started inside the given periods', async () => {
+    it('lists only the school play sessions started inside the given periods', async () => {
       const { childId } = await classrooms.createChild(
         profile,
         classA,
@@ -173,6 +174,17 @@ describe.skipIf(!testUrl)(
             startedAt: new Date(`${startedAt}T08:00:00.000Z`),
           },
         });
+      // Inside the period too: school work is listed, home practice stays with the family.
+      for (const [startedAt, context] of [['2026-10-15', 'SCHOOL'], ['2026-10-20', 'HOME']] as const)
+        await prisma.playSession.create({
+          data: {
+            childId,
+            versionId: version.versionId,
+            startRequestId: randomUUID(),
+            startedAt: new Date(`${startedAt}T08:00:00.000Z`),
+            context,
+          },
+        });
       const page = await classrooms.listPlaySessions(
         childId,
         [
@@ -184,10 +196,10 @@ describe.skipIf(!testUrl)(
         1,
         20,
       );
-      expect(page.total).toBe(2);
+      expect(page.total).toBe(3);
       expect(
         page.rows.map((row) => row.startedAt.toISOString().slice(0, 10)),
-      ).toEqual(['2026-10-10', '2026-09-10']);
+      ).toEqual(['2026-10-15', '2026-10-10', '2026-09-10']);
     });
 
     it('places a child without a class and lists unassigned children', async () => {
@@ -208,6 +220,60 @@ describe.skipIf(!testUrl)(
         await prisma.classroomEnrollment.deleteMany({ where: { childId } });
         await prisma.child.delete({ where: { childId } });
       }
+    });
+
+    it('issues a first login code once under concurrent requests and checks the class and teacher', async () => {
+      const { childId } = await classrooms.createChild(profile, classA, new Date());
+      const teacher = await prisma.user.create({
+        data: { fullName: 'Teacher', email: `${randomUUID()}@example.test`, address: '', passwordHash: 'fixture', phone: '' },
+      });
+      fixtures.push(async () => {
+        await prisma.classroomTeacher.deleteMany({ where: { userId: teacher.userId } });
+        await prisma.user.delete({ where: { userId: teacher.userId } });
+      });
+      await prisma.classroomTeacher.create({ data: { classId: classA, userId: teacher.userId } });
+      const now = new Date();
+      await expect(childAuth.insertFirstClassCode(childId, classA, randomUUID(), 'a'.repeat(64), now)).resolves.toBe('NOT_ELIGIBLE');
+      await expect(childAuth.insertFirstClassCode(childId, classB, teacher.userId, 'a'.repeat(64), now)).resolves.toBe('NOT_ELIGIBLE');
+      const codes = await Promise.all(['a', 'b'].map((character) =>
+        childAuth.insertFirstClassCode(childId, classA, teacher.userId, character.repeat(64), now),
+      ));
+      expect(codes.sort()).toEqual(['NOT_ELIGIBLE', 'SAVED']);
+      const current = await prisma.child.findUniqueOrThrow({ where: { childId } });
+      await expect(childAuth.insertFirstClassCode(childId, classA, teacher.userId, 'c'.repeat(64), now)).resolves.toBe('NOT_ELIGIBLE');
+      expect((await prisma.child.findUniqueOrThrow({ where: { childId } })).loginCodeDigest).toBe(current.loginCodeDigest);
+    });
+
+    it('places school children and leaves family profiles for consented enrollment', async () => {
+      const school = await prisma.child.create({ data: profile });
+      const home = await prisma.child.create({ data: profile });
+      const guardian = await prisma.user.create({
+        data: {
+          fullName: 'Guardian', email: `${randomUUID()}@example.test`, address: '', passwordHash: 'fixture', phone: '',
+          guardianProfile: { create: { relationship: 'MOTHER', children: { create: { childId: home.childId } } } },
+        },
+      });
+      fixtures.push(async () => {
+        await prisma.user.delete({ where: { userId: guardian.userId } });
+        await prisma.child.delete({ where: { childId: home.childId } });
+      });
+      await expect(classrooms.placeSchoolChild(home.childId, classA, new Date())).resolves.toBe('FAMILY_PROFILE');
+      await expect(classrooms.placeSchoolChild(school.childId, classA, new Date())).resolves.toBe('COMPLETED');
+      await expect(classrooms.placeSchoolChild(school.childId, classB, new Date())).resolves.toBe('HAS_CLASS');
+      expect(await classrooms.findCurrentEnrollment(home.childId)).toBeNull();
+      // The directory filters run in the database.
+      const page = (value: object) => classrooms.pageChildren(adminChildQuerySchema.parse(value));
+      const inA = await page({ classId: classA });
+      expect(inA.rows.map((row) => row.childId)).toEqual([school.childId]);
+      expect(inA.rows[0].enrollments[0].classroom.classId).toBe(classA);
+      const family = await page({ classId: 'none', managed: 'FAMILY' });
+      expect(family.rows.map((row) => row.childId)).toContain(home.childId);
+      expect(family.rows.map((row) => row.childId)).not.toContain(school.childId);
+      expect((await page({ classId: classA, pageSize: 1, page: 2 })).rows).toHaveLength(0);
+      expect(await classrooms.childIds(adminChildQuerySchema.parse({ classId: classA }), 10)).toEqual([
+        { childId: school.childId, fullName: profile.fullName, status: 'ACTIVE', classId: classA, managedByFamily: false },
+      ]);
+      expect((await classrooms.findCurrentEnrollment(school.childId))?.classId).toBe(classA);
     });
 
     it('replacing a login code revokes the child sessions', async () => {

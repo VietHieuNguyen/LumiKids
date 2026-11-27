@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -18,6 +19,10 @@ import {
   createChildSchema,
   createClassroomSchema,
   createSchoolYearSchema,
+  adminChildFilterSchema,
+  adminChildQuerySchema,
+  childStatusBatchSchema,
+  enrollmentBatchSchema,
   playHistoryQuerySchema,
   reorderAgeGroupsSchema,
   updateAgeGroupSchema,
@@ -168,10 +173,31 @@ export class AdminClassroomsController {
     );
   }
 
+  @Get('children')
+  children(@Query() value: unknown) {
+    return this.classrooms.pageChildren(parse(adminChildQuerySchema, value, 'Bộ lọc danh sách trẻ không hợp lệ.'));
+  }
+  @Get('children/ids')
+  childIds(@Query() value: unknown) {
+    return this.classrooms.childIds(parse(adminChildFilterSchema, value, 'Bộ lọc danh sách trẻ không hợp lệ.'));
+  }
+  @Post('children/status/batch')
+  @HttpCode(200)
+  setChildrenStatus(@Body() value: unknown) {
+    const { childIds, status } = parse(childStatusBatchSchema, value, 'Chọn trẻ và trạng thái hợp lệ.');
+    return this.classrooms.setChildrenStatus(childIds, status);
+  }
   @Get('children/unassigned')
   unassignedChildren() {
     return this.classrooms.listUnassignedChildren();
   }
+  @Post('children/enrollments/batch')
+  @HttpCode(200)
+  enrollBatch(@Body() value: unknown) {
+    const { classId, childIds } = parse(enrollmentBatchSchema, value, 'Chọn lớp và danh sách trẻ hợp lệ.');
+    return this.classrooms.enrollSchoolChildren(classId, childIds);
+  }
+
   @Post('children')
   createChild(@Body() value: unknown) {
     return this.classrooms.createChild(

@@ -1,5 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { subject } from '@casl/ability';
+import {
+  gameContentSchema,
+  getHintTargets,
+  withLegacyInstruction,
+} from '@lumikids/shared';
 import type {
   ChildCorner,
   GameContent,
@@ -34,6 +43,7 @@ const APPEND_ATTEMPTS = 2;
 function view(session: PlaySessionRecord): PlaySessionView {
   return {
     sessionId: session.sessionId,
+    assignmentId: session.assignmentId,
     versionId: session.versionId,
     status: session.status,
     nextAttemptIndex: session.eventCount + 1,
@@ -70,8 +80,8 @@ export class GameplayService {
   listGames(child: ChildPrincipal, query: PlayableGameQuery) {
     return this.games.list(child, query);
   }
-  gameDetail(child: ChildPrincipal, versionId: string) {
-    return this.games.detail(child, versionId);
+  gameDetail(child: ChildPrincipal, versionId: string, assignmentId?: string) {
+    return this.games.detail(child, versionId, assignmentId);
   }
   assetReadUrl(child: ChildPrincipal, versionId: string, assetId: string) {
     return this.games.readUrl(child, versionId, assetId);
@@ -81,16 +91,32 @@ export class GameplayService {
     child: ChildPrincipal,
     input: StartPlaySessionInput,
   ): Promise<PlaySessionView> {
-    // detail() checks PLAY_GAMES and that the version is still ACTIVE.
-    await this.games.detail(child, input.versionId);
+    if (!buildAbility(child).can('PLAY_GAMES', 'Gameplay'))
+      throw new ForbiddenException();
     const existing = await this.sessions.findByStartRequest(
       child.childId,
       input.startRequestId,
     );
-    if (existing) return this.sameStart(existing, input.versionId);
+    if (existing) return this.sameStart(existing, input);
+    const { assignment, version, ageGroup } =
+      await this.assignments.requirePlayableAssignment(
+        child.childId,
+        input.assignmentId,
+        input.versionId,
+      );
+    const content = gameContentSchema.parse(
+      withLegacyInstruction(version.content),
+    );
     try {
       return view(
-        await this.sessions.start({ childId: child.childId, ...input }),
+        await this.sessions.start({
+          childId: child.childId,
+          ...input,
+          context: assignment.source === 'TEACHER' ? 'SCHOOL' : 'HOME',
+          ageGroup,
+          difficulty: version.difficulty,
+          hintLimitPerTask: getHintTargets(content).length > 0 ? 1 : 0,
+        }),
       );
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
@@ -99,7 +125,7 @@ export class GameplayService {
         input.startRequestId,
       );
       if (!retry) throw error;
-      return this.sameStart(retry, input.versionId);
+      return this.sameStart(retry, input);
     }
   }
 
@@ -205,8 +231,11 @@ export class GameplayService {
     };
   }
 
-  private sameStart(session: PlaySessionRecord, versionId: string) {
-    if (session.versionId !== versionId)
+  private sameStart(session: PlaySessionRecord, input: StartPlaySessionInput) {
+    if (
+      session.versionId !== input.versionId ||
+      session.assignmentId !== input.assignmentId
+    )
       throw new ApiProblem('PLAY_SESSION_REQUEST_CONFLICT');
     return view(session);
   }

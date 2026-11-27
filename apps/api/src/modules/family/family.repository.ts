@@ -252,7 +252,9 @@ export class FamilyRepository {
       });
       return 'OK' as const;
     }).catch((error: unknown) => {
-      if (error instanceof HasClassSignal) return 'HAS_CLASS' as const;
+      if (error instanceof HasClassSignal ||
+          (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002'))
+        return 'HAS_CLASS' as const;
       throw error;
     });
   }

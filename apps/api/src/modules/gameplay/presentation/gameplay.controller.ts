@@ -69,8 +69,9 @@ export class GameplayController {
   detail(
     @CurrentChild() child: ChildPrincipal,
     @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Query('assignmentId', new ParseUUIDPipe({ optional: true })) assignmentId?: string,
   ) {
-    return this.gameplay.gameDetail(child, versionId);
+    return this.gameplay.gameDetail(child, versionId, assignmentId);
   }
 
   @Get('games/:versionId/assets/:assetId/read-url')

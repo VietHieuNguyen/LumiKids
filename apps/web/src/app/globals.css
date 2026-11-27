@@ -912,11 +912,17 @@ button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visi
   .game-picture-only .is-hinted { animation: none; }
 }
 
-/* Printing a child's login card prints only the card (see features/classrooms/login-code-dialog). */
+/* Show only the login cards in print, including when a class needs several pages. */
+.login-code-print-document { display: none; }
 @media print {
   body * { visibility: hidden; }
   .print-card, .print-card * { visibility: visible; }
   .print-card { position: fixed; top: 0; left: 0; width: 9cm; }
+  body:has(> .login-code-print-document) > :not(.login-code-print-document) { display: none !important; }
+  .login-code-print-document { display: block; }
+  .login-code-print-document, .login-code-print-document * { visibility: visible; }
+  .login-code-print-document ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .login-code-print-document li { break-inside: avoid; }
 }
 
 /* ---- PATTERN (Sắp xếp theo quy tắc): one row per screen, no scrolling, no arrows ---- */
