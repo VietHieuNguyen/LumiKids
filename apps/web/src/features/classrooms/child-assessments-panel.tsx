@@ -33,7 +33,7 @@ function NoteForm({
   const [localError, setLocalError] = useState("");
   return (
     <form
-      className="mt-3 space-y-3 rounded-2xl border border-line bg-paper-soft p-4"
+      className="mt-4 space-y-4 border-t border-line pt-4"
       onSubmit={(event) => {
         event.preventDefault();
         if (!draft.periodStart || !draft.periodEnd) return setLocalError("Chọn kỳ đánh giá.");
@@ -89,7 +89,7 @@ function History({ api, classId, childId, assessmentId }: { api: ClassroomApi; c
   return (
     <ol className="space-y-2 text-sm">
       {detail.data.revisions.map((revision) => (
-        <li key={revision.revisionNo} className="rounded-xl border border-line p-3">
+        <li key={revision.revisionNo}>
           <p className="font-semibold">Lần sửa {revision.revisionNo} · {revision.changedByName || "Giáo viên"} · {formatDateTime(revision.changedAt)}</p>
           {revision.reason && <p className="mt-1 text-ink-soft">Lý do: {revision.reason}</p>}
           <p className="mt-2 text-ink-soft">Nội dung trước đó ({revision.previous.status === "PUBLISHED" ? "đã phát hành" : "nháp"}): {revision.previous.content}</p>
@@ -147,15 +147,14 @@ export function ChildAssessmentsPanel({ api, classId, childId }: { api: Classroo
       )}
       {!list.data && !list.error && <p role="status" className="text-sm">Đang tải nhận xét…</p>}
       {list.data && notes.length === 0 && !creating && <p className="text-sm text-ink-soft">Chưa có nhận xét nào.</p>}
-      <ul className="space-y-3">
+      <ul className="divide-y divide-line">
         {notes.map((note) => {
           const published = note.status === "PUBLISHED";
           return (
-            <li key={note.assessmentId} className="rounded-2xl border border-line p-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <StatusPill tone={published ? "green" : "slate"}>{published ? "Đã phát hành" : "Nháp"}</StatusPill>
-                <span className="font-semibold">Chỉ số {note.criterionCode}</span>
-                <span className="text-ink-soft">{assessmentCriterionLabels[note.criterionCode]}</span>
+            <li key={note.assessmentId} className="py-5 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                <span className={`text-xs font-semibold uppercase tracking-wide ${published ? "text-leaf" : "text-ink-soft"}`}>{published ? "Đã phát hành" : "Nháp"}</span>
+                <span className="font-semibold">Chỉ số {note.criterionCode} · {assessmentCriterionLabels[note.criterionCode]}</span>
                 <span className="text-ink-soft">{formatDateOnly(note.periodStart)} – {formatDateOnly(note.periodEnd)}</span>
               </div>
               {editing === note.assessmentId && editingNote ? (
@@ -176,29 +175,29 @@ export function ChildAssessmentsPanel({ api, classId, childId }: { api: Classroo
                 <p className="mt-2 whitespace-pre-line text-[15px] leading-7">{note.content}</p>
               )}
               {editing !== note.assessmentId && (
-                <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                   {!published && (
                     <button type="button" className="asset-button-primary" disabled={busy || creating} onClick={() => void run(() => api.publishAssessment(classId, childId, note.assessmentId))}>
                       Phát hành
                     </button>
                   )}
-                  <button type="button" className="asset-button-secondary" disabled={busy || creating} onClick={() => { setEditing(note.assessmentId); setError(""); }}>
+                  <button type="button" className="asset-text-button text-ink-soft" disabled={busy || creating} onClick={() => { setEditing(note.assessmentId); setError(""); }}>
                     Sửa
                   </button>
-                  {!published && (
-                    <button type="button" className="asset-button-danger" disabled={busy || creating} onClick={() => void run(() => api.deleteAssessment(classId, childId, note.assessmentId))}>
-                      Xóa nháp
+                  {note.revisionCount > 0 && (
+                    <button type="button" className="asset-text-button text-ink-soft" onClick={() => setOpenHistory(openHistory === note.assessmentId ? null : note.assessmentId)}>
+                      {openHistory === note.assessmentId ? "Ẩn lịch sử" : `Lịch sử sửa (${note.revisionCount})`}
                     </button>
                   )}
-                  {note.revisionCount > 0 && (
-                    <button type="button" className="asset-button-secondary" onClick={() => setOpenHistory(openHistory === note.assessmentId ? null : note.assessmentId)}>
-                      {openHistory === note.assessmentId ? "Ẩn lịch sử" : `Lịch sử sửa (${note.revisionCount})`}
+                  {!published && (
+                    <button type="button" className="asset-text-button text-berry" disabled={busy || creating} onClick={() => void run(() => api.deleteAssessment(classId, childId, note.assessmentId))}>
+                      Xóa nháp
                     </button>
                   )}
                 </div>
               )}
               {openHistory === note.assessmentId && (
-                <div className="mt-3">
+                <div className="mt-4 border-t border-line pt-4">
                   <History api={api} classId={classId} childId={childId} assessmentId={note.assessmentId} />
                 </div>
               )}

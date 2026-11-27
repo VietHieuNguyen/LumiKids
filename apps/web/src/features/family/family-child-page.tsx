@@ -220,15 +220,15 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
             {notes.error && <ErrorBanner message={notes.error} onRetry={notes.reload} />}
             {notes.data && notes.data.length === 0 && <p className="text-sm text-ink-soft">Chưa có nhận xét nào.</p>}
             {notes.data && notes.data.length > 0 && (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-line">
                 {notes.data.map((note) => (
-                  <li key={note.assessmentId} className="rounded-2xl border border-line p-4">
-                    <p className="text-sm font-semibold">{assessmentCriterionLabels[note.criterionCode] ?? `Chỉ số ${note.criterionCode}`}</p>
-                    <p className="text-xs text-ink-soft">
+                  <li key={note.assessmentId} className="py-5 first:pt-0 last:pb-0">
+                    <p className="text-sm font-semibold">Chỉ số {note.criterionCode} · {assessmentCriterionLabels[note.criterionCode]}</p>
+                    <p className="mt-1 text-xs text-ink-soft">
                       {formatDateOnly(note.periodStart)} – {formatDateOnly(note.periodEnd)} · {note.authorName}
                       {note.publishedAt && ` · phát hành ${formatDate(note.publishedAt)}`}
                     </p>
-                    <p className="mt-2 whitespace-pre-line text-[15px] leading-7">{note.content}</p>
+                    <p className="mt-3 whitespace-pre-line text-[15px] leading-7">{note.content}</p>
                   </li>
                 ))}
               </ul>
