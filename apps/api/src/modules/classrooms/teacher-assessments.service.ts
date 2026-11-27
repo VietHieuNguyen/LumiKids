@@ -167,6 +167,13 @@ export class TeacherAssessmentsService {
     return view(await this.requireNote(childId, assessmentId));
   }
 
+  /** Parents see only published notes, never drafts or the edit history (FR-4.3). The caller checks the guardian link. */
+  async listPublished(childId: string): Promise<TeacherAssessment[]> {
+    return (await this.repository.list(childId))
+      .filter((row) => row.status === 'PUBLISHED')
+      .map(view);
+  }
+
   /** Only a draft is deleted. A published note stays in the record, so its history is kept. */
   async remove(teacher: Principal, classId: string, childId: string, assessmentId: string) {
     await this.requireChildInClass(teacher, classId, childId);

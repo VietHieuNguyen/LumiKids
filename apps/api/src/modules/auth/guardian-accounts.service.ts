@@ -29,6 +29,7 @@ export function toGuardianAccount(row: GuardianRow): GuardianAccount {
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.authSessions[0]?.createdAt.toISOString() ?? null,
+    lockedUntil: row.lockedUntil?.toISOString() ?? null,
     children: (row.guardianProfile?.children ?? []).map(({ child }) => ({
       childId: child.childId,
       fullName: child.fullName,
@@ -122,6 +123,13 @@ export class GuardianAccountsService {
   ): Promise<GuardianAccount> {
     await this.requireVerified(userId);
     await this.repository.setStatus(userId, input.status);
+    return this.require(userId);
+  }
+
+  /** Clears the 15-minute sign-in lock after repeated wrong passwords (AC-02). */
+  async unlock(userId: string): Promise<GuardianAccount> {
+    await this.require(userId);
+    await this.repository.clearLoginLock(userId);
     return this.require(userId);
   }
 

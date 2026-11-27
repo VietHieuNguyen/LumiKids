@@ -136,4 +136,15 @@ describe('TeacherAssessmentsService (FR-3.1)', () => {
     const { service, classId, childId } = setup({ note: null });
     await expect(service.detail(teacher, classId, childId, randomUUID())).rejects.toThrow(NotFoundException);
   });
+
+  it('shows a parent only published notes, never drafts', async () => {
+    const { service, repository, childId } = setup({});
+    repository.list.mockResolvedValueOnce([
+      row({ status: 'DRAFT', content: 'nháp' }),
+      row({ status: 'PUBLISHED', content: 'đã phát hành' }),
+    ] as never);
+    const visible = await service.listPublished(childId);
+    expect(visible.map((note) => note.content)).toEqual(['đã phát hành']);
+    expect(visible[0]).not.toHaveProperty('revisions');
+  });
 });

@@ -14,6 +14,7 @@ const teacherSelect = {
   phone: true,
   status: true,
   createdAt: true,
+  lockedUntil: true,
   teacherProfile: { select: { specialization: true } },
   authSessions: {
     orderBy: { createdAt: 'desc' },
@@ -123,6 +124,11 @@ export class TeacherAccountsRepository {
   }
 
   /** New password hash; every open session of the account is revoked in the same transaction. */
+  /** Admin unlock: the wrong-password count and lock end are cleared. */
+  clearLoginLock(userId: string) {
+    return this.prisma.user.update({ where: { userId }, data: { failedLoginCount: 0, lockedUntil: null } });
+  }
+
   async setPassword(userId: string, passwordHash: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { userId }, data: { passwordHash } });

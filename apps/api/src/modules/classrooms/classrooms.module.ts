@@ -13,6 +13,6 @@ import { TeacherClassroomsController } from './teacher-classrooms.controller.js'
   imports: [PrismaModule, AuthModule],
   controllers: [TeacherAssessmentsController, AdminClassroomsController, TeacherClassroomsController],
   providers: [ClassroomsRepository, ClassroomsService, TeacherAssessmentsRepository, TeacherAssessmentsService],
-  exports: [ClassroomsService],
+  exports: [ClassroomsService, TeacherAssessmentsService],
 })
 export class ClassroomsModule {}

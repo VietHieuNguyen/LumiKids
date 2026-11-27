@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ageGroupAccepts, ageInMonths, vietnamDate } from "@lumikids/shared";
+import { ageGroupAccepts, ageInMonths, assessmentCriterionLabels, vietnamDate } from "@lumikids/shared";
 import type { AgeGroup, FamilyActivity, FamilyChild, SavedGame } from "@lumikids/shared";
 import { classroomError } from "../classrooms/api";
 import type { ClassroomApi } from "../classrooms/api";
@@ -38,6 +38,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
   const activities = useResource(child ? (signal) => family.activities(childId, signal) : null, `activities:${childId}`);
   const [page, setPage] = useState(1);
   const history = useResource((signal) => family.playHistory(childId, page, signal), `${childId}:${page}`);
+  const notes = useResource((signal) => family.teacherNotes(childId, signal), childId);
   const [dialog, setDialog] = useState<"edit" | "code" | "pick" | null>(null);
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -214,6 +215,24 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
             {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
             {history.data?.pagination.total === 0 && <p className="text-sm text-ink-soft">Con chưa chơi trò nào.</p>}
             {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
+          </Panel>
+          <Panel title="Nhận xét của giáo viên" description="Chỉ hiện nhận xét giáo viên đã phát hành về con.">
+            {notes.error && <ErrorBanner message={notes.error} onRetry={notes.reload} />}
+            {notes.data && notes.data.length === 0 && <p className="text-sm text-ink-soft">Chưa có nhận xét nào.</p>}
+            {notes.data && notes.data.length > 0 && (
+              <ul className="space-y-3">
+                {notes.data.map((note) => (
+                  <li key={note.assessmentId} className="rounded-2xl border border-line p-4">
+                    <p className="text-sm font-semibold">{assessmentCriterionLabels[note.criterionCode] ?? `Chỉ số ${note.criterionCode}`}</p>
+                    <p className="text-xs text-ink-soft">
+                      {formatDateOnly(note.periodStart)} – {formatDateOnly(note.periodEnd)} · {note.authorName}
+                      {note.publishedAt && ` · phát hành ${formatDate(note.publishedAt)}`}
+                    </p>
+                    <p className="mt-2 whitespace-pre-line text-[15px] leading-7">{note.content}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
       </div>

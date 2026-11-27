@@ -35,6 +35,7 @@ function toAccount(row: TeacherRow): TeacherAccount {
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.authSessions[0]?.createdAt.toISOString() ?? null,
+    lockedUntil: row.lockedUntil?.toISOString() ?? null,
     classes: row.classrooms.map(({ classroom }) => ({
       classId: classroom.classId,
       className: classroom.className,
@@ -108,6 +109,13 @@ export class TeacherAccountsService {
   }
 
   /** Forgotten password: a new temporary one, and the teacher is signed out everywhere. */
+  /** Clears the 15-minute sign-in lock after repeated wrong passwords (AC-02). */
+  async unlock(userId: string): Promise<TeacherAccount> {
+    await this.require(userId);
+    await this.repository.clearLoginLock(userId);
+    return this.require(userId);
+  }
+
   async resetPassword(userId: string): Promise<IssuedPassword> {
     await this.require(userId);
     const password = temporaryPassword();

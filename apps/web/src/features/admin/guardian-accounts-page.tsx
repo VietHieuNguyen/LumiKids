@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BulkAccountStatusResult, ChildSharing, GuardianAccount, GuardianPick, IssuedGuardianPassword } from "@lumikids/shared";
+import { classroomError } from "../classrooms/api";
 import type { ClassroomApi } from "../classrooms/api";
 import { ClassroomShell, ErrorBanner, Notice, Panel } from "../classrooms/classroom-shell";
 import { useClassroomSession } from "../classrooms/use-classroom-session";
@@ -42,7 +43,7 @@ import { AdminApi } from "./api";
 import { lastSeenLabel } from "./format";
 import { PasswordDialog } from "./teacher-accounts-page";
 
-type Pending = { kind: "status" | "reset"; account: GuardianAccount } | null;
+type Pending = { kind: "status" | "reset" | "unlock"; account: GuardianAccount } | null;
 
 /** "2021-05-02" → whole years on `now`. */
 function ageLabel(dob: string, now: Date): string {
@@ -82,6 +83,15 @@ function Accounts({ api }: { api: ClassroomApi }) {
   const params = toParams({ ...filter, sort: state.sort, dir: state.dir, page: state.page, pageSize: pageSizeOf(state.size) });
   const accounts = useResource((signal) => admin.guardians(params, signal), params.toString());
   const [pending, setPending] = useState<Pending>(null);
+  const [lockError, setLockError] = useState("");
+  /** Unlock needs no confirmation: it only clears the lock; the other actions open a dialog. */
+  const pickRow = (next: NonNullable<Pending>) => {
+    if (next.kind !== "unlock") return setPending(next);
+    void admin
+      .unlockGuardian(next.account.userId)
+      .then((account) => replace(account))
+      .catch((failure) => setLockError(classroomError(failure)));
+  };
   const [issued, setIssued] = useState<IssuedGuardianPassword | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<"ACTIVE" | "DISABLED" | null>(null);
@@ -228,7 +238,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
                         <p className="text-xs text-ink-soft">Đăng nhập: {lastSeenLabel(account.lastLoginAt, now).toLowerCase()}</p>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3"><AccountStatusPill status={account.status} /></td>
-                      <td className="px-3 py-3"><RowActions account={account} onPick={setPending} /></td>
+                      <td className="px-3 py-3"><RowActions account={account} onPick={pickRow} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -255,7 +265,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
                     <AccountStatusPill status={account.status} />
                   </div>
                   <div className="mt-3 pl-[6.5rem]"><ChildrenList account={account} now={now} /></div>
-                  <div className="mt-3 pl-[6.5rem]"><RowActions account={account} onPick={setPending} /></div>
+                  <div className="mt-3 pl-[6.5rem]"><RowActions account={account} onPick={pickRow} /></div>
                 </li>
               ))}
             </ul>
@@ -270,7 +280,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
           admin={admin}
           account={detail}
           now={now}
-          onPick={setPending}
+          onPick={pickRow}
           onClose={() => setDetailId(null)}
         />
       )}
@@ -336,6 +346,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
           }}
         />
       )}
+      {lockError && <p role="alert" className="asset-error">{lockError}</p>}
       {issued && <PasswordDialog issued={issued} reason="reset" onClose={() => setIssued(null)} />}
     </ClassroomShell>
   );
@@ -365,12 +376,16 @@ function ChildrenList({ account, now }: { account: GuardianAccount; now: Date })
   );
 }
 
-function RowActions({ account, onPick }: { account: GuardianAccount; onPick: (pending: Pending) => void }) {
+function RowActions({ account, onPick }: { account: GuardianAccount; onPick: (pending: NonNullable<Pending>) => void }) {
   if (account.status === "PENDING_VERIFICATION")
     return <span className="sr-only">Chưa có thao tác: phụ huynh chưa xác minh email</span>;
   const active = account.status === "ACTIVE";
+  const locked = account.lockedUntil !== null && new Date(account.lockedUntil) > new Date();
   return (
     <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
+      {locked && (
+        <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick({ kind: "unlock", account })}>Mở khóa đăng nhập</button>
+      )}
       {active && (
         <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick({ kind: "reset", account })}>
           Đặt lại mật khẩu
@@ -404,7 +419,7 @@ function GuardianDrawer({
   admin: AdminApi;
   account: GuardianAccount;
   now: Date;
-  onPick: (pending: Pending) => void;
+  onPick: (pending: NonNullable<Pending>) => void;
   onClose: () => void;
 }) {
   const detail = useResource((signal) => admin.guardianDetail(account.userId, signal), `guardian:${account.userId}`);

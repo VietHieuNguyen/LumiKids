@@ -55,6 +55,9 @@ export class AdminApi {
       await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}`, { method: "PATCH", body: input }),
     );
   }
+  async unlockGuardian(userId: string) {
+    return guardianAccountSchema.parse(await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}/unlock`, { method: "POST", body: {} }));
+  }
   async resetGuardianPassword(userId: string) {
     return issuedGuardianPasswordSchema.parse(
       await this.api.raw(`/admin/guardian-accounts/${encodeURIComponent(userId)}/password-reset`, { method: "POST", body: {} }),
@@ -104,6 +107,11 @@ export class AdminApi {
   }
   async removeLogo() {
     return siteSettingsSchema.parse(await this.api.raw("/admin/site-settings/logo", { method: "DELETE" }));
+  }
+
+  /** Clears a sign-in lock after five wrong passwords (FR-1.1 AC-02). */
+  async unlockTeacher(userId: string) {
+    return teacherAccountSchema.parse(await this.api.raw(`/admin/teacher-accounts/${encodeURIComponent(userId)}/unlock`, { method: "POST", body: {} }));
   }
 
   async resetPassword(userId: string) {

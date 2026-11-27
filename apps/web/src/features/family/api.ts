@@ -6,6 +6,7 @@ import {
   invitePreviewSchema,
   issuedLoginCodeSchema,
   playHistoryPageSchema,
+  teacherAssessmentListSchema,
   SHARING_CONSENT_VERSION,
 } from "@lumikids/shared";
 import type { CreateFamilyActivityInput, CreateFamilyChildInput, UpdateFamilyChildInput } from "@lumikids/shared";
@@ -31,6 +32,10 @@ export class FamilyApi {
   async playHistory(childId: string, page: number, signal?: AbortSignal) {
     const query = new URLSearchParams({ page: String(page), pageSize: "20" });
     return playHistoryPageSchema.parse(await this.api.raw(`/family/children/${id(childId)}/play-sessions?${query}`, { signal }));
+  }
+  /** FR-4.3: the teacher's published notes only; drafts never reach the family. */
+  async teacherNotes(childId: string, signal?: AbortSignal) {
+    return teacherAssessmentListSchema.parse(await this.api.raw(`/family/children/${id(childId)}/teacher-notes`, { signal }));
   }
   async activities(childId: string, signal?: AbortSignal) {
     return familyActivityListSchema.parse(await this.api.raw(`/family/children/${id(childId)}/activities`, { signal }));

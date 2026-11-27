@@ -10,6 +10,21 @@ const dateOnly = z.iso.date();
 /** Chỉ số Nhận thức 42–52; 51 has no requirement to name the group (see system.md). */
 export const assessmentCriterionCodeSchema = z.string().regex(/^(4[2-9]|5[0-2])$/, "Chỉ số phải nằm trong 42–52.");
 
+/** Tên chỉ số theo Quyết định 4222/QĐ-BGDĐT, mục IV (Lĩnh vực Nhận thức), rút gọn đúng nội dung. */
+export const assessmentCriterionLabels: Readonly<Record<string, string>> = {
+  "42": "Tách, gộp số lượng trong phạm vi 10",
+  "43": "So sánh, thêm, bớt số lượng trong phạm vi 10",
+  "44": "Đo độ dài, dung tích bằng đơn vị đo ước lệ",
+  "45": "Xác định hình phẳng và hình khối đơn giản",
+  "46": "Sắp xếp theo quy tắc",
+  "47": "Xác định vị trí trong không gian theo vật chuẩn",
+  "48": "Phân biệt hôm qua, hôm nay, ngày mai và các ngày trong tuần",
+  "49": "Xác định giờ đúng trên đồng hồ",
+  "50": "Nhận biết đặc điểm và sự thay đổi của môi trường tự nhiên",
+  "51": "Phân loại sự vật thành nhóm theo đặc điểm chung",
+  "52": "Giải thích mối quan hệ giữa động vật, thực vật và môi trường sống",
+};
+
 export const teacherAssessmentStatusSchema = z.enum(["DRAFT", "PUBLISHED"]);
 
 const assessmentFieldsShape = {

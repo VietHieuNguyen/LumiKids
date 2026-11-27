@@ -15,6 +15,7 @@ const guardianSelect = {
   phone: true,
   status: true,
   createdAt: true,
+  lockedUntil: true,
   guardianProfile: {
     select: {
       relationship: true,
@@ -151,6 +152,11 @@ export class GuardianAccountsRepository {
           data: { revokedAt: new Date() },
         });
     });
+  }
+
+  /** Admin unlock: the wrong-password count and lock end are cleared. */
+  clearLoginLock(userId: string) {
+    return this.prisma.user.update({ where: { userId }, data: { failedLoginCount: 0, lockedUntil: null } });
   }
 
   async setPassword(userId: string, passwordHash: string): Promise<void> {
