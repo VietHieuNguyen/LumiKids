@@ -74,6 +74,13 @@ export class FamilyController {
       parse(playHistoryQuerySchema, value, 'Bộ lọc lịch sử chơi không hợp lệ.'),
     );
   }
+  @Get('children/:childId/teacher-notes')
+  teacherNotes(
+    @CurrentUser() guardian: Principal,
+    @Param('childId', ParseUUIDPipe) childId: string,
+  ) {
+    return this.family.teacherNotes(guardian, childId);
+  }
   @Get('children/:childId/activities')
   activities(
     @CurrentUser() guardian: Principal,

@@ -40,6 +40,8 @@ export const teacherAccountSchema = z.object({
   createdAt: z.iso.datetime(),
   /** Last time the teacher signed in (newest auth session), null if never. */
   lastLoginAt: z.iso.datetime().nullable(),
+  /** Sign-in is refused until this time after five wrong passwords (FR-1.1 AC-02); null when not locked. */
+  lockedUntil: z.iso.datetime().nullable(),
   classes: z.array(
     z.object({
       classId: z.uuid(),
@@ -85,6 +87,7 @@ export const guardianAccountSchema = z.object({
   status: accountStatusSchema,
   createdAt: z.iso.datetime(),
   lastLoginAt: z.iso.datetime().nullable(),
+  lockedUntil: z.iso.datetime().nullable(),
   children: z.array(
     z.object({
       childId: z.uuid(),

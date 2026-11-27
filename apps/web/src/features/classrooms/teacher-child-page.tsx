@@ -13,6 +13,7 @@ import {
   genderLabels,
   localToday,
 } from "./format";
+import { ChildAssessmentsPanel } from "./child-assessments-panel";
 import { LoginCodeDialog } from "./login-code-dialog";
 import { PlayHistoryTable } from "./play-history-table";
 import { useClassroomSession } from "./use-classroom-session";
@@ -119,12 +120,15 @@ function ChildResults({
             </dl>
           </Panel>
         </aside>
+        <div className="min-w-0 space-y-6">
         <Panel title="Kết quả chơi" description="Chỉ gồm các lượt chơi trong thời gian trẻ học lớp này. Điểm = (số nhiệm vụ đúng ngay lần đầu + 0,5 × số nhiệm vụ sửa đúng) ÷ tổng nhiệm vụ × 100, tính khi trẻ chơi xong; lượt bỏ dở không chấm.">
           {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
           {history.loading && !history.data && <p role="status" className="text-sm">Đang tải lịch sử…</p>}
           {history.data && history.data.pagination.total === 0 && <p className="text-sm text-ink-soft">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
           {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
         </Panel>
+        {scope === "teacher" && <ChildAssessmentsPanel api={api} classId={classId} childId={childId} />}
+        </div>
       </div>
       {issuing && classroom.data && (
         <LoginCodeDialog

@@ -98,7 +98,18 @@ function Accounts({ api }: { api: ClassroomApi }) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<"ACTIVE" | "DISABLED" | null>(null);
   const detail = all.find((account) => account.userId === detailId) ?? null;
-  const pick = (account: TeacherAccount) => (kind: "edit" | "status" | "reset") => setDialog({ kind, account });
+  const [lockError, setLockError] = useState("");
+  const pick = (account: TeacherAccount) => (kind: "edit" | "status" | "reset" | "unlock") => {
+    if (kind === "unlock") return void unlock(account);
+    setDialog({ kind, account });
+  };
+  const unlock = async (account: TeacherAccount) => {
+    try {
+      replace(await admin.unlockTeacher(account.userId));
+    } catch (failure) {
+      setLockError(classroomError(failure));
+    }
+  };
 
   return (
     <ClassroomShell
@@ -354,6 +365,7 @@ function Accounts({ api }: { api: ClassroomApi }) {
           }}
         />
       )}
+      {lockError && <p role="alert" className="asset-error">{lockError}</p>}
       {issued && <PasswordDialog issued={issued.result} reason={issued.reason} onClose={() => setIssued(null)} />}
     </ClassroomShell>
   );
@@ -369,7 +381,7 @@ function TeacherDrawer({
   admin: AdminApi;
   account: TeacherAccount;
   now: Date;
-  onPick: (kind: "edit" | "status" | "reset") => void;
+  onPick: (kind: "edit" | "status" | "reset" | "unlock") => void;
   onClose: () => void;
 }) {
   const detail = useResource((signal) => admin.teacherDetail(account.userId, signal), `teacher:${account.userId}`);
@@ -449,10 +461,14 @@ function ClassChips({ classes }: { classes: TeacherAccount["classes"] }) {
   );
 }
 
-function TeacherActions({ account, onPick }: { account: TeacherAccount; onPick: (kind: "edit" | "status" | "reset") => void }) {
+function TeacherActions({ account, onPick }: { account: TeacherAccount; onPick: (kind: "edit" | "status" | "reset" | "unlock") => void }) {
   const active = account.status === "ACTIVE";
+  const locked = account.lockedUntil !== null && new Date(account.lockedUntil) > new Date();
   return (
     <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
+      {locked && (
+        <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick("unlock")}>Mở khóa đăng nhập</button>
+      )}
       <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick("edit")}>Sửa</button>
       {active && (
         <button type="button" className="asset-button-secondary whitespace-nowrap" onClick={() => onPick("reset")}>Đặt lại mật khẩu</button>

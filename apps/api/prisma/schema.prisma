@@ -58,6 +58,9 @@ model User {
   address         String
   passwordHash    String
   status          AccountStatus        @default(DISABLED)
+  /// Wrong-password count since the last success; reaching the limit locks login until lockedUntil.
+  failedLoginCount Int                 @default(0)
+  lockedUntil     DateTime?            @db.Timestamptz(3)
   createdAt       DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
   roles           UserRole[]
@@ -73,6 +76,7 @@ model User {
   guardianProfile Guardian?
   verification    EmailVerification?
   classInvites    ClassInvite[]
+  teacherAssessments TeacherAssessment[]
   joinDecisions   ClassJoinRequest[]
   lessonPlans     LessonPlan[]         @relation("LessonPlanCreator")
   editedPlans     LessonPlan[]         @relation("LessonPlanEditor")
@@ -158,6 +162,50 @@ enum ChildStatus {
 }
 
 /// A child is not a User: no email or password. Children sign in with a personal code issued by a teacher.
+enum TeacherAssessmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/// FR-3.1: a teacher's own observation of one child on one criterion. Stored apart from the automatic
+/// results: it never feeds SkillState or adaptive decisions (BR-10).
+model TeacherAssessment {
+  assessmentId  String                  @id @default(uuid()) @db.Uuid
+  childId       String                  @db.Uuid
+  child         Child                   @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  classId       String                  @db.Uuid
+  classroom     Classroom               @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  authorId      String                  @db.Uuid
+  author        User                    @relation(fields: [authorId], references: [userId], onDelete: Restrict)
+  /// Chỉ số Nhận thức 42–52 (không có 51 chỉ tên nhóm); validated in the API.
+  criterionCode String                  @db.VarChar(4)
+  periodStart   DateTime                @db.Date
+  periodEnd     DateTime                @db.Date
+  content       String                  @db.VarChar(2000)
+  status        TeacherAssessmentStatus @default(DRAFT)
+  publishedAt   DateTime?               @db.Timestamptz(3)
+  createdAt     DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                @updatedAt @db.Timestamptz(3)
+  revisions     TeacherAssessmentRevision[]
+
+  @@index([childId, periodEnd])
+}
+
+/// The state a change replaced. Written before each edit, so nothing is overwritten silently (AC-04).
+model TeacherAssessmentRevision {
+  revisionId   String            @id @default(uuid()) @db.Uuid
+  assessmentId String            @db.Uuid
+  assessment   TeacherAssessment @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade)
+  revisionNo   Int
+  changedBy    String            @db.Uuid
+  changedAt    DateTime          @default(now()) @db.Timestamptz(3)
+  reason       String?           @db.VarChar(500)
+  /// The replaced values: criterionCode, periodStart, periodEnd, content, status.
+  previous     Json
+
+  @@unique([assessmentId, revisionNo])
+}
+
 model Child {
   childId           String                @id @default(uuid()) @db.Uuid
   fullName          String                @db.VarChar(200)
@@ -177,6 +225,7 @@ model Child {
   guardians         GuardianChild[]
   joinRequests      ClassJoinRequest[]
   consents          SharingConsent[]
+  teacherAssessments TeacherAssessment[]
 }
 
 model SchoolYear {
@@ -224,6 +273,7 @@ model Classroom {
 
   @@unique([schoolYearId, className])
   @@index([status])
+  teacherAssessments TeacherAssessment[]
 }
 
 model ClassroomTeacher {

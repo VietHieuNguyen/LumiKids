@@ -15,6 +15,10 @@ import type { Principal } from '../../common/security/principal.js';
 import type { LoginDto } from './dto/login.dto.js';
 import { ApiProblem } from '../../common/http/api-problem.js';
 
+/** FR-1.1 AC-02: five wrong passwords lock sign-in for 15 minutes. */
+const LOGIN_FAILURE_LIMIT = 5;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -54,12 +58,20 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const account = await this.users.findForLogin(dto.email);
+    const now = new Date();
+    // Still hashed while locked, so a locked account answers as slowly as any other.
     const valid = await this.passwords.verify(
       dto.password,
       account?.passwordHash,
     );
-    if (!account || !valid)
+    if (account?.lockedUntil && account.lockedUntil > now)
       throw new UnauthorizedException('Invalid email or password.');
+    if (!account || !valid) {
+      if (account) await this.users.recordFailedLogin(account.userId, LOGIN_FAILURE_LIMIT, LOGIN_LOCK_MS, now);
+      throw new UnauthorizedException('Invalid email or password.');
+    }
+    if (account.failedLoginCount > 0 || account.lockedUntil)
+      await this.users.clearFailedLogins(account.userId);
     // Only someone who knows the password learns that the email still needs verifying.
     if (account.status === 'PENDING_VERIFICATION')
       throw new ApiProblem('ACCOUNT_NOT_VERIFIED');

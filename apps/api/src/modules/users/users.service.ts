@@ -37,7 +37,30 @@ export class UsersService {
   findForLogin(email: string) {
     return this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
-      select: { ...accountSelect, passwordHash: true },
+      select: { ...accountSelect, passwordHash: true, failedLoginCount: true, lockedUntil: true },
+    });
+  }
+
+  /** Counts one wrong password; at the limit, locks sign-in until `lockedUntil`. Returns the new state. */
+  async recordFailedLogin(userId: string, limit: number, lockMs: number, now: Date) {
+    const row = await this.prisma.user.update({
+      where: { userId },
+      data: { failedLoginCount: { increment: 1 } },
+      select: { failedLoginCount: true },
+    });
+    if (row.failedLoginCount < limit) return { lockedUntil: null };
+    const lockedUntil = new Date(now.getTime() + lockMs);
+    await this.prisma.user.update({
+      where: { userId },
+      data: { failedLoginCount: 0, lockedUntil },
+    });
+    return { lockedUntil };
+  }
+
+  async clearFailedLogins(userId: string) {
+    await this.prisma.user.update({
+      where: { userId },
+      data: { failedLoginCount: 0, lockedUntil: null },
     });
   }
 

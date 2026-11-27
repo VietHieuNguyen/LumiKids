@@ -90,4 +90,10 @@ export class AdminTeacherAccountsController {
   resetPassword(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.accounts.resetPassword(userId);
   }
+
+  @Post(':userId/unlock')
+  @HttpCode(200)
+  unlock(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.accounts.unlock(userId);
+  }
 }

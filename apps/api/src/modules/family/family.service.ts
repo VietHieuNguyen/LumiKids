@@ -21,6 +21,7 @@ import { ApiProblem } from '../../common/http/api-problem.js';
 import type { Principal } from '../../common/security/principal.js';
 import { ChildAuthService } from '../auth/child-auth.service.js';
 import { ClassroomsService } from '../classrooms/classrooms.service.js';
+import { TeacherAssessmentsService } from '../classrooms/teacher-assessments.service.js';
 import { AssignmentsService } from '../learning-content/assignments.service.js';
 import { FamilyRepository } from './family.repository.js';
 import type { FamilyChildRow } from './family.repository.js';
@@ -72,6 +73,7 @@ export class FamilyService {
   constructor(
     private readonly repository: FamilyRepository,
     private readonly classrooms: ClassroomsService,
+    private readonly assessments: TeacherAssessmentsService,
     private readonly assignments: AssignmentsService,
     private readonly childAuth: ChildAuthService,
     @Inject(familyConfig.KEY)
@@ -129,6 +131,12 @@ export class FamilyService {
   ): Promise<PlayHistoryPage> {
     await this.requireChild(guardian, childId);
     return this.classrooms.childPlayHistory(childId, query);
+  }
+
+  /** FR-4.3: the teacher's published notes on the child, for the linked guardian only. */
+  async teacherNotes(guardian: Principal, childId: string) {
+    await this.requireChild(guardian, childId);
+    return this.assessments.listPublished(childId);
   }
 
   async activities(guardian: Principal, childId: string): Promise<FamilyActivity[]> {

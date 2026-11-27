@@ -53,6 +53,8 @@ describe('Auth HTTP contract (offline)', () => {
       .overrideProvider(PrismaService)
       .useValue({
         user: {
+          // Failed-login counting writes here; the fixture only needs it not to fail.
+          update: () => Promise.resolve({ failedLoginCount: 1 }),
           findUnique: ({
             where,
           }: {
