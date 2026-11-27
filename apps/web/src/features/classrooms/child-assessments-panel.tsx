@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { assessmentCriterionLabels } from "@lumikids/shared";
 import type { TeacherAssessment, TeacherAssessmentDetail } from "@lumikids/shared";
 import { classroomError } from "./api";
 import type { ClassroomApi } from "./api";
@@ -154,6 +155,7 @@ export function ChildAssessmentsPanel({ api, classId, childId }: { api: Classroo
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <StatusPill tone={published ? "green" : "slate"}>{published ? "Đã phát hành" : "Nháp"}</StatusPill>
                 <span className="font-semibold">Chỉ số {note.criterionCode}</span>
+                <span className="text-ink-soft">{assessmentCriterionLabels[note.criterionCode]}</span>
                 <span className="text-ink-soft">{formatDateOnly(note.periodStart)} – {formatDateOnly(note.periodEnd)}</span>
               </div>
               {editing === note.assessmentId && editingNote ? (
