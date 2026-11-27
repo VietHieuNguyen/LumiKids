@@ -190,7 +190,7 @@ export function ChildAssessmentsPanel({ api, classId, childId }: { api: Classroo
                     </button>
                   )}
                   {!published && (
-                    <button type="button" className="asset-text-button text-berry" disabled={busy || creating} onClick={() => void run(() => api.deleteAssessment(classId, childId, note.assessmentId))}>
+                    <button type="button" className="asset-text-button !text-berry hover:!text-ink" disabled={busy || creating} onClick={() => void run(() => api.deleteAssessment(classId, childId, note.assessmentId))}>
                       Xóa nháp
                     </button>
                   )}
