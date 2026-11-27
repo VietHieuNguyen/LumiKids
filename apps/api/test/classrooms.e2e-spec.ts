@@ -9,6 +9,7 @@ import { UsersService } from '../src/modules/users/users.service.js';
 import { ChildAuthService } from '../src/modules/auth/child-auth.service.js';
 import { ClassroomsService } from '../src/modules/classrooms/classrooms.service.js';
 import { AssignmentsService } from '../src/modules/learning-content/assignments.service.js';
+import { TeacherAssessmentsService } from '../src/modules/classrooms/teacher-assessments.service.js';
 import { configureHttp } from '../src/common/http/configure-http.js';
 import {
   stubStorageEnvironment,
@@ -41,6 +42,14 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     childId: randomUUID(),
     fullName: 'Bé An',
     permissions: ['PLAY_GAMES'],
+  };
+  const assessments = {
+    list: vi.fn(() => Promise.resolve([])),
+    create: vi.fn(() => Promise.resolve({})),
+    detail: vi.fn(() => Promise.resolve({})),
+    update: vi.fn(() => Promise.resolve({})),
+    publish: vi.fn(() => Promise.resolve({})),
+    remove: vi.fn(() => Promise.resolve({ deleted: true })),
   };
   const classrooms = {
     listClassrooms: vi.fn(() => Promise.resolve([])),
@@ -93,6 +102,8 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
       .useValue({ requireActiveChild: () => Promise.resolve(child) })
       .overrideProvider(ClassroomsService)
       .useValue(classrooms)
+      .overrideProvider(TeacherAssessmentsService)
+      .useValue(assessments)
       .overrideProvider(AssignmentsService)
       .useValue(assignments)
       .compile();
@@ -317,6 +328,30 @@ describe('Classrooms HTTP contract (offline; service mocked)', () => {
     );
     await request(app.getHttpServer())
       .get(`/api/v1/teacher/classrooms/${randomUUID()}/assignments`)
+      .auth(await token('child'), { type: 'bearer' })
+      .expect(403);
+  });
+
+  it('keeps teacher assessments for teachers, checks the body first, and refuses children', async () => {
+    const classId = randomUUID();
+    const childId = randomUUID();
+    const base = `/api/v1/teacher/classrooms/${classId}/children/${childId}/assessments`;
+    actor = teacher;
+    await request(app.getHttpServer()).get(base).expect(401);
+    await request(app.getHttpServer())
+      .post(base)
+      .auth(await token(), { type: 'bearer' })
+      .send({ criterionCode: '41', periodStart: '2026-11-01', periodEnd: '2026-11-30', content: 'x' })
+      .expect(400);
+    expect(assessments.create).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .post(base)
+      .auth(await token(), { type: 'bearer' })
+      .send({ criterionCode: '43', periodStart: '2026-11-01', periodEnd: '2026-11-30', content: 'Bé đếm đúng.' })
+      .expect(201);
+    expect(assessments.create).toHaveBeenCalledWith(expect.anything(), classId, childId, expect.objectContaining({ criterionCode: '43' }));
+    await request(app.getHttpServer())
+      .get(base)
       .auth(await token('child'), { type: 'bearer' })
       .expect(403);
   });

@@ -1,4 +1,7 @@
 import {
+  teacherAssessmentListSchema,
+  teacherAssessmentSchema,
+  teacherAssessmentDetailSchema,
   assignmentDetailSchema,
   assignmentSummaryListSchema,
   classGroupListSchema,
@@ -26,6 +29,8 @@ import {
   schoolYearSchema,
 } from "@lumikids/shared";
 import type {
+  CreateTeacherAssessmentInput,
+  UpdateTeacherAssessmentInput,
   CreateAssignmentInput,
   CreateClassGroupInput,
   DecideReplayInput,
@@ -209,6 +214,34 @@ export class ClassroomApi {
     return classroomChildDetailSchema.parse(
       await this.request(`${classPath(scope, classId)}/children/${ClassroomApi.id(childId)}`, { signal }),
     );
+  }
+  /** FR-3.1 teacher notes on one child. Only the class teacher reaches these routes. */
+  assessmentPath(classId: string, childId: string) {
+    return `/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/assessments`;
+  }
+  async assessments(classId: string, childId: string, signal?: AbortSignal) {
+    return teacherAssessmentListSchema.parse(await this.request(this.assessmentPath(classId, childId), { signal }));
+  }
+  async assessment(classId: string, childId: string, assessmentId: string, signal?: AbortSignal) {
+    return teacherAssessmentDetailSchema.parse(
+      await this.request(`${this.assessmentPath(classId, childId)}/${ClassroomApi.id(assessmentId)}`, { signal }),
+    );
+  }
+  async createAssessment(classId: string, childId: string, input: CreateTeacherAssessmentInput) {
+    return teacherAssessmentSchema.parse(await this.request(this.assessmentPath(classId, childId), { method: "POST", body: input }));
+  }
+  async updateAssessment(classId: string, childId: string, assessmentId: string, input: UpdateTeacherAssessmentInput) {
+    return teacherAssessmentSchema.parse(
+      await this.request(`${this.assessmentPath(classId, childId)}/${ClassroomApi.id(assessmentId)}`, { method: "PATCH", body: input }),
+    );
+  }
+  async publishAssessment(classId: string, childId: string, assessmentId: string) {
+    return teacherAssessmentSchema.parse(
+      await this.request(`${this.assessmentPath(classId, childId)}/${ClassroomApi.id(assessmentId)}/publish`, { method: "POST" }),
+    );
+  }
+  async deleteAssessment(classId: string, childId: string, assessmentId: string) {
+    await this.request(`${this.assessmentPath(classId, childId)}/${ClassroomApi.id(assessmentId)}`, { method: "DELETE" });
   }
   async playHistory(classId: string, childId: string, page: number, signal?: AbortSignal, scope: ClassroomScope = "teacher") {
     return playHistoryPageSchema.parse(

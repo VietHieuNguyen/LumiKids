@@ -13,6 +13,7 @@ import {
   genderLabels,
   localToday,
 } from "./format";
+import { ChildAssessmentsPanel } from "./child-assessments-panel";
 import { LoginCodeDialog } from "./login-code-dialog";
 import { PlayHistoryTable } from "./play-history-table";
 import { useClassroomSession } from "./use-classroom-session";
@@ -125,6 +126,7 @@ function ChildResults({
           {history.data && history.data.pagination.total === 0 && <p className="text-sm text-ink-soft">Trẻ chưa chơi trò nào trong thời gian học lớp này.</p>}
           {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
         </Panel>
+        {scope === "teacher" && <ChildAssessmentsPanel api={api} classId={classId} childId={childId} />}
       </div>
       {issuing && classroom.data && (
         <LoginCodeDialog

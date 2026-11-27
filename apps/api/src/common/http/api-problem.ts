@@ -125,6 +125,13 @@ const problems = {
   CLASSROOM_NAME_TAKEN: [409, 'Năm học này đã có lớp trùng tên.'],
   CLASSROOM_REFERENCE_INVALID: [422, 'Năm học hoặc nhóm tuổi không tồn tại.'],
   CLASSROOM_ARCHIVED: [409, 'Lớp đã lưu trữ, không thể thay đổi.'],
+  ASSESSMENT_REASON_REQUIRED: [400, 'Sửa nhận xét đã phát hành cần ghi lý do.'],
+  ASSESSMENT_NOT_DRAFT: [409, 'Nhận xét này đã phát hành.'],
+  ASSESSMENT_PUBLISHED_NOT_DELETABLE: [
+    409,
+    'Nhận xét đã phát hành không xóa được; hãy sửa có lý do để giữ lịch sử.',
+  ],
+  ASSESSMENT_PERIOD_INVALID: [400, 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.'],
   CLASSROOM_NOT_EMPTY: [
     409,
     'Lớp còn trẻ đang học. Hãy chuyển trẻ sang lớp khác trước khi lưu trữ.',
