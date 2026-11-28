@@ -219,8 +219,22 @@ export class ClassroomsRepository {
     className: string;
     schoolYearId: string;
     ageGroupId: string;
+    teacherUserIds?: readonly string[];
   }) {
-    return this.prisma.classroom.create({ data, select: { classId: true } });
+    // The service requires at least one teacher; the data layer only stores what it is given.
+    const { teacherUserIds = [], ...fields } = data;
+    return this.prisma.classroom.create({
+      data: {
+        ...fields,
+        teachers: { create: teacherUserIds.map((userId) => ({ userId })) },
+      },
+      select: { classId: true },
+    });
+  }
+  teacherIds(classId: string) {
+    return this.prisma.classroomTeacher
+      .findMany({ where: { classId }, select: { userId: true } })
+      .then((rows) => rows.map((row) => row.userId));
   }
   updateClassroom(
     classId: string,
@@ -288,11 +302,11 @@ export class ClassroomsRepository {
     });
   }
   /** The child and the first enrollment, with one clock (the API's) for every period boundary. */
-  createChild(profile: ChildProfileData, classId: string, now: Date) {
+  createChild(profile: ChildProfileData, classId: string | null, now: Date) {
     return this.prisma.child.create({
       data: {
         ...profile,
-        enrollments: { create: { classId, startedAt: now } },
+        ...(classId ? { enrollments: { create: { classId, startedAt: now } } } : {}),
       },
       select: { childId: true },
     });

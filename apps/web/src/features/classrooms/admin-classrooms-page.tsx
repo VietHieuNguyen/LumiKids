@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import type { ClassroomSummary, SchoolYear } from "@lumikids/shared";
+import type { ClassroomSummary, ClassroomTeacher, SchoolYear } from "@lumikids/shared";
 import { classroomError } from "./api";
 import type { ClassroomApi } from "./api";
 import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
@@ -264,13 +264,25 @@ function CreateClassroomForm({
   const [ageGroupId, setAgeGroupId] = useState(ageGroups[0]?.ageGroupId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [teachers, setTeachers] = useState<ClassroomTeacher[] | null>(null);
+  const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    api.teachers().then((rows) => active && setTeachers(rows)).catch((failure: unknown) => active && setError(classroomError(failure)));
+    return () => {
+      active = false;
+    };
+  }, [api]);
+  function toggleTeacher(userId: string) {
+    setTeacherIds((current) => (current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]));
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || teacherIds.length === 0) return;
     setBusy(true);
     setError("");
     try {
-      const created = await api.createClassroom({ className: className.trim(), schoolYearId: year.schoolYearId, ageGroupId });
+      const created = await api.createClassroom({ className: className.trim(), schoolYearId: year.schoolYearId, ageGroupId, teacherUserIds: teacherIds });
       onCreated({ classId: created.classId, className: created.className });
     } catch (failure) {
       setError(classroomError(failure));
@@ -292,9 +304,28 @@ function CreateClassroomForm({
         </select>
         <p className="mt-1 text-[13px] text-ink-soft">Trò chơi giao cho lớp phải cùng nhóm tuổi.</p>
       </div>
+      <fieldset>
+        <legend className="asset-label">Giáo viên phụ trách</legend>
+        <p className="mt-1 text-[13px] text-ink-soft">Lớp cần ít nhất một giáo viên phụ trách.</p>
+        {teachers === null && !error && <p className="mt-2 text-sm text-ink-soft">Đang tải danh sách giáo viên…</p>}
+        {teachers && teachers.length === 0 && <p className="mt-2 text-sm text-ink-soft">Chưa có giáo viên nào. Hãy thêm giáo viên trước khi tạo lớp.</p>}
+        {teachers && teachers.length > 0 && (
+          <ul className="mt-2 space-y-2">
+            {teachers.map((teacher) => (
+              <li key={teacher.userId}>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={teacherIds.includes(teacher.userId)} onChange={() => toggleTeacher(teacher.userId)} disabled={busy} />
+                  <span>{teacher.fullName}</span>
+                  <span className="text-ink-soft">{teacher.email}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </fieldset>
       {error && <p role="alert" className="asset-error">{error}</p>}
       <div className="flex justify-end">
-        <button className="asset-button-primary" disabled={busy || !className.trim()}>{busy ? "Đang tạo…" : "Tạo lớp"}</button>
+        <button className="asset-button-primary" disabled={busy || !className.trim() || teacherIds.length === 0}>{busy ? "Đang tạo…" : "Tạo lớp"}</button>
       </div>
     </form>
   );

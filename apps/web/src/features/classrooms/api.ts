@@ -278,6 +278,10 @@ export class ClassroomApi {
     );
   }
 
+  /** Admin may issue a child's code in any class or at home. */
+  async issueChildCodeAsAdmin(childId: string) {
+    return issuedLoginCodeSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-code`, "POST"));
+  }
   async issueLoginCode(classId: string, childId: string) {
     return issuedLoginCodeSchema.parse(
       await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/login-code`, "POST"),
