@@ -67,7 +67,28 @@ function SchoolYears({ api }: { api: ClassroomApi }) {
           </div>
         )}
         {all.length > 0 && (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <ul className="divide-y divide-line md:hidden">
+            {all.map((year) => {
+              const state = phase(year, today);
+              return (
+                <li key={year.schoolYearId} className="space-y-3 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="break-words font-semibold">{year.name}</h3>
+                    <StatusPill tone={state.tone}>{state.label}</StatusPill>
+                  </div>
+                  <p className="text-sm text-ink-soft">{formatDateOnly(year.startDate)} – {formatDateOnly(year.endDate)}</p>
+                  <p className="text-sm">{year.activeClassroomCount} lớp đang hoạt động · {year.childCount} trẻ đang học</p>
+                  <div className="flex flex-wrap gap-2">
+                    {year.classroomCount > 0 && <Link className="asset-button-secondary" href={`/admin/classrooms?year=${year.schoolYearId}`}>Xem {year.classroomCount} lớp</Link>}
+                    <button type="button" className="asset-button-secondary" onClick={() => setDialog({ year })} aria-label={`Sửa năm học ${year.name}`}>Sửa</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {all.length > 0 && (
+          <div className="hidden max-w-full overflow-x-auto md:block">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-b border-line text-ink-soft">
                 <tr>

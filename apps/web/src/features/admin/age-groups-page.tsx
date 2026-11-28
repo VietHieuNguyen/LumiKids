@@ -32,6 +32,15 @@ function AgeGroups({ api }: { api: ClassroomApi }) {
   const [error, setError] = useState("");
   const all = groups.data ?? [];
 
+  function orderButtons(group: AgeGroupUsage, index: number) {
+    return (
+      <div className="flex items-center gap-1">
+        <button type="button" className="asset-button-secondary size-11 shrink-0 !p-0" disabled={moving || index === 0} onClick={() => move(index, -1)} aria-label={`Đưa ${group.name} lên trên`}><Arrow up /></button>
+        <button type="button" className="asset-button-secondary size-11 shrink-0 !p-0" disabled={moving || index === all.length - 1} onClick={() => move(index, 1)} aria-label={`Đưa ${group.name} xuống dưới`}><Arrow up={false} /></button>
+      </div>
+    );
+  }
+
   async function move(index: number, by: -1 | 1) {
     const target = index + by;
     if (moving || target < 0 || target >= all.length) return;
@@ -51,10 +60,32 @@ function AgeGroups({ api }: { api: ClassroomApi }) {
   return (
     <ClassroomShell title="Nhóm tuổi" eyebrow="Quản trị">
       {(groups.error || error) && <ErrorBanner message={groups.error || error} onRetry={() => { setError(""); groups.reload(); }} />}
-      <Panel title="Nhóm tuổi" description="Thứ tự ở đây là thứ tự hiện trong mọi danh sách chọn nhóm tuổi (tạo lớp, lưu trò chơi, giáo án).">
+      <Panel title="Danh sách nhóm tuổi" description="Các mục chọn nhóm tuổi khi tạo lớp, lưu trò chơi và soạn giáo án dùng thứ tự này.">
         {groups.loading && !groups.data && <p role="status" className="py-6 text-sm text-ink-soft">Đang tải nhóm tuổi…</p>}
+        {groups.data && all.length === 0 && <p className="py-6 text-sm text-ink-soft">Chưa có nhóm tuổi nào.</p>}
         {all.length > 0 && (
-          <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <ul className="divide-y divide-line md:hidden">
+            {all.map((group, index) => (
+              <li key={group.ageGroupId} className="space-y-3 py-4">
+                <div>
+                  <h3 className="break-words font-semibold">{group.name}</h3>
+                  <p className="text-sm text-ink-soft">{group.minAge}–{group.maxAge} tuổi · {group.minAge * 12}–{group.maxAge * 12 - 1} tháng</p>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 text-sm">
+                  <div><dt className="text-ink-soft">Lớp</dt><dd className="font-medium">{group.activeClassroomCount}{group.classroomCount > group.activeClassroomCount && ` / ${group.classroomCount}`}</dd></div>
+                  <div><dt className="text-ink-soft">Trò chơi</dt><dd className="font-medium">{group.activityCount}</dd></div>
+                  <div><dt className="text-ink-soft">Giáo án</dt><dd className="font-medium">{group.lessonPlanCount}</dd></div>
+                </dl>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {orderButtons(group, index)}
+                  <button type="button" className="asset-button-secondary" onClick={() => setRenaming(group)}>Đổi tên</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {all.length > 0 && (
+          <div className="hidden max-w-full overflow-x-auto md:block">
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="border-b border-line text-ink-soft">
                 <tr>
@@ -71,10 +102,7 @@ function AgeGroups({ api }: { api: ClassroomApi }) {
                 {all.map((group, index) => (
                   <tr key={group.ageGroupId}>
                     <td className="px-4 py-2.5 sm:px-3">
-                      <div className="flex items-center gap-1">
-                        <button type="button" className="asset-button-secondary grid h-8 w-8 place-items-center" style={{ padding: 0, minHeight: 32 }} disabled={moving || index === 0} onClick={() => move(index, -1)} aria-label={`Đưa ${group.name} lên trên`}><Arrow up /></button>
-                        <button type="button" className="asset-button-secondary grid h-8 w-8 place-items-center" style={{ padding: 0, minHeight: 32 }} disabled={moving || index === all.length - 1} onClick={() => move(index, 1)} aria-label={`Đưa ${group.name} xuống dưới`}><Arrow up={false} /></button>
-                      </div>
+                      {orderButtons(group, index)}
                     </td>
                     <td className="px-3 py-2.5 font-semibold">{group.name}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">

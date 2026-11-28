@@ -2,13 +2,12 @@
 import type { SupportChildView } from "@lumikids/shared";
 import { supportChildViewSchema } from "@lumikids/shared";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill } from "../classrooms/classroom-shell";
-import { formatDateOnly, formatDateTime, genderLabels } from "../classrooms/format";
+import { formatDateOnly, formatDateTime, genderLabels, playStatusLabels } from "../classrooms/format";
 import { useClassroomSession } from "../classrooms/use-classroom-session";
 import { useResource } from "../classrooms/use-resource";
 
 /**
- * Support staff view of a home child. The server answers only while the guardian's grant runs; every view is
- * recorded in the audit log, so this page is read-only and shows nothing else about the child.
+ * Read-only support view. The API checks access and records each view in the audit log.
  */
 export function AdminSupportChildPage({ childId }: { childId: string }) {
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
@@ -40,7 +39,11 @@ function SupportView({ childId, load }: { childId: string; load: (signal: AbortS
       title={data.child.fullName}
       eyebrow="Hỗ trợ kỹ thuật · chỉ đọc"
       back={back}
-      actions={<StatusPill tone="amber">Cho phép đến {formatDateTime(data.grant.expiresAt)}</StatusPill>}
+      actions={data.grant ? (
+        <StatusPill tone="amber">Cho phép đến {formatDateTime(data.grant.expiresAt)}</StatusPill>
+      ) : (
+        <StatusPill tone="slate">Môi trường phát triển</StatusPill>
+      )}
     >
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <Panel title="Thông tin">
@@ -53,19 +56,21 @@ function SupportView({ childId, load }: { childId: string; load: (signal: AbortS
           {data.sessions.length === 0 ? (
             <p className="text-sm text-ink-soft">Chưa có lượt chơi nào.</p>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="text-ink-soft"><tr><th className="py-2 font-medium">Bắt đầu</th><th className="font-medium">Nơi chơi</th><th className="font-medium">Trạng thái</th><th className="text-right font-medium">Số thao tác</th></tr></thead>
-              <tbody>
-                {data.sessions.map((row) => (
-                  <tr key={row.sessionId} className="border-t border-line">
-                    <td className="py-2">{formatDateTime(row.startedAt)}</td>
-                    <td>{row.context === "HOME" ? "Ở nhà" : "Ở lớp"}</td>
-                    <td>{row.status}</td>
-                    <td className="text-right tabular-nums">{row.eventCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="max-w-full overflow-x-auto" role="region" aria-label="Lượt chơi gần đây" tabIndex={0}>
+              <table className="w-full min-w-[380px] text-left text-sm">
+                <thead className="text-ink-soft"><tr><th className="py-2 font-medium">Bắt đầu</th><th className="font-medium">Nơi chơi</th><th className="font-medium">Trạng thái</th><th className="text-right font-medium">Số thao tác</th></tr></thead>
+                <tbody>
+                  {data.sessions.map((row) => (
+                    <tr key={row.sessionId} className="border-t border-line">
+                      <td className="py-2">{formatDateTime(row.startedAt)}</td>
+                      <td>{row.context === "HOME" ? "Ở nhà" : "Ở lớp"}</td>
+                      <td>{playStatusLabels[row.status as keyof typeof playStatusLabels] ?? row.status}</td>
+                      <td className="text-right tabular-nums">{row.eventCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       </div>

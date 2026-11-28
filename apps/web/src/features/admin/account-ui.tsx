@@ -42,15 +42,14 @@ export function StatusFilter<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-paper p-1" role="tablist" aria-label="Lọc theo trạng thái">
+    <div className="flex max-w-full flex-wrap gap-1 rounded-lg border border-line bg-paper p-1" role="group" aria-label="Lọc theo trạng thái">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
-          role="tab"
-          aria-selected={value === option.value}
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition ${
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium transition sm:min-h-8 ${
             value === option.value ? "bg-ink text-paper" : "text-ink-soft hover:bg-leaf-soft hover:text-ink"
           }`}
         >
