@@ -121,7 +121,7 @@ export function AttributeEditor({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${prefix}-heading`} className="asset-label">
           Đặc điểm hình ảnh{" "}
-          <span className="font-normal text-ink-soft/70">· tùy chọn</span>
+          <span className="font-normal text-ink-soft">· tùy chọn</span>
         </h3>
         <button
           type="button"

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useId } from "react";
 import type { ReactNode } from "react";
 import { StaffPage } from "@/components/staff-shell";
 
@@ -90,13 +91,14 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
 
 /** A native <dialog> opened as a modal on mount; Escape and the close button both call onClose. */
 export function Dialog({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  const titleId = useId();
   return (
     <dialog
       ref={(node) => {
         if (node && !node.open) node.showModal();
       }}
       className={`asset-dialog ${wide ? "max-w-2xl" : "max-w-md"}`}
-      aria-labelledby="dialog-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -104,7 +106,7 @@ export function Dialog({ title, onClose, children, wide = false }: { title: stri
     >
       <div className="p-5 sm:p-7">
         <div className="flex items-start justify-between gap-3">
-          <h2 id="dialog-title" className="font-display text-2xl font-bold leading-tight">{title}</h2>
+          <h2 id={titleId} className="min-w-0 break-words font-display text-2xl font-bold leading-tight">{title}</h2>
           <button type="button" className="asset-icon-button -mr-2 -mt-1" onClick={onClose} aria-label="Đóng">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           </button>

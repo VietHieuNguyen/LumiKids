@@ -12,7 +12,7 @@ export function PlayHistoryTable({ data, loading, page, onPage }: { data: PlayHi
   return (
     <>
     {data && data.items.length > 0 && (
-      <div className="-mx-4 overflow-x-auto sm:mx-0" aria-busy={loading}>
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-md" role="region" aria-label="Bảng lượt chơi" aria-busy={loading} tabIndex={0}>
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead className="border-b border-line text-ink-soft">
             <tr>
