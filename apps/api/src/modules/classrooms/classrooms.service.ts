@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
 import { ADMIN_CHILD_ID_LIMIT, sessionPerformanceSchema } from '@lumikids/shared';
 import type { CriterionEvaluationView } from '@lumikids/shared';
 import type {
@@ -148,6 +149,7 @@ export class ClassroomsService {
   constructor(
     private readonly repository: ClassroomsRepository,
     private readonly childAuth: ChildAuthService,
+    private readonly audit: AuditService,
   ) {}
 
   // ---------- Admin: catalogues ----------
@@ -700,7 +702,10 @@ export class ClassroomsService {
     for (const id of childIds) {
       try {
         const issued = await this.childAuth.issueFirstCodeInClass(id, classId, teacher.userId);
-        if (issued) result.issued.push({ childId: id, code: issued.code, issuedAt: issued.issuedAt.toISOString() });
+        if (issued) {
+          result.issued.push({ childId: id, code: issued.code, issuedAt: issued.issuedAt.toISOString() });
+          await this.audit.record({ actorUserId: teacher.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: id, detail: { channel: 'CLASS_INITIAL', classId } });
+        }
         else result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
       } catch {
         result.skipped.push({ id, reason: 'FAILED' });
@@ -727,6 +732,7 @@ export class ClassroomsService {
     if (classroom?.status !== 'ACTIVE')
       throw new ApiProblem('CLASSROOM_ARCHIVED');
     const { code, issuedAt } = await this.childAuth.issueLoginCode(childId);
+    await this.audit.record({ actorUserId: teacher.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: childId, detail: { channel: 'CLASS', classId } });
     return { childId, code, issuedAt: issuedAt.toISOString() };
   }
 }
