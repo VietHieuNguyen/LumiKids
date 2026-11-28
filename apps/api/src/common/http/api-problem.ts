@@ -210,6 +210,8 @@ const problems = {
   ],
   CONSENT_REQUIRED: [422, 'Cần đồng ý chia sẻ dữ liệu học tập với lớp.'],
   FAMILY_CHILD_NOT_FOUND: [404, 'Không tìm thấy hồ sơ trẻ của bạn.'],
+  SUPPORT_ACCESS_REQUIRED: [403, 'Chưa có quyền hỗ trợ cho hồ sơ này, hoặc quyền đã hết hạn.'],
+  SUPPORT_GRANT_NOT_FOUND: [404, 'Không tìm thấy quyền hỗ trợ này.'],
   FAMILY_CHILD_CLASS_MANAGED: [
     409,
     'Trẻ đang học ở lớp; mã đăng nhập do giáo viên của lớp cấp.',

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
 import type {
   BulkAccountStatusInput,
   BulkAccountStatusResult,
@@ -49,6 +50,7 @@ export class GuardianAccountsService {
     private readonly repository: GuardianAccountsRepository,
     private readonly passwords: PasswordService,
     private readonly statuses: AccountStatusRepository,
+    private readonly audit: AuditService,
   ) {}
 
   /** The admin's side panel: each child's class, whether play is shared with it, and the last play. */
@@ -127,9 +129,10 @@ export class GuardianAccountsService {
   }
 
   /** Clears the 15-minute sign-in lock after repeated wrong passwords (AC-02). */
-  async unlock(userId: string): Promise<GuardianAccount> {
+  async unlock(actorUserId: string, userId: string): Promise<GuardianAccount> {
     await this.require(userId);
     await this.repository.clearLoginLock(userId);
+    await this.audit.record({ actorUserId, action: 'ACCOUNT_LOCK_CLEARED', targetType: 'User', targetId: userId });
     return this.require(userId);
   }
 

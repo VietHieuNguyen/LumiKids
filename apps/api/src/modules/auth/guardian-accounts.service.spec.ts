@@ -1,3 +1,4 @@
+import type { AuditService } from '../audit/audit.service.js';
 import { guardianQuerySchema } from '@lumikids/shared';
 import { randomUUID } from 'node:crypto';
 import type { ApiProblem } from '../../common/http/api-problem.js';
@@ -84,6 +85,7 @@ function setup(
     repository as unknown as GuardianAccountsRepository,
     passwords as unknown as PasswordService,
     statuses as unknown as AccountStatusRepository,
+    { record: vi.fn(() => Promise.resolve()) } as unknown as AuditService,
   );
   return { service, repository, userId, classId };
 }

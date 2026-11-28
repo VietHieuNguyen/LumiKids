@@ -102,7 +102,7 @@ export class FamilyRepository {
     data: { fullName: string; dob: Date; gender: Gender },
   ): Promise<string> {
     const child = await this.prisma.child.create({
-      data: { ...data, guardians: { create: { guardianId } } },
+      data: { ...data, origin: 'FAMILY', guardians: { create: { guardianId } } },
       select: { childId: true },
     });
     return child.childId;

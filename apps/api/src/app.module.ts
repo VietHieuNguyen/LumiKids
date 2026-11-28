@@ -14,6 +14,7 @@ import { GameplayModule } from './modules/gameplay/gameplay.module.js';
 import { ClassroomsModule } from './modules/classrooms/classrooms.module.js';
 import { AdminOverviewModule } from './modules/admin-overview/admin-overview.module.js';
 import { FamilyModule } from './modules/family/family.module.js';
+import { SupportAccessModule } from './modules/support-access/support-access.module.js';
 import { LessonPlansModule } from './modules/lesson-plans/lesson-plans.module.js';
 import { SiteSettingsModule } from './modules/site-settings/site-settings.module.js';
 import { apiEnvFiles } from './common/config/env-files.js';
@@ -39,6 +40,7 @@ import {
     ClassroomsModule,
     AdminOverviewModule,
     FamilyModule,
+    SupportAccessModule,
     LessonPlansModule,
     SiteSettingsModule,
   ],

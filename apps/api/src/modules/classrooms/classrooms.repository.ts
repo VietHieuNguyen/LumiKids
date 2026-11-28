@@ -42,8 +42,16 @@ const directoryChildSelect = {
   },
 } as const satisfies Prisma.ChildSelect;
 
+/**
+ * FR-1.7 AC-02: school staff see school children only. A home profile that never joined a class belongs to
+ * the family; support access is the only way staff reach it.
+ */
+export const schoolChildWhere: Prisma.ChildWhereInput = {
+  OR: [{ origin: 'SCHOOL' }, { enrollments: { some: { endedAt: null } } }],
+};
+
 function childDirectoryWhere(filter: AdminChildFilter): Prisma.ChildWhereInput {
-  const and: Prisma.ChildWhereInput[] = [];
+  const and: Prisma.ChildWhereInput[] = [schoolChildWhere];
   for (const word of filter.q.split(/\s+/).filter(Boolean))
     and.push({ fullName: { contains: word, mode: 'insensitive' } });
   if (filter.classId === 'none') and.push({ enrollments: { none: { endedAt: null } } });
@@ -313,10 +321,12 @@ export class ClassroomsRepository {
         take: query.pageSize,
         select: directoryChildSelect,
       }),
-      this.prisma.child.count(),
-      this.prisma.child.count({ where: { enrollments: { none: { endedAt: null } } } }),
-      this.prisma.child.count({ where: { status: 'ACTIVE', loginCodeIssuedAt: null } }),
-      this.prisma.child.count({ where: { status: 'DISABLED' } }),
+      this.prisma.child.count({ where: schoolChildWhere }),
+      this.prisma.child.count({
+        where: { AND: [schoolChildWhere, { origin: 'SCHOOL', enrollments: { none: { endedAt: null } } }] },
+      }),
+      this.prisma.child.count({ where: { AND: [schoolChildWhere, { status: 'ACTIVE', loginCodeIssuedAt: null }] } }),
+      this.prisma.child.count({ where: { AND: [schoolChildWhere, { status: 'DISABLED' }] } }),
     ]);
     return { total, rows, counts: { all, unassigned, withoutCode, disabled } };
   }

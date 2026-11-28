@@ -51,35 +51,35 @@ enum GameAssetStatus {
 }
 
 model User {
-  userId          String               @id @default(uuid()) @db.Uuid
-  fullName        String
-  email           String               @unique
-  phone           String
-  address         String
-  passwordHash    String
-  status          AccountStatus        @default(DISABLED)
+  userId             String               @id @default(uuid()) @db.Uuid
+  fullName           String
+  email              String               @unique
+  phone              String
+  address            String
+  passwordHash       String
+  status             AccountStatus        @default(DISABLED)
   /// Wrong-password count since the last success; reaching the limit locks login until lockedUntil.
-  failedLoginCount Int                 @default(0)
-  lockedUntil     DateTime?            @db.Timestamptz(3)
-  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
-  roles           UserRole[]
-  authSessions    AuthSession[]
-  gameAssets      GameAsset[]
-  activities      Activity[]
-  classrooms      ClassroomTeacher[]
-  classGroups     ClassGroup[]
-  assignments     ActivityAssignment[]
-  replayDecisions ReplayRequest[]
-  aiTokenUsage    AiTokenUsage[]
-  teacherProfile  Teacher?
-  guardianProfile Guardian?
-  verification    EmailVerification?
-  classInvites    ClassInvite[]
+  failedLoginCount   Int                  @default(0)
+  lockedUntil        DateTime?            @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime             @updatedAt @db.Timestamptz(3)
+  roles              UserRole[]
+  authSessions       AuthSession[]
+  gameAssets         GameAsset[]
+  activities         Activity[]
+  classrooms         ClassroomTeacher[]
+  classGroups        ClassGroup[]
+  assignments        ActivityAssignment[]
+  replayDecisions    ReplayRequest[]
+  aiTokenUsage       AiTokenUsage[]
+  teacherProfile     Teacher?
+  guardianProfile    Guardian?
+  verification       EmailVerification?
+  classInvites       ClassInvite[]
   teacherAssessments TeacherAssessment[]
-  joinDecisions   ClassJoinRequest[]
-  lessonPlans     LessonPlan[]         @relation("LessonPlanCreator")
-  editedPlans     LessonPlan[]         @relation("LessonPlanEditor")
+  joinDecisions      ClassJoinRequest[]
+  lessonPlans        LessonPlan[]         @relation("LessonPlanCreator")
+  editedPlans        LessonPlan[]         @relation("LessonPlanEditor")
 }
 
 /// Teacher profile of a User holding ROLE_TEACHER (system.md data dictionary: Teacher extends User).
@@ -98,12 +98,13 @@ enum GuardianRelationship {
 
 /// Guardian profile of a User holding ROLE_GUARDIAN (system.md data dictionary: Guardian extends User).
 model Guardian {
-  userId       String               @id @db.Uuid
-  user         User                 @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  relationship GuardianRelationship
-  children     GuardianChild[]
-  joinRequests ClassJoinRequest[]
-  consents     SharingConsent[]
+  userId        String               @id @db.Uuid
+  user          User                 @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  relationship  GuardianRelationship
+  children      GuardianChild[]
+  supportGrants SupportGrant[]
+  joinRequests  ClassJoinRequest[]
+  consents      SharingConsent[]
 }
 
 /// A confirmed care relationship: the guardian may manage this child's profile (BR-04).
@@ -170,22 +171,22 @@ enum TeacherAssessmentStatus {
 /// FR-3.1: a teacher's own observation of one child on one criterion. Stored apart from the automatic
 /// results: it never feeds SkillState or adaptive decisions (BR-10).
 model TeacherAssessment {
-  assessmentId  String                  @id @default(uuid()) @db.Uuid
-  childId       String                  @db.Uuid
-  child         Child                   @relation(fields: [childId], references: [childId], onDelete: Restrict)
-  classId       String                  @db.Uuid
-  classroom     Classroom               @relation(fields: [classId], references: [classId], onDelete: Restrict)
-  authorId      String                  @db.Uuid
-  author        User                    @relation(fields: [authorId], references: [userId], onDelete: Restrict)
+  assessmentId  String                      @id @default(uuid()) @db.Uuid
+  childId       String                      @db.Uuid
+  child         Child                       @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  classId       String                      @db.Uuid
+  classroom     Classroom                   @relation(fields: [classId], references: [classId], onDelete: Restrict)
+  authorId      String                      @db.Uuid
+  author        User                        @relation(fields: [authorId], references: [userId], onDelete: Restrict)
   /// Chỉ số Nhận thức 42–52 (không có 51 chỉ tên nhóm); validated in the API.
-  criterionCode String                  @db.VarChar(4)
-  periodStart   DateTime                @db.Date
-  periodEnd     DateTime                @db.Date
-  content       String                  @db.VarChar(2000)
-  status        TeacherAssessmentStatus @default(DRAFT)
-  publishedAt   DateTime?               @db.Timestamptz(3)
-  createdAt     DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime                @updatedAt @db.Timestamptz(3)
+  criterionCode String                      @db.VarChar(4)
+  periodStart   DateTime                    @db.Date
+  periodEnd     DateTime                    @db.Date
+  content       String                      @db.VarChar(2000)
+  status        TeacherAssessmentStatus     @default(DRAFT)
+  publishedAt   DateTime?                   @db.Timestamptz(3)
+  createdAt     DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                    @updatedAt @db.Timestamptz(3)
   revisions     TeacherAssessmentRevision[]
 
   @@index([childId, periodEnd])
@@ -206,26 +207,36 @@ model TeacherAssessmentRevision {
   @@unique([assessmentId, revisionNo])
 }
 
+enum ChildOrigin {
+  /// Created by a school administrator or teacher; school data.
+  SCHOOL
+  /// Created by a guardian for home use; independent family data until linked to a class.
+  FAMILY
+}
+
+/// Who created the child profile. Decides whether school staff may see it at all (FR-1.7 AC-02).
 model Child {
-  childId           String                @id @default(uuid()) @db.Uuid
-  fullName          String                @db.VarChar(200)
-  dob               DateTime              @db.Date
-  gender            Gender
-  status            ChildStatus           @default(ACTIVE)
+  childId            String                @id @default(uuid()) @db.Uuid
+  fullName           String                @db.VarChar(200)
+  dob                DateTime              @db.Date
+  gender             Gender
+  status             ChildStatus           @default(ACTIVE)
+  origin             ChildOrigin           @default(SCHOOL)
   /// HMAC-SHA256 (hex) of the current login code; the code itself is never stored.
-  loginCodeDigest   String?               @unique @db.Char(64)
-  loginCodeIssuedAt DateTime?             @db.Timestamptz(3)
-  createdAt         DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime              @updatedAt @db.Timestamptz(3)
-  playSessions      PlaySession[]
-  enrollments       ClassroomEnrollment[]
-  authSessions      ChildAuthSession[]
-  groupMemberships  ClassGroupMember[]
-  assignments       ActivityRecipient[]
-  guardians         GuardianChild[]
-  joinRequests      ClassJoinRequest[]
-  consents          SharingConsent[]
+  loginCodeDigest    String?               @unique @db.Char(64)
+  loginCodeIssuedAt  DateTime?             @db.Timestamptz(3)
+  createdAt          DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(3)
+  playSessions       PlaySession[]
+  enrollments        ClassroomEnrollment[]
+  authSessions       ChildAuthSession[]
+  groupMemberships   ClassGroupMember[]
+  assignments        ActivityRecipient[]
+  guardians          GuardianChild[]
+  joinRequests       ClassJoinRequest[]
+  consents           SharingConsent[]
   teacherAssessments TeacherAssessment[]
+  supportGrants      SupportGrant[]
 }
 
 model SchoolYear {
@@ -254,26 +265,26 @@ enum ClassroomStatus {
 }
 
 model Classroom {
-  classId      String                @id @default(uuid()) @db.Uuid
-  className    String                @db.VarChar(100)
-  schoolYearId String                @db.Uuid
-  schoolYear   SchoolYear            @relation(fields: [schoolYearId], references: [schoolYearId], onDelete: Restrict)
-  ageGroupId   String                @db.VarChar(20)
-  ageGroup     AgeGroup              @relation(fields: [ageGroupId], references: [ageGroupId], onDelete: Restrict)
-  status       ClassroomStatus       @default(ACTIVE)
-  createdAt    DateTime              @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime              @updatedAt @db.Timestamptz(3)
-  teachers     ClassroomTeacher[]
-  enrollments  ClassroomEnrollment[]
-  groups       ClassGroup[]
-  assignments  ActivityAssignment[]
-  invites      ClassInvite[]
-  joinRequests ClassJoinRequest[]
-  consents     SharingConsent[]
+  classId            String                @id @default(uuid()) @db.Uuid
+  className          String                @db.VarChar(100)
+  schoolYearId       String                @db.Uuid
+  schoolYear         SchoolYear            @relation(fields: [schoolYearId], references: [schoolYearId], onDelete: Restrict)
+  ageGroupId         String                @db.VarChar(20)
+  ageGroup           AgeGroup              @relation(fields: [ageGroupId], references: [ageGroupId], onDelete: Restrict)
+  status             ClassroomStatus       @default(ACTIVE)
+  createdAt          DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(3)
+  teachers           ClassroomTeacher[]
+  enrollments        ClassroomEnrollment[]
+  groups             ClassGroup[]
+  assignments        ActivityAssignment[]
+  invites            ClassInvite[]
+  joinRequests       ClassJoinRequest[]
+  consents           SharingConsent[]
+  teacherAssessments TeacherAssessment[]
 
   @@unique([schoolYearId, className])
   @@index([status])
-  teacherAssessments TeacherAssessment[]
 }
 
 model ClassroomTeacher {
@@ -332,29 +343,29 @@ enum PlayContext {
 }
 
 model PlaySession {
-  sessionId      String               @id @default(uuid()) @db.Uuid
-  childId        String               @db.Uuid
-  child          Child                @relation(fields: [childId], references: [childId], onDelete: Restrict)
-  versionId      String               @db.Uuid
-  version        ActivityVersion      @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
+  sessionId        String                  @id @default(uuid()) @db.Uuid
+  childId          String                  @db.Uuid
+  child            Child                   @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  versionId        String                  @db.Uuid
+  version          ActivityVersion         @relation(fields: [versionId], references: [versionId], onDelete: Restrict)
   // Legacy sessions have no recorded assignment or configuration.
-  assignmentId   String?              @db.Uuid
-  assignmentItem ActivityAssignmentItem? @relation(fields: [assignmentId, versionId], references: [assignmentId, versionId], onDelete: Restrict)
-  recipient      ActivityRecipient?   @relation(fields: [assignmentId, childId], references: [assignmentId, childId], onDelete: Restrict)
-  context        PlayContext?
-  ageGroup       String?              @db.VarChar(3)
-  difficulty     GameDifficulty?
+  assignmentId     String?                 @db.Uuid
+  assignmentItem   ActivityAssignmentItem? @relation(fields: [assignmentId, versionId], references: [assignmentId, versionId], onDelete: Restrict)
+  recipient        ActivityRecipient?      @relation(fields: [assignmentId, childId], references: [assignmentId, childId], onDelete: Restrict)
+  context          PlayContext?
+  ageGroup         String?                 @db.VarChar(3)
+  difficulty       GameDifficulty?
   hintLimitPerTask Int?
-  status         PlaySessionStatus    @default(IN_PROGRESS)
-  startRequestId String               @db.Uuid
-  eventCount     Int                  @default(0)
-  startedAt      DateTime             @default(now()) @db.Timestamptz(3)
-  endedAt        DateTime?            @db.Timestamptz(3)
-  lastEventAt    DateTime?            @db.Timestamptz(3)
+  status           PlaySessionStatus       @default(IN_PROGRESS)
+  startRequestId   String                  @db.Uuid
+  eventCount       Int                     @default(0)
+  startedAt        DateTime                @default(now()) @db.Timestamptz(3)
+  endedAt          DateTime?               @db.Timestamptz(3)
+  lastEventAt      DateTime?               @db.Timestamptz(3)
   /// SessionPerformance value object, written once when the session completes.
-  performance    Json?                @db.JsonB
-  interactions   InteractionEvent[]
-  evaluation     CriterionEvaluation?
+  performance      Json?                   @db.JsonB
+  interactions     InteractionEvent[]
+  evaluation       CriterionEvaluation?
 
   @@unique([childId, startRequestId])
   @@index([childId, startedAt])
@@ -866,4 +877,33 @@ model SiteSetting {
   logoMimeType  String?  @db.VarChar(50)
   landingScene  String   @default("VALLEY") @db.VarChar(30)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+}
+
+/// FR-1.7 AC-02 / privacy: a guardian lets support staff see one home child for a short, fixed time.
+/// Nothing is shared by default; the grant ends at expiresAt or when revoked.
+model SupportGrant {
+  grantId    String    @id @default(uuid()) @db.Uuid
+  childId    String    @db.Uuid
+  child      Child     @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  guardianId String    @db.Uuid
+  guardian   Guardian  @relation(fields: [guardianId], references: [userId], onDelete: Restrict)
+  grantedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt  DateTime  @db.Timestamptz(3)
+  revokedAt  DateTime? @db.Timestamptz(3)
+
+  @@index([childId, expiresAt])
+}
+
+/// Append-only record of sensitive actions (who, what, when, on whom). Rows are never edited or deleted.
+model AuditLog {
+  auditId     String   @id @default(uuid()) @db.Uuid
+  actorUserId String   @db.Uuid
+  action      String   @db.VarChar(80)
+  targetType  String   @db.VarChar(40)
+  targetId    String   @db.VarChar(64)
+  detail      Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([actorUserId, createdAt])
 }

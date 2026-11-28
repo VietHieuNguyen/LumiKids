@@ -157,6 +157,7 @@ export * from "./site-settings.js";
 export * from "./admin-overview.js";
 export * from "./assessment.js";
 export * from "./teacher-assessment.js";
+export * from "./support-access.js";
 export * from './token-usage.js';
 export * from './age.js';
 export * from './family.js';

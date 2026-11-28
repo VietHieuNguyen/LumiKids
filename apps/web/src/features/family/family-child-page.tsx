@@ -17,6 +17,7 @@ import { difficultyLabels, gameTypeLabels } from "../game-library/library-page";
 import { FamilyApi } from "./api";
 import { ChildFormDialog } from "./child-form-dialog";
 import { childPlace } from "./family-home-page";
+import { SupportAccessPanel } from "./support-access-panel";
 
 export function FamilyChildPage({ childId }: { childId: string }) {
   const { session, loading, api, libraryApi, allowed } = useClassroomSession("MANAGE_FAMILY");
@@ -216,6 +217,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
             {history.data?.pagination.total === 0 && <p className="text-sm text-ink-soft">Con chưa chơi trò nào.</p>}
             {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
           </Panel>
+          <SupportAccessPanel family={family} childId={childId} />
           <Panel title="Nhận xét của giáo viên" description="Chỉ hiện nhận xét giáo viên đã phát hành về con.">
             {notes.error && <ErrorBanner message={notes.error} onRetry={notes.reload} />}
             {notes.data && notes.data.length === 0 && <p className="text-sm text-ink-soft">Chưa có nhận xét nào.</p>}
