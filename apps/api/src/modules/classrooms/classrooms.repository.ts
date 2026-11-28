@@ -50,8 +50,8 @@ export const schoolChildWhere: Prisma.ChildWhereInput = {
   OR: [{ origin: 'SCHOOL' }, { enrollments: { some: { endedAt: null } } }],
 };
 
-function childDirectoryWhere(filter: AdminChildFilter): Prisma.ChildWhereInput {
-  const and: Prisma.ChildWhereInput[] = [schoolChildWhere];
+function childDirectoryWhere(filter: AdminChildFilter, includeHome = false): Prisma.ChildWhereInput {
+  const and: Prisma.ChildWhereInput[] = includeHome ? [] : [schoolChildWhere];
   for (const word of filter.q.split(/\s+/).filter(Boolean))
     and.push({ fullName: { contains: word, mode: 'insensitive' } });
   if (filter.classId === 'none') and.push({ enrollments: { none: { endedAt: null } } });
@@ -318,8 +318,11 @@ export class ClassroomsRepository {
     return this.prisma.child.update({ where: { childId }, data });
   }
   /** One page of the admin directory, filtered and sorted in the database. */
-  async pageChildren(query: AdminChildQuery) {
-    const where = childDirectoryWhere(query);
+  async pageChildren(query: AdminChildQuery, includeHome = false) {
+    // Dev mode (includeHome) lists family children too; counts follow the same scope.
+    const within = (where: Prisma.ChildWhereInput): Prisma.ChildWhereInput =>
+      includeHome ? where : { AND: [schoolChildWhere, where] };
+    const where = childDirectoryWhere(query, includeHome);
     const orderBy: Prisma.ChildOrderByWithRelationInput[] =
       query.sort === 'dob'
         ? [{ dob: query.dir }, { fullName: 'asc' }]
@@ -335,12 +338,12 @@ export class ClassroomsRepository {
         take: query.pageSize,
         select: directoryChildSelect,
       }),
-      this.prisma.child.count({ where: schoolChildWhere }),
+      this.prisma.child.count({ where: includeHome ? {} : schoolChildWhere }),
       this.prisma.child.count({
-        where: { AND: [schoolChildWhere, { origin: 'SCHOOL', enrollments: { none: { endedAt: null } } }] },
+        where: within({ ...(includeHome ? {} : { origin: 'SCHOOL' }), enrollments: { none: { endedAt: null } } }),
       }),
-      this.prisma.child.count({ where: { AND: [schoolChildWhere, { status: 'ACTIVE', loginCodeIssuedAt: null }] } }),
-      this.prisma.child.count({ where: { AND: [schoolChildWhere, { status: 'DISABLED' }] } }),
+      this.prisma.child.count({ where: within({ status: 'ACTIVE', loginCodeIssuedAt: null }) }),
+      this.prisma.child.count({ where: within({ status: 'DISABLED' }) }),
     ]);
     return { total, rows, counts: { all, unassigned, withoutCode, disabled } };
   }

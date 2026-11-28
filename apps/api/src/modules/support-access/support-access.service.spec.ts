@@ -17,7 +17,7 @@ const guardian: Principal = {
 } as unknown as Principal;
 const staff = { ...guardian, userId: randomUUID(), roles: ['ROLE_ADMIN'], permissions: ['MANAGE_CLASSROOMS'] } as unknown as Principal;
 
-function setup(options: { owned?: boolean; grant?: { expiresAt: Date; revokedAt: Date | null } | null }) {
+function setup(options: { owned?: boolean; devMode?: boolean; grant?: { expiresAt: Date; revokedAt: Date | null } | null }) {
   const childId = randomUUID();
   const grantId = randomUUID();
   const repository = {
@@ -36,7 +36,7 @@ function setup(options: { owned?: boolean; grant?: { expiresAt: Date; revokedAt:
     sessions: vi.fn(() => Promise.resolve([{ sessionId: randomUUID(), startedAt: now, endedAt: null, status: 'IN_PROGRESS', context: 'HOME', eventCount: 3 }])),
   };
   const audit = { record: vi.fn(() => Promise.resolve()) };
-  const service = new SupportAccessService(repository as unknown as SupportAccessRepository, audit as unknown as AuditService);
+  const service = new SupportAccessService(repository as unknown as SupportAccessRepository, audit as unknown as AuditService, { devMode: options.devMode ?? false } as never);
   return { service, repository, audit, childId, grantId };
 }
 
@@ -65,7 +65,7 @@ describe('SupportAccessService (privacy)', () => {
     const view = await service.viewForStaff(staff, childId, now);
     expect(view.child.fullName).toBe('Bé An');
     expect(view.sessions[0]?.context).toBe('HOME');
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_DATA_VIEWED', detail: { grantId } }));
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_DATA_VIEWED', detail: { grantId, devMode: false } }));
   });
 
   it('treats an expired or revoked grant as closed', async () => {
@@ -89,5 +89,13 @@ describe('SupportAccessService (privacy)', () => {
     const list = await service.listActiveForStaff(staff, now);
     expect(list).toEqual([{ grantId, childId, childName: 'Bé An', expiresAt: new Date(now.getTime() + 3600_000).toISOString() }]);
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_GRANTS_LISTED', actorUserId: staff.userId }));
+  });
+
+  it('dev mode shows the child without a grant, and still audits the view', async () => {
+    const { service, audit, childId } = setup({ grant: null, devMode: true });
+    const view = await service.viewForStaff(staff, childId, now);
+    expect(view.grant).toBeNull();
+    expect(view.child.fullName).toBe('Bé An');
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_DATA_VIEWED', detail: { grantId: null, devMode: true } }));
   });
 });

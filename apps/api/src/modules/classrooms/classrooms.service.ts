@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import appConfig from '../../common/config/app.config.js';
 import { AuditService } from '../audit/audit.service.js';
 import { ADMIN_CHILD_ID_LIMIT, sessionPerformanceSchema } from '@lumikids/shared';
 import type { CriterionEvaluationView } from '@lumikids/shared';
@@ -150,6 +152,7 @@ export class ClassroomsService {
     private readonly repository: ClassroomsRepository,
     private readonly childAuth: ChildAuthService,
     private readonly audit: AuditService,
+    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
   ) {}
 
   // ---------- Admin: catalogues ----------
@@ -379,7 +382,8 @@ export class ClassroomsService {
     }));
   }
   async pageChildren(query: AdminChildQuery): Promise<AdminChildPage> {
-    const { total, rows, counts } = await this.repository.pageChildren(query);
+    // Dev mode only: Admin sees family children too (see app.config).
+    const { total, rows, counts } = await this.repository.pageChildren(query, this.config.devMode);
     const items = rows.map((child): AdminChild => {
       const enrollment = child.enrollments[0];
       return {

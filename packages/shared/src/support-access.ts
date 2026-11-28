@@ -36,7 +36,8 @@ export const supportChildViewSchema = z.object({
     gender: z.string(),
     status: z.string(),
   }),
-  grant: z.object({ grantId: z.uuid(), expiresAt: z.iso.datetime() }),
+  /** Null only in dev mode, where no guardian grant is needed (the view is still audited). */
+  grant: z.object({ grantId: z.uuid(), expiresAt: z.iso.datetime() }).nullable(),
   sessions: z.array(
     z.object({
       sessionId: z.uuid(),

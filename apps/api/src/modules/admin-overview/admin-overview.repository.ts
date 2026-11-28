@@ -86,11 +86,12 @@ export class AdminOverviewRepository {
     return this.prisma.activity.count({ where: { status: 'ACTIVE' } });
   }
 
-  unassignedChildren() {
+  /** `includeHome` (dev mode only) counts family-created children as well. */
+  unassignedChildren(includeHome = false) {
     return this.prisma.child.count({
       where: {
         status: 'ACTIVE',
-        origin: 'SCHOOL',
+        ...(includeHome ? {} : { origin: 'SCHOOL' }),
         enrollments: { none: { endedAt: null } },
       },
     });
@@ -132,7 +133,9 @@ export class AdminOverviewRepository {
   }
 
   /** Sessions per school-local day from `fromDay` (inclusive). */
-  daily(fromDay: string, timeZone: string) {
+  daily(fromDay: string, timeZone: string, includeHome = false) {
+    const childScope = includeHome ? Prisma.sql`TRUE` : schoolChild;
+    const sessionScope = includeHome ? Prisma.sql`TRUE` : schoolSession;
     return this.prisma.$queryRaw<DayRow[]>(Prisma.sql`
       SELECT to_char((p."startedAt" AT TIME ZONE ${timeZone}), 'YYYY-MM-DD') AS day,
              count(*)::int AS sessions,
@@ -141,19 +144,21 @@ export class AdminOverviewRepository {
       FROM "PlaySession" p
       JOIN "Child" c ON c."childId" = p."childId"
       WHERE (p."startedAt" AT TIME ZONE ${timeZone})::date >= ${fromDay}::date
-        AND ${schoolChild} AND ${schoolSession}
+        AND ${childScope} AND ${sessionScope}
       GROUP BY 1`);
   }
 
   /** Distinct children who played since `fromDay`, overall and per current class. */
-  async activeChildren(fromDay: string, timeZone: string) {
+  async activeChildren(fromDay: string, timeZone: string, includeHome = false) {
+    const childScope = includeHome ? Prisma.sql`TRUE` : schoolChild;
+    const sessionScope = includeHome ? Prisma.sql`TRUE` : schoolSession;
     const [total] = await this.prisma.$queryRaw<{ children: number }[]>(
       Prisma.sql`
         SELECT count(DISTINCT p."childId")::int AS children
         FROM "PlaySession" p
         JOIN "Child" c ON c."childId" = p."childId"
         WHERE (p."startedAt" AT TIME ZONE ${timeZone})::date >= ${fromDay}::date
-          AND ${schoolChild} AND ${schoolSession}`,
+          AND ${childScope} AND ${sessionScope}`,
     );
     const perClass = await this.prisma.$queryRaw<
       { classId: string; children: number }[]
@@ -163,7 +168,7 @@ export class AdminOverviewRepository {
       JOIN "Child" c ON c."childId" = p."childId"
       JOIN "ClassroomEnrollment" e ON e."childId" = p."childId" AND e."endedAt" IS NULL
       WHERE (p."startedAt" AT TIME ZONE ${timeZone})::date >= ${fromDay}::date
-        AND ${schoolSession}
+        AND ${sessionScope}
       GROUP BY 1`);
     return { total: total?.children ?? 0, perClass };
   }

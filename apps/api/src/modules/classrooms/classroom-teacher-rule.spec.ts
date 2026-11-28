@@ -18,6 +18,7 @@ function setup(teachers: string[]) {
     repository as unknown as ClassroomsRepository,
     {} as unknown as ChildAuthService,
     { record: vi.fn(() => Promise.resolve()) } as unknown as AuditService,
+    { devMode: false } as never,
   );
   return { service, repository };
 }

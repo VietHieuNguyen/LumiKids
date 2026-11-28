@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import appConfig from '../../common/config/app.config.js';
 import type { ActiveSupportGrant, CreateSupportGrantInput, SupportChildView, SupportGrant } from '@lumikids/shared';
 import { ApiProblem } from '../../common/http/api-problem.js';
 import type { Principal } from '../../common/security/principal.js';
@@ -29,6 +31,7 @@ export class SupportAccessService {
   constructor(
     private readonly repository: SupportAccessRepository,
     private readonly audit: AuditService,
+    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
   ) {}
 
   private async requireGuardianChild(guardian: Principal, childId: string) {
@@ -94,7 +97,8 @@ export class SupportAccessService {
   /** School staff read a home child only while a grant runs; every read is audited. */
   async viewForStaff(staff: Principal, childId: string, now = new Date()): Promise<SupportChildView> {
     const grant = await this.repository.activeGrant(childId, now);
-    if (!grant) throw new ApiProblem('SUPPORT_ACCESS_REQUIRED');
+    // Dev mode (local only, see app.config) shows the child without a grant; the view is still audited.
+    if (!grant && !this.config.devMode) throw new ApiProblem('SUPPORT_ACCESS_REQUIRED');
     const child = await this.repository.child(childId);
     if (!child) throw new NotFoundException();
     await this.audit.record({
@@ -102,7 +106,7 @@ export class SupportAccessService {
       action: 'SUPPORT_DATA_VIEWED',
       targetType: 'Child',
       targetId: childId,
-      detail: { grantId: grant.grantId },
+      detail: { grantId: grant?.grantId ?? null, devMode: this.config.devMode },
     });
     const sessions = await this.repository.sessions(childId);
     return {
@@ -113,7 +117,7 @@ export class SupportAccessService {
         gender: child.gender,
         status: child.status,
       },
-      grant: { grantId: grant.grantId, expiresAt: grant.expiresAt.toISOString() },
+      grant: grant ? { grantId: grant.grantId, expiresAt: grant.expiresAt.toISOString() } : null,
       sessions: sessions.map((session) => ({
         sessionId: session.sessionId,
         startedAt: session.startedAt.toISOString(),
