@@ -13,6 +13,7 @@ const icons = {
   classrooms: "M3 21V7l9-4 9 4v14M8 21v-6h8v6M7 9h2m6 0h2M7 12h2m6 0h2M1 21h22",
   calendar: "M4 6h16v15H4zM4 10h16M8 3v4m8-4v4M8 14h2m4 0h2M8 17h2",
   ageGroups: "M7 21v-6m5 6V9m5 12V4M4 21h16",
+  support: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4",
   teachers: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8a3 3 0 0 1 0 6m4 7v-2a4 4 0 0 0-3-4",
   heart: "M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z",
   games: "M7 8h10a4 4 0 0 1 4 3l1 7a2 2 0 0 1-3 2l-4-3H9l-4 3a2 2 0 0 1-3-2l1-7a4 4 0 0 1 4-3ZM6 12v4m-2-2h4m8-1h.01m3 2h.01",
@@ -33,6 +34,7 @@ const adminSections = [
   { href: "/admin/guardians", label: "Phụ huynh", permission: "MANAGE_USERS", icon: icons.heart, group: "Tài khoản" },
   { href: "/admin/games", label: "Kho trò chơi", permission: "READ_GAMES", icon: icons.games, group: "Nội dung" },
   { href: "/admin/game-assets", label: "Hình ảnh", permission: "MANAGE_GAME_ASSETS", icon: icons.images, group: "Nội dung" },
+  { href: "/admin/support", label: "Hỗ trợ kỹ thuật", permission: "MANAGE_CLASSROOMS", icon: icons.support, group: "Hệ thống" },
   { href: "/admin/token-usage", label: "Mức sử dụng AI", permission: "MANAGE_USERS", icon: icons.usage, group: "Hệ thống" },
   { href: "/admin/settings", label: "Cài đặt trang", permission: "MANAGE_USERS", icon: icons.settings, group: "Hệ thống" },
 ];

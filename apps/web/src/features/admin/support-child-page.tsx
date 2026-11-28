@@ -23,7 +23,7 @@ async function loadView(api: NonNullable<ReturnType<typeof useClassroomSession>[
 
 function SupportView({ childId, load }: { childId: string; load: (signal: AbortSignal) => Promise<SupportChildView> }) {
   const view = useResource<SupportChildView>(load, childId);
-  const back = { href: "/admin/children", label: "Quản lý trẻ" };
+  const back = { href: "/admin/support", label: "Hỗ trợ kỹ thuật" };
   if (view.error)
     return (
       <ClassroomShell title="Hỗ trợ kỹ thuật" back={back}>

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CreateSupportGrantInput, SupportChildView, SupportGrant } from '@lumikids/shared';
+import type { ActiveSupportGrant, CreateSupportGrantInput, SupportChildView, SupportGrant } from '@lumikids/shared';
 import { ApiProblem } from '../../common/http/api-problem.js';
 import type { Principal } from '../../common/security/principal.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -71,6 +71,24 @@ export class SupportAccessService {
     const row = await this.repository.findGrant(grantId, guardian.userId, childId);
     if (!row) throw new NotFoundException();
     return view(row, now);
+  }
+
+  /** Staff list of running grants. Names are personal data, so the list itself is audited. */
+  async listActiveForStaff(staff: Principal, now = new Date()): Promise<ActiveSupportGrant[]> {
+    const rows = await this.repository.activeGrants(now);
+    await this.audit.record({
+      actorUserId: staff.userId,
+      action: 'SUPPORT_GRANTS_LISTED',
+      targetType: 'SupportGrant',
+      targetId: 'active',
+      detail: { count: rows.length },
+    });
+    return rows.map((row) => ({
+      grantId: row.grantId,
+      childId: row.childId,
+      childName: row.child.fullName,
+      expiresAt: row.expiresAt.toISOString(),
+    }));
   }
 
   /** School staff read a home child only while a grant runs; every read is audited. */

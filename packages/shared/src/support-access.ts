@@ -20,6 +20,14 @@ export const supportGrantSchema = z.object({
 });
 export const supportGrantListSchema = z.array(supportGrantSchema);
 
+export const activeSupportGrantSchema = z.object({
+  grantId: z.uuid(),
+  childId: z.uuid(),
+  childName: z.string(),
+  expiresAt: z.iso.datetime(),
+});
+export const activeSupportGrantListSchema = z.array(activeSupportGrantSchema);
+
 export const supportChildViewSchema = z.object({
   child: z.object({
     childId: z.uuid(),
@@ -43,4 +51,5 @@ export const supportChildViewSchema = z.object({
 
 export type CreateSupportGrantInput = z.infer<typeof createSupportGrantSchema>;
 export type SupportGrant = z.infer<typeof supportGrantSchema>;
+export type ActiveSupportGrant = z.infer<typeof activeSupportGrantSchema>;
 export type SupportChildView = z.infer<typeof supportChildViewSchema>;

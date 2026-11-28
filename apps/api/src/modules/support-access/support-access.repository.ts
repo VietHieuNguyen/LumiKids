@@ -54,6 +54,16 @@ export class SupportAccessRepository {
     });
   }
 
+  /** Running grants across all children, for the support staff list. */
+  activeGrants(now: Date) {
+    return this.prisma.supportGrant.findMany({
+      where: { revokedAt: null, expiresAt: { gt: now } },
+      orderBy: { expiresAt: 'asc' },
+      take: 100,
+      select: { grantId: true, childId: true, expiresAt: true, child: { select: { fullName: true } } },
+    });
+  }
+
   child(childId: string) {
     return this.prisma.child.findUnique({
       where: { childId },

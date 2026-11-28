@@ -80,4 +80,14 @@ describe('SupportAccessService (privacy)', () => {
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_GRANT_REVOKED' }));
     expect(revoked.active).toBe(false);
   });
+
+  it('lists running grants for staff with names, and audits the list', async () => {
+    const { service, audit, repository, childId, grantId } = setup({ grant: { expiresAt: new Date(now.getTime() + 3600_000), revokedAt: null } });
+    (repository as unknown as { activeGrants: ReturnType<typeof vi.fn> }).activeGrants = vi.fn(() =>
+      Promise.resolve([{ grantId, childId, expiresAt: new Date(now.getTime() + 3600_000), child: { fullName: 'Bé An' } }]),
+    );
+    const list = await service.listActiveForStaff(staff, now);
+    expect(list).toEqual([{ grantId, childId, childName: 'Bé An', expiresAt: new Date(now.getTime() + 3600_000).toISOString() }]);
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_GRANTS_LISTED', actorUserId: staff.userId }));
+  });
 });
