@@ -84,6 +84,7 @@ function setup() {
   };
   const service = new AdminOverviewService(
     repository as unknown as AdminOverviewRepository,
+    { devMode: false } as never,
   );
   service.now = () => now;
   return { service, repository, classA, classB, classC };
@@ -96,10 +97,14 @@ describe('AdminOverviewService', () => {
     expect(repository.daily).toHaveBeenCalledWith(
       '2026-11-04',
       'Asia/Ho_Chi_Minh',
+
+      false,
     );
     expect(repository.activeChildren).toHaveBeenCalledWith(
       '2026-11-11',
       'Asia/Ho_Chi_Minh',
+
+      false,
     );
     expect(result.totals).toEqual({
       activeClasses: 3,

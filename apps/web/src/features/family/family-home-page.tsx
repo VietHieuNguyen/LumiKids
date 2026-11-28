@@ -24,7 +24,7 @@ export function FamilyHomePage() {
 
 /** Where the child is: in a class, waiting for a teacher, or playing at home with family picks. */
 export function childPlace(child: FamilyChild): { tone: "green" | "amber" | "blue"; label: string } {
-  if (child.currentClass) return { tone: "green", label: `Lớp ${child.currentClass.className}` };
+  if (child.currentClass) return { tone: "green", label: `Đang học · ${child.currentClass.className}` };
   if (child.joinRequests.some((request) => request.status === "PENDING")) return { tone: "amber", label: "Chờ giáo viên duyệt" };
   return { tone: "blue", label: "Chơi ở nhà" };
 }
@@ -40,11 +40,11 @@ function Children({ api }: { api: ClassroomApi }) {
       eyebrow="Gia đình"
       actions={
         <>
-          <Link className="asset-button-secondary" href="/family/join">Vào lớp bằng mã mời</Link>
           <button type="button" className="lumi-button-sun" onClick={() => setAdding(true)}>
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
             Thêm hồ sơ con
           </button>
+          <Link className="asset-button-secondary" href="/family/join">Vào lớp bằng mã mời</Link>
         </>
       }
     >
@@ -66,7 +66,6 @@ function Children({ api }: { api: ClassroomApi }) {
               </li>
             ))}
           </ol>
-          <button type="button" className="lumi-button-sun mt-6" onClick={() => setAdding(true)}>Thêm hồ sơ con</button>
         </section>
       )}
       {list.data && list.data.length > 0 && (
@@ -90,7 +89,7 @@ function Children({ api }: { api: ClassroomApi }) {
                     <StatusPill tone={place.tone}>{place.label}</StatusPill>
                     {!child.currentClass && <StatusPill tone={child.loginCodeIssuedAt ? "green" : "slate"}>{child.loginCodeIssuedAt ? "Đã có mã" : "Chưa có mã"}</StatusPill>}
                   </div>
-                  <span className="mt-auto pt-4 text-sm font-semibold text-leaf">Xem trò chơi và kết quả →</span>
+                  <span className="mt-auto pt-4 text-sm font-semibold text-leaf">Xem hồ sơ và kết quả →</span>
                 </Link>
               </li>
             );

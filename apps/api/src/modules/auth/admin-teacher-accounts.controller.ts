@@ -1,3 +1,4 @@
+import type { Principal } from '../../common/security/principal.js';
 import {
   BadRequestException,
   Body,
@@ -16,7 +17,7 @@ import {
   createTeacherAccountSchema,
   updateTeacherAccountSchema,
 } from '@lumikids/shared';
-import { Permissions } from './decorators/auth.decorators.js';
+import { CurrentUser, Permissions } from './decorators/auth.decorators.js';
 import { TeacherAccountsService } from './teacher-accounts.service.js';
 
 function parse<T extends z.ZodType>(
@@ -93,7 +94,7 @@ export class AdminTeacherAccountsController {
 
   @Post(':userId/unlock')
   @HttpCode(200)
-  unlock(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.accounts.unlock(userId);
+  unlock(@CurrentUser() actor: Principal, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.accounts.unlock(actor.userId, userId);
   }
 }

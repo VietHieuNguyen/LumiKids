@@ -16,6 +16,7 @@ import type { z } from 'zod';
 import {
   addClassroomTeacherSchema,
   classroomQuerySchema,
+  childLoginLockRequestSchema,
   createChildSchema,
   createClassroomSchema,
   createSchoolYearSchema,
@@ -31,7 +32,8 @@ import {
   updateClassroomSchema,
   updateSchoolYearSchema,
 } from '@lumikids/shared';
-import { Permissions } from '../auth/decorators/auth.decorators.js';
+import { CurrentUser, Permissions } from '../auth/decorators/auth.decorators.js';
+import type { Principal } from '../../common/security/principal.js';
 import { ClassroomsService } from './classrooms.service.js';
 
 function parse<T extends z.ZodType>(
@@ -198,8 +200,33 @@ export class AdminClassroomsController {
     return this.classrooms.enrollSchoolChildren(classId, childIds);
   }
 
+  @Get('children/:childId/login-lock')
+  loginLockState(@Param('childId', ParseUUIDPipe) childId: string) {
+    return this.classrooms.currentChildLoginLock(childId);
+  }
+
+  @Post('children/:childId/login-lock')
+  lockLogin(
+    @CurrentUser() admin: Principal,
+    @Param('childId', ParseUUIDPipe) childId: string,
+    @Body() value: unknown,
+  ) {
+    const { reason } = parse(childLoginLockRequestSchema, value, 'Nhập lý do khóa (3–500 ký tự).');
+    return this.classrooms.lockChildLogin(admin, childId, reason);
+  }
+
+  @Post('children/:childId/login-unlock')
+  unlockLogin(@CurrentUser() admin: Principal, @Param('childId', ParseUUIDPipe) childId: string) {
+    return this.classrooms.unlockChildLogin(admin, childId);
+  }
+
+  @Post('children/:childId/login-code')
+  issueLoginCode(@CurrentUser() admin: Principal, @Param('childId', ParseUUIDPipe) childId: string) {
+    return this.classrooms.issueChildCodeAsAdmin(admin, childId);
+  }
+
   @Post('children')
-  createChild(@Body() value: unknown) {
+    createChild(@Body() value: unknown) {
     return this.classrooms.createChild(
       parse(
         createChildSchema,

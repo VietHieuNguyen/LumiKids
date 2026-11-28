@@ -73,16 +73,21 @@ export default function AccountPage() {
           <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-line bg-leaf-soft text-2xl font-semibold">
             {user.fullName.trim().split(/\s+/).pop()?.charAt(0).toUpperCase()}
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-[1_1_12rem]">
             <p className="text-sm font-semibold uppercase tracking-wide text-leaf">
               {user.roles.map((role) => roleLabels[role] ?? role).join(", ") || "Chưa được cấp vai trò"}
             </p>
             <h1 id="account-heading" className="break-words font-display text-3xl font-extrabold leading-tight sm:text-4xl">
               Xin chào, {user.fullName}
             </h1>
-            <p className="mt-0.5 break-words text-sm text-ink-soft">{user.email}</p>
+            <p className="mt-0.5 text-sm text-ink-soft [overflow-wrap:anywhere]">{user.email}</p>
           </div>
+          <button type="button" onClick={handleLogout} disabled={submitting} className="asset-button-secondary ml-auto">
+            {submitting ? "Đang đăng xuất…" : "Đăng xuất"}
+          </button>
         </header>
+
+        {error && <p role="alert" className="asset-error mb-4">{error}</p>}
 
         {api && <ProfileSections api={api} />}
 
@@ -107,14 +112,6 @@ export default function AccountPage() {
           </ul>
         )}
 
-        {error && (
-          <p role="alert" className="asset-error mt-6">
-            {error}
-          </p>
-        )}
-        <button type="button" onClick={handleLogout} disabled={submitting} className="asset-button-secondary mt-8">
-          {submitting ? "Đang đăng xuất…" : "Đăng xuất"}
-        </button>
       </main>
     </StaffPage>
   );

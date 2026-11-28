@@ -8,7 +8,7 @@
   --accent: #ffcd4f;
   --accent-hover: #ffc02e;
   --accent-edge: #e8a91d;
-  --leaf: #2f8a4d;
+  --leaf: #266e40;
   --display: var(--font-lumi-display), "Baloo 2", var(--font-lumi), system-ui, sans-serif;
 
   flex: 1;
@@ -78,7 +78,7 @@
   background: #fff; color: var(--ink); font: inherit; font-size: 16px;
   outline: none; transition: border-color 0.15s, box-shadow 0.15s;
 }
-.lg-input::placeholder { color: #9aaba2; }
+.lg-input::placeholder { color: var(--ink-soft); }
 .lg-input:hover:not(:disabled) { border-color: rgba(24, 56, 41, 0.32); }
 .lg-input:focus { border-color: var(--leaf); box-shadow: 0 0 0 4px rgba(47, 138, 77, 0.16); }
 .lg-input:disabled { background: var(--cream); color: var(--ink-soft); }
@@ -107,7 +107,7 @@
   min-height: 72px; text-align: center; text-transform: uppercase;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.14em;
 }
-.lg-codeInput::placeholder { color: #c6d1cb; letter-spacing: 0.14em; }
+.lg-codeInput::placeholder { letter-spacing: 0.14em; }
 .lg-hint { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
 
 .lg-notice {
@@ -163,6 +163,15 @@
   /* Tablet portrait: the form sits in the middle of the paper sheet, a little larger. */
   .lg-panel { align-items: center; padding: 48px 40px 64px; }
   .lg-panelInner { max-width: 440px; }
+}
+@media (max-width: 599px) {
+  .lg-art { height: clamp(120px, 19svh, 170px); }
+  .lg-panel { padding: 24px 20px 32px; }
+  .lg-title { margin-top: 14px; font-size: 30px; }
+  .lg-modes { margin-top: 18px; }
+  .lg-form { margin-top: 20px; gap: 14px; }
+  .lg-help { margin-top: 12px; }
+  .lg-help :is(.lg-link, .lg-textButton) { display: inline-flex; min-height: 44px; align-items: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

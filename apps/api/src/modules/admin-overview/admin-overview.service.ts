@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
 import type { AdminOverview } from '@lumikids/shared';
+import appConfig from '../../common/config/app.config.js';
 import { AdminOverviewRepository } from './admin-overview.repository.js';
 import {
   SCHOOL_TIME_ZONE,
@@ -18,7 +20,10 @@ export class AdminOverviewService {
   /** Overridable in tests. */
   now = () => new Date();
 
-  constructor(private readonly repository: AdminOverviewRepository) {}
+  constructor(
+    private readonly repository: AdminOverviewRepository,
+    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
+  ) {}
 
   async overview(): Promise<AdminOverview> {
     const now = this.now();
@@ -41,12 +46,12 @@ export class AdminOverviewService {
       this.repository.activeClasses(now),
       this.repository.activeTeachers(),
       this.repository.libraryGames(),
-      this.repository.unassignedChildren(),
+      this.repository.unassignedChildren(this.config.devMode),
       this.repository.childrenWithoutCode(),
       this.repository.archivedGamesInOpenAssignments(now),
       this.repository.pendingReplayRequests(),
-      this.repository.daily(firstDay, SCHOOL_TIME_ZONE),
-      this.repository.activeChildren(weekStart, SCHOOL_TIME_ZONE),
+      this.repository.daily(firstDay, SCHOOL_TIME_ZONE, this.config.devMode),
+      this.repository.activeChildren(weekStart, SCHOOL_TIME_ZONE, this.config.devMode),
     ]);
     const days = fillDays(daily, today, DAYS);
     const sum = (list: typeof days, key: 'sessions' | 'completed') =>

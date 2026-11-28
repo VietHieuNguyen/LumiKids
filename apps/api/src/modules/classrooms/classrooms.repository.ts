@@ -42,8 +42,16 @@ const directoryChildSelect = {
   },
 } as const satisfies Prisma.ChildSelect;
 
-function childDirectoryWhere(filter: AdminChildFilter): Prisma.ChildWhereInput {
-  const and: Prisma.ChildWhereInput[] = [];
+/**
+ * FR-1.7 AC-02: school staff see school children only. A home profile that never joined a class belongs to
+ * the family; support access is the only way staff reach it.
+ */
+export const schoolChildWhere: Prisma.ChildWhereInput = {
+  OR: [{ origin: 'SCHOOL' }, { enrollments: { some: { endedAt: null } } }],
+};
+
+function childDirectoryWhere(filter: AdminChildFilter, includeHome = false): Prisma.ChildWhereInput {
+  const and: Prisma.ChildWhereInput[] = includeHome ? [] : [schoolChildWhere];
   for (const word of filter.q.split(/\s+/).filter(Boolean))
     and.push({ fullName: { contains: word, mode: 'insensitive' } });
   if (filter.classId === 'none') and.push({ enrollments: { none: { endedAt: null } } });
@@ -211,8 +219,22 @@ export class ClassroomsRepository {
     className: string;
     schoolYearId: string;
     ageGroupId: string;
+    teacherUserIds?: readonly string[];
   }) {
-    return this.prisma.classroom.create({ data, select: { classId: true } });
+    // The service requires at least one teacher; the data layer only stores what it is given.
+    const { teacherUserIds = [], ...fields } = data;
+    return this.prisma.classroom.create({
+      data: {
+        ...fields,
+        teachers: { create: teacherUserIds.map((userId) => ({ userId })) },
+      },
+      select: { classId: true },
+    });
+  }
+  teacherIds(classId: string) {
+    return this.prisma.classroomTeacher
+      .findMany({ where: { classId }, select: { userId: true } })
+      .then((rows) => rows.map((row) => row.userId));
   }
   updateClassroom(
     classId: string,
@@ -280,11 +302,11 @@ export class ClassroomsRepository {
     });
   }
   /** The child and the first enrollment, with one clock (the API's) for every period boundary. */
-  createChild(profile: ChildProfileData, classId: string, now: Date) {
+  createChild(profile: ChildProfileData, classId: string | null, now: Date) {
     return this.prisma.child.create({
       data: {
         ...profile,
-        enrollments: { create: { classId, startedAt: now } },
+        ...(classId ? { enrollments: { create: { classId, startedAt: now } } } : {}),
       },
       select: { childId: true },
     });
@@ -296,8 +318,11 @@ export class ClassroomsRepository {
     return this.prisma.child.update({ where: { childId }, data });
   }
   /** One page of the admin directory, filtered and sorted in the database. */
-  async pageChildren(query: AdminChildQuery) {
-    const where = childDirectoryWhere(query);
+  async pageChildren(query: AdminChildQuery, includeHome = false) {
+    // Dev mode (includeHome) lists family children too; counts follow the same scope.
+    const within = (where: Prisma.ChildWhereInput): Prisma.ChildWhereInput =>
+      includeHome ? where : { AND: [schoolChildWhere, where] };
+    const where = childDirectoryWhere(query, includeHome);
     const orderBy: Prisma.ChildOrderByWithRelationInput[] =
       query.sort === 'dob'
         ? [{ dob: query.dir }, { fullName: 'asc' }]
@@ -313,10 +338,12 @@ export class ClassroomsRepository {
         take: query.pageSize,
         select: directoryChildSelect,
       }),
-      this.prisma.child.count(),
-      this.prisma.child.count({ where: { enrollments: { none: { endedAt: null } } } }),
-      this.prisma.child.count({ where: { status: 'ACTIVE', loginCodeIssuedAt: null } }),
-      this.prisma.child.count({ where: { status: 'DISABLED' } }),
+      this.prisma.child.count({ where: includeHome ? {} : schoolChildWhere }),
+      this.prisma.child.count({
+        where: within({ ...(includeHome ? {} : { origin: 'SCHOOL' }), enrollments: { none: { endedAt: null } } }),
+      }),
+      this.prisma.child.count({ where: within({ status: 'ACTIVE', loginCodeIssuedAt: null }) }),
+      this.prisma.child.count({ where: within({ status: 'DISABLED' }) }),
     ]);
     return { total, rows, counts: { all, unassigned, withoutCode, disabled } };
   }

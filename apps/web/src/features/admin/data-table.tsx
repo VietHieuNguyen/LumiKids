@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { PAGE_SIZE, PAGE_SIZES, pageNumbers } from "./list-helpers";
@@ -17,8 +18,8 @@ export type ListState = Record<string, string>;
 
 /** Reads `defaults`' keys from the query string once, and writes changes back (defaults are left out). */
 export function useListState<T extends ListState>(defaults: T) {
+  const params = useSearchParams();
   const [state, setState] = useState<T>(() => {
-    const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
     const read = { ...defaults };
     for (const key of Object.keys(defaults) as (keyof T & string)[]) {
       const value = params.get(key);

@@ -23,6 +23,9 @@ import {
   classroomDetailSchema,
   classroomSummaryListSchema,
   classroomTeacherListSchema,
+  childLoginLockStateSchema,
+  classLoginLockListSchema,
+  createdChildIdSchema,
   issuedLoginCodeSchema,
   playHistoryPageSchema,
   schoolYearListSchema,
@@ -182,6 +185,10 @@ export class ClassroomApi {
   async createChild(input: CreateChildInput) {
     return classroomDetailSchema.parse(await this.send("/admin/children", "POST", input));
   }
+  /** A child profile not yet in a class (classId omitted). */
+  async createUnassignedChild(input: { fullName: string; dob: string; gender: "MALE" | "FEMALE" }) {
+    return createdChildIdSchema.parse(await this.send("/admin/children", "POST", input));
+  }
   async updateChild(childId: string, input: UpdateChildInput) {
     return childProfileSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}`, "PATCH", input));
   }
@@ -278,6 +285,24 @@ export class ClassroomApi {
     );
   }
 
+  /** Admin may issue a child's code in any class or at home. */
+  /** Child sign-in lock (FR-1.5): Admin locks or unlocks a child in a class; the reason is kept. */
+  async childLoginLock(childId: string, signal?: AbortSignal) {
+    return childLoginLockStateSchema.parse(await this.request(`/admin/children/${ClassroomApi.id(childId)}/login-lock`, { signal }));
+  }
+  async lockChildLogin(childId: string, reason: string) {
+    return childLoginLockStateSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-lock`, "POST", { reason }));
+  }
+  async unlockChildLogin(childId: string) {
+    return childLoginLockStateSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-unlock`, "POST"));
+  }
+  /** Running locks on children in this class, for the class teacher. */
+  async classLoginLocks(classId: string, signal?: AbortSignal) {
+    return classLoginLockListSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/login-locks`, { signal }));
+  }
+  async issueChildCodeAsAdmin(childId: string) {
+    return issuedLoginCodeSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-code`, "POST"));
+  }
   async issueLoginCode(classId: string, childId: string) {
     return issuedLoginCodeSchema.parse(
       await this.send(`/teacher/classrooms/${ClassroomApi.id(classId)}/children/${ClassroomApi.id(childId)}/login-code`, "POST"),

@@ -1,3 +1,4 @@
+import type { AuditService } from '../audit/audit.service.js';
 import { NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { ApiProblem } from '../../common/http/api-problem.js';
@@ -111,6 +112,8 @@ function setup() {
   const service = new ClassroomsService(
     repository as unknown as ClassroomsRepository,
     childAuth as unknown as ChildAuthService,
+    { record: vi.fn(() => Promise.resolve()) } as unknown as AuditService,
+    { devMode: false } as never,
   );
   return {
     service,

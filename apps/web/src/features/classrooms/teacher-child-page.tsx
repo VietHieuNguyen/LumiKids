@@ -14,6 +14,7 @@ import {
   localToday,
 } from "./format";
 import { ChildAssessmentsPanel } from "./child-assessments-panel";
+import { AdminLoginLockPanel } from "./child-login-lock-panel";
 import { LoginCodeDialog } from "./login-code-dialog";
 import { PlayHistoryTable } from "./play-history-table";
 import { useClassroomSession } from "./use-classroom-session";
@@ -31,7 +32,7 @@ export function AdminChildPage({ classId, childId, fromDirectory }: { classId: s
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_CLASSROOMS");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Bạn chưa có quyền quản lý lớp học.</Notice>;
-  return <ChildResults key={`${session.user.userId}:${classId}:${childId}`} api={api} scope="admin" classId={classId} childId={childId} canIssueCodes={false} fromDirectory={fromDirectory} />;
+  return <ChildResults key={`${session.user.userId}:${classId}:${childId}`} api={api} scope="admin" classId={classId} childId={childId} canIssueCodes fromDirectory={fromDirectory} />;
 }
 
 
@@ -66,7 +67,8 @@ function ChildResults({
     );
   const profile: ClassroomChildDetail = child.data;
   const age = ageInYears(profile.dob, localToday());
-  const activeChild = scope === "teacher" && profile.currentlyEnrolled && profile.status === "ACTIVE" && classroom.data?.status === "ACTIVE";
+  // A teacher issues codes only for a child enrolled in this class; Admin may issue for any active child.
+  const activeChild = (scope === "admin" || profile.currentlyEnrolled) && profile.status === "ACTIVE" && classroom.data?.status === "ACTIVE";
   const canIssue = activeChild && canIssueCodes;
   return (
     <ClassroomShell
@@ -128,6 +130,7 @@ function ChildResults({
           {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
         </Panel>
         {scope === "teacher" && <ChildAssessmentsPanel api={api} classId={classId} childId={childId} />}
+        {scope === "admin" && <AdminLoginLockPanel api={api} childId={childId} />}
         </div>
       </div>
       {issuing && classroom.data && (
@@ -135,6 +138,7 @@ function ChildResults({
           api={api}
           classId={classId}
           className={classroom.data.className}
+          issue={scope === "admin" ? () => api.issueChildCodeAsAdmin(childId) : undefined}
           child={profile}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => child.replace({ ...profile, loginCodeIssuedAt: issued.issuedAt })}

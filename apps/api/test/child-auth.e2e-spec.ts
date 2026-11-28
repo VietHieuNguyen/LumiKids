@@ -25,6 +25,7 @@ describe('Child sign-in with a login code (offline; database mocked)', () => {
     { verifier: string; sessionId: string; expiresAt: Date }
   >();
   const repository = {
+    activeLoginLock: vi.fn(() => Promise.resolve(null)),
     findByCodeDigest: vi.fn((digest: string) =>
       Promise.resolve(
         digest === loginCodeDigest('K7MQ2HXA', codeSecret)

@@ -232,8 +232,8 @@ function LibraryContent({
           aria-label="Bộ lọc trò chơi"
         >
           <div className="mb-4 flex items-center gap-2"><Icon name="search" className="h-4 w-4 text-leaf" /><h2 className="text-sm font-bold">Tìm trò chơi phù hợp</h2></div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-            <label className="asset-label sm:col-span-2 lg:col-span-1">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+            <label className="asset-label col-span-2 lg:col-span-1">
               <span id="library-search-label">Tìm trò chơi</span>
               <input
                 aria-labelledby="library-search-label"

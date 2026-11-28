@@ -43,8 +43,8 @@ export function AssetFilters({
         <Icon name="search" className="h-4 w-4 text-leaf" />
         <h2 className="text-sm font-bold">Tìm hình ảnh phù hợp</h2>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-        <label className="block">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+        <label className="col-span-2 block lg:col-span-1">
           <span className="asset-label" id={`${id}-search-label`}>Tìm theo tên</span>
           <input
             aria-labelledby={`${id}-search-label`}
@@ -56,7 +56,7 @@ export function AssetFilters({
             placeholder="Tìm hình ảnh…"
           />
         </label>
-        <label className="block">
+        <label className="block min-w-0">
           <span className="asset-label" id={`${id}-type-label`}>Loại đối tượng</span>
           <input
             aria-labelledby={`${id}-type-label`}
@@ -76,7 +76,7 @@ export function AssetFilters({
             ))}
           </datalist>
         </label>
-        <label className="block">
+        <label className="block min-w-0">
           <span className="asset-label" id={`${id}-status-label`}>Trạng thái</span>
           <select
             aria-labelledby={`${id}-status-label`}
@@ -88,7 +88,7 @@ export function AssetFilters({
             <option value="INACTIVE">Ngừng sử dụng</option>
           </select>
         </label>
-        <label className="block">
+        <label className="col-span-2 block lg:col-span-1">
           <span className="asset-label" id={`${id}-tags-label`}>Từ khóa</span>
           <input
             aria-labelledby={`${id}-tags-label`}

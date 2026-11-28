@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
 import type {
   BulkAccountStatusInput,
   BulkAccountStatusResult,
@@ -51,6 +52,7 @@ export class TeacherAccountsService {
     private readonly repository: TeacherAccountsRepository,
     private readonly passwords: PasswordService,
     private readonly statuses: AccountStatusRepository,
+    private readonly audit: AuditService,
   ) {}
 
   /** The admin's side panel: the account plus its classes, work and open sessions. */
@@ -110,9 +112,10 @@ export class TeacherAccountsService {
 
   /** Forgotten password: a new temporary one, and the teacher is signed out everywhere. */
   /** Clears the 15-minute sign-in lock after repeated wrong passwords (AC-02). */
-  async unlock(userId: string): Promise<TeacherAccount> {
+  async unlock(actorUserId: string, userId: string): Promise<TeacherAccount> {
     await this.require(userId);
     await this.repository.clearLoginLock(userId);
+    await this.audit.record({ actorUserId, action: 'ACCOUNT_LOCK_CLEARED', targetType: 'User', targetId: userId });
     return this.require(userId);
   }
 

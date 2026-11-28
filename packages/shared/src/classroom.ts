@@ -43,6 +43,8 @@ export const createClassroomSchema = z
     className: z.string().trim().min(1).max(100),
     schoolYearId: z.uuid(),
     ageGroupId: z.string().min(1).max(20),
+    /** A class always has a responsible teacher (at least one) from the moment it is created. */
+    teacherUserIds: z.array(z.uuid()).min(1).max(10),
   })
   .strict();
 export const updateClassroomSchema = z
@@ -59,8 +61,9 @@ const childProfileShape = {
   dob: dateOnlySchema.refine((value) => value <= today(), "Ngày sinh không hợp lệ."),
   gender: genderSchema,
 };
+/** A child profile may exist without a class (school staff create it first, a class is added later). */
 export const createChildSchema = z
-  .object({ ...childProfileShape, classId: z.uuid() })
+  .object({ ...childProfileShape, classId: z.uuid().optional() })
   .strict();
 export const updateChildSchema = z
   .object({
@@ -190,6 +193,8 @@ export const ageGroupUsageListSchema = z.array(ageGroupUsageSchema);
 export const schoolYearUsageListSchema = z.array(schoolYearUsageSchema);
 export const schoolYearListSchema = z.array(schoolYearSchema);
 export const classroomTeacherListSchema = z.array(classroomTeacherSchema);
+/** A child created without a class: the answer is just the new id. */
+export const createdChildIdSchema = z.object({ childId: z.uuid() });
 export const classroomSummaryListSchema = z.array(classroomSummarySchema);
 /** A child's profile without class context (admin edit response). */
 export const childProfileSchema = classroomChildSchema.omit({ enrolledAt: true });

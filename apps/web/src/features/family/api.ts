@@ -9,6 +9,7 @@ import {
   teacherAssessmentListSchema,
   SHARING_CONSENT_VERSION,
 } from "@lumikids/shared";
+import { supportGrantListSchema, supportGrantSchema } from "@lumikids/shared";
 import type { CreateFamilyActivityInput, CreateFamilyChildInput, UpdateFamilyChildInput } from "@lumikids/shared";
 import type { ClassroomApi } from "../classrooms/api";
 
@@ -36,6 +37,16 @@ export class FamilyApi {
   /** FR-4.3: the teacher's published notes only; drafts never reach the family. */
   async teacherNotes(childId: string, signal?: AbortSignal) {
     return teacherAssessmentListSchema.parse(await this.api.raw(`/family/children/${id(childId)}/teacher-notes`, { signal }));
+  }
+  /** Privacy: the guardian decides whether support staff may see this home child, and for how long. */
+  async supportGrants(childId: string, signal?: AbortSignal) {
+    return supportGrantListSchema.parse(await this.api.raw(`/family/children/${id(childId)}/support-grants`, { signal }));
+  }
+  async grantSupport(childId: string, hours: number) {
+    return supportGrantSchema.parse(await this.api.raw(`/family/children/${id(childId)}/support-grants`, { method: "POST", body: { hours } }));
+  }
+  async revokeSupport(childId: string, grantId: string) {
+    return supportGrantSchema.parse(await this.api.raw(`/family/children/${id(childId)}/support-grants/${id(grantId)}/revoke`, { method: "POST", body: {} }));
   }
   async activities(childId: string, signal?: AbortSignal) {
     return familyActivityListSchema.parse(await this.api.raw(`/family/children/${id(childId)}/activities`, { signal }));

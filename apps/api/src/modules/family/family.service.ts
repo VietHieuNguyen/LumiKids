@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
 import type { ConfigType } from '@nestjs/config';
 import {
   SHARING_CONSENT_SCOPE,
@@ -78,6 +79,7 @@ export class FamilyService {
     private readonly childAuth: ChildAuthService,
     @Inject(familyConfig.KEY)
     private readonly config: ConfigType<typeof familyConfig>,
+    private readonly audit: AuditService,
   ) {}
 
   private async requireChild(guardian: Principal, childId: string): Promise<FamilyChildRow> {
@@ -121,6 +123,7 @@ export class FamilyService {
     if (child.enrollments.length) throw new ApiProblem('FAMILY_CHILD_CLASS_MANAGED');
     if (child.status !== 'ACTIVE') throw new ApiProblem('CHILD_DISABLED');
     const { code, issuedAt } = await this.childAuth.issueLoginCode(childId);
+    await this.audit.record({ actorUserId: guardian.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: childId, detail: { channel: 'GUARDIAN' } });
     return { childId, code, issuedAt: issuedAt.toISOString() };
   }
 

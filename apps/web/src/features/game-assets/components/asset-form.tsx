@@ -264,7 +264,7 @@ export function AssetForm({
           <label className="block">
             <span className="asset-label">
               Từ khóa tìm ảnh (tags){" "}
-              <span className="font-normal text-ink-soft/70">· tùy chọn</span>
+              <span className="font-normal text-ink-soft">· tùy chọn</span>
             </span>
             <input
               className="asset-input mt-2"

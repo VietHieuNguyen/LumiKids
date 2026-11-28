@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import appConfig from '../../common/config/app.config.js';
+import { AuditService } from '../audit/audit.service.js';
 import { ADMIN_CHILD_ID_LIMIT, sessionPerformanceSchema } from '@lumikids/shared';
 import type { CriterionEvaluationView } from '@lumikids/shared';
 import type {
@@ -148,6 +151,8 @@ export class ClassroomsService {
   constructor(
     private readonly repository: ClassroomsRepository,
     private readonly childAuth: ChildAuthService,
+    private readonly audit: AuditService,
+    @Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>,
   ) {}
 
   // ---------- Admin: catalogues ----------
@@ -262,8 +267,12 @@ export class ClassroomsService {
       !(await this.repository.findAgeGroup(input.ageGroupId))
     )
       throw new ApiProblem('CLASSROOM_REFERENCE_INVALID');
+    const teacherUserIds = [...new Set(input.teacherUserIds)];
+    for (const userId of teacherUserIds)
+      if (!(await this.repository.isActiveTeacher(userId)))
+        throw new ApiProblem('TEACHER_INVALID');
     try {
-      const { classId } = await this.repository.createClassroom(input);
+      const { classId } = await this.repository.createClassroom({ ...input, teacherUserIds });
       return this.classroom(classId);
     } catch (error) {
       if (isUniqueViolation(error))
@@ -319,24 +328,62 @@ export class ClassroomsService {
   ): Promise<ClassroomDetail> {
     if (!(await this.repository.findClassroom(classId)))
       throw new NotFoundException(NOT_FOUND);
+    const teachers = await this.repository.teacherIds(classId);
+    // The class always keeps one responsible teacher: the last one cannot be removed.
+    if (teachers.length <= 1 && teachers.includes(userId))
+      throw new ApiProblem('CLASSROOM_NEEDS_TEACHER');
     await this.repository.removeTeacher(classId, userId);
     return this.classroom(classId);
   }
 
+  // ---------- Child sign-in locks (FR-1.5) ----------
+
+  async lockChildLogin(admin: Principal, childId: string, reason: string) {
+    await this.childAuth.lockLogin(admin.userId, childId, reason);
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  async unlockChildLogin(admin: Principal, childId: string) {
+    await this.childAuth.unlockLogin(admin.userId, childId);
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  currentChildLoginLock(childId: string) {
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  /** The class teacher sees the running locks of the children in the class. */
+  async teacherLoginLocks(teacher: Principal, classId: string) {
+    await this.requireTeacherOf(teacher, classId);
+    return this.childAuth.locksForClass(classId);
+  }
+
   // ---------- Admin: children ----------
 
-  async createChild(input: CreateChildInput): Promise<ClassroomDetail> {
-    await this.requireActiveClassroom(input.classId);
-    await this.repository.createChild(
+  /** Admin may issue a child's code in a class or at home; the previous code stops working. */
+  async issueChildCodeAsAdmin(admin: Principal, childId: string): Promise<IssuedLoginCode> {
+    const child = await this.repository.findChild(childId);
+    if (!child) throw new NotFoundException(CHILD_NOT_FOUND);
+    if (child.status !== 'ACTIVE') throw new ApiProblem('CHILD_DISABLED');
+    const { code, issuedAt } = await this.childAuth.issueLoginCode(childId);
+    await this.audit.record({ actorUserId: admin.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: childId, detail: { channel: 'ADMIN' } });
+    return { childId, code, issuedAt: issuedAt.toISOString() };
+  }
+
+  /** A profile without a class is valid; the answer then is just the new child's id. */
+  async createChild(input: CreateChildInput): Promise<ClassroomDetail | { childId: string }> {
+    const classId = input.classId ?? null;
+    if (classId) await this.requireActiveClassroom(classId);
+    const created = await this.repository.createChild(
       {
         fullName: input.fullName,
         dob: toDate(input.dob),
         gender: input.gender,
       },
-      input.classId,
+      classId,
       new Date(),
     );
-    return this.classroom(input.classId);
+    return classId ? this.classroom(classId) : { childId: created.childId };
   }
   async updateChild(childId: string, input: UpdateChildInput) {
     if (!(await this.repository.findChild(childId)))
@@ -357,7 +404,8 @@ export class ClassroomsService {
     }));
   }
   async pageChildren(query: AdminChildQuery): Promise<AdminChildPage> {
-    const { total, rows, counts } = await this.repository.pageChildren(query);
+    // Dev mode only: Admin sees family children too (see app.config).
+    const { total, rows, counts } = await this.repository.pageChildren(query, this.config.devMode);
     const items = rows.map((child): AdminChild => {
       const enrollment = child.enrollments[0];
       return {
@@ -700,7 +748,10 @@ export class ClassroomsService {
     for (const id of childIds) {
       try {
         const issued = await this.childAuth.issueFirstCodeInClass(id, classId, teacher.userId);
-        if (issued) result.issued.push({ childId: id, code: issued.code, issuedAt: issued.issuedAt.toISOString() });
+        if (issued) {
+          result.issued.push({ childId: id, code: issued.code, issuedAt: issued.issuedAt.toISOString() });
+          await this.audit.record({ actorUserId: teacher.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: id, detail: { channel: 'CLASS_INITIAL', classId } });
+        }
         else result.skipped.push({ id, reason: 'NOT_ELIGIBLE' });
       } catch {
         result.skipped.push({ id, reason: 'FAILED' });
@@ -727,6 +778,7 @@ export class ClassroomsService {
     if (classroom?.status !== 'ACTIVE')
       throw new ApiProblem('CLASSROOM_ARCHIVED');
     const { code, issuedAt } = await this.childAuth.issueLoginCode(childId);
+    await this.audit.record({ actorUserId: teacher.userId, action: 'CHILD_LOGIN_CODE_ISSUED', targetType: 'Child', targetId: childId, detail: { channel: 'CLASS', classId } });
     return { childId, code, issuedAt: issuedAt.toISOString() };
   }
 }

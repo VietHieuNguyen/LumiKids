@@ -7,6 +7,7 @@ import type { ClassroomApi } from "./api";
 import { AssignmentApi } from "./api";
 import { AssignmentsPanel } from "./assignments-panel";
 import { ClassroomShell, ErrorBanner, Notice, Panel, StatusPill, TabLinks } from "./classroom-shell";
+import { ClassLoginLockPanel } from "./child-login-lock-panel";
 import { ageInYears, childStatusLabels, classroomStatusLabels, formatDateTime, genderLabels, localToday } from "./format";
 import { FamilyRequestsPanel } from "./family-requests-panel";
 import { GroupsPanel } from "./groups-panel";
@@ -80,6 +81,7 @@ function TeacherClassroom({
       }
     >
       {classroom.error && <ErrorBanner message={classroom.error} onRetry={classroom.reload} />}
+      <ClassLoginLockPanel api={api} classId={classId} />
       <TabLinks
         current={tab}
         tabs={[

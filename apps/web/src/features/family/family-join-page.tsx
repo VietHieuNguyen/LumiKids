@@ -16,7 +16,7 @@ export function FamilyJoinPage({ code, childId }: { code?: string; childId?: str
   const { session, loading, api, allowed } = useClassroomSession("MANAGE_FAMILY");
   if (loading || !session || !api) return <Notice>Đang kiểm tra phiên đăng nhập…</Notice>;
   if (!allowed) return <Notice>Mã mời lớp dành cho phụ huynh. Hãy đăng nhập bằng tài khoản phụ huynh.</Notice>;
-  return <Join key={session.user.userId} api={api} initialCode={code ?? ""} initialChild={childId ?? ""} />;
+  return <Join key={JSON.stringify([session.user.userId, code, childId])} api={api} initialCode={code ?? ""} initialChild={childId ?? ""} />;
 }
 
 /** FR-1.8 + BR-15: check the invite, pick a child without a class, accept the sharing consent, send the request. */
@@ -78,7 +78,7 @@ function Join({ api, initialCode, initialChild }: { api: ClassroomApi; initialCo
         <section role="status" className="max-w-xl rounded-3xl border border-line bg-paper p-6">
           <p className="font-display text-xl font-bold">Đang chờ giáo viên duyệt</p>
           <p className="mt-2 text-sm leading-6 text-ink-soft">
-            Yêu cầu cho {sent.fullName} vào lớp {preview?.data.className} đã được gửi. Khi giáo viên duyệt, lớp sẽ hiện trong hồ sơ của con. Giáo viên sẽ cấp mã nếu con chưa có mã.
+            Đã gửi yêu cầu vào lớp cho {sent.fullName}. Khi giáo viên duyệt, lớp sẽ hiện trong hồ sơ của con. Giáo viên sẽ cấp mã nếu con chưa có mã.
           </p>
           <Link className="asset-button-primary mt-5" href={`/family/children/${sent.childId}`}>Xem hồ sơ của con</Link>
         </section>
@@ -88,20 +88,22 @@ function Join({ api, initialCode, initialChild }: { api: ClassroomApi; initialCo
   return (
     <ClassroomShell title="Vào lớp bằng mã mời" eyebrow="Gia đình" back={{ href: "/family", label: "Con của tôi" }}>
       <div className="grid max-w-3xl gap-6">
-        <Panel title="1. Nhập mã mời" description="Giáo viên gửi mã dạng ABCDE-FGHJK hoặc một đường link. Dán vào đây.">
-          <form className="flex flex-wrap gap-2" onSubmit={check}>
-            <label className="sr-only" htmlFor="invite-code">Mã mời</label>
-            <input id="invite-code" className="asset-input min-w-0 flex-1 font-mono uppercase tracking-wider" required maxLength={300} autoComplete="off" spellCheck={false} placeholder="ABCDE-FGHJK" value={code} onChange={(event) => { setCode(event.target.value); setConsent(false); setError(""); }} disabled={busy} />
-            <button className="asset-button-primary" disabled={busy || !code.trim()}>{busy && !preview ? "Đang kiểm tra…" : "Kiểm tra mã"}</button>
+        <Panel title="Nhập mã mời" description="Dán mã mời hoặc đường dẫn giáo viên gửi cho bạn.">
+          <form className="flex flex-wrap items-end gap-2" onSubmit={check}>
+            <div className="min-w-0 flex-1 basis-full sm:basis-0">
+              <label className="asset-label" htmlFor="invite-code">Mã hoặc đường dẫn lời mời</label>
+              <input id="invite-code" className="asset-input mt-1 min-w-0" required maxLength={300} autoComplete="off" spellCheck={false} placeholder="ABCDE-FGHJK" value={code} onChange={(event) => { setCode(event.target.value); setConsent(false); setError(""); }} disabled={busy} />
+            </div>
+            <button className="asset-button-primary w-full sm:w-auto" disabled={busy || !code.trim()}>{busy && !preview ? "Đang kiểm tra…" : "Kiểm tra mã"}</button>
           </form>
           {!manual && !!originalCode && linkedInvite.loading && !linkedInvite.error && <p role="status" className="mt-2 text-sm text-ink-soft">Đang mở lời mời…</p>}
           {!manual && linkedInvite.error && <ErrorBanner message={linkedInvite.error} onRetry={linkedInvite.reload} />}
           {error && !preview && <p role="alert" className="asset-error mt-3">{error}</p>}
         </Panel>
         {preview && (
-          <Panel title="2. Lớp học và đồng ý chia sẻ">
+          <Panel title="Lớp học và đồng ý chia sẻ">
             <div className="rounded-2xl bg-leaf-soft p-4">
-              <p className="font-display text-xl font-bold">Lớp {preview.data.className}</p>
+              <p className="font-display text-xl font-bold">{preview.data.className}</p>
               <p className="mt-1 text-sm text-ink-soft">
                 {preview.data.schoolYearName} · {preview.data.ageGroupName}
                 {preview.data.teacherNames.length ? ` · ${preview.data.teacherNames.join(", ")}` : ""}

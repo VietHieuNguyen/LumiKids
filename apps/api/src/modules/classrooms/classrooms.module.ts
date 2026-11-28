@@ -2,6 +2,7 @@ import { TeacherAssessmentsController } from './teacher-assessments.controller.j
 import { TeacherAssessmentsRepository } from './teacher-assessments.repository.js';
 import { TeacherAssessmentsService } from './teacher-assessments.service.js';
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { AdminClassroomsController } from './admin-classrooms.controller.js';
@@ -10,7 +11,7 @@ import { ClassroomsService } from './classrooms.service.js';
 import { TeacherClassroomsController } from './teacher-classrooms.controller.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, AuditModule],
   controllers: [TeacherAssessmentsController, AdminClassroomsController, TeacherClassroomsController],
   providers: [ClassroomsRepository, ClassroomsService, TeacherAssessmentsRepository, TeacherAssessmentsService],
   exports: [ClassroomsService, TeacherAssessmentsService],

@@ -125,6 +125,7 @@ const problems = {
   CLASSROOM_NAME_TAKEN: [409, 'Năm học này đã có lớp trùng tên.'],
   CLASSROOM_REFERENCE_INVALID: [422, 'Năm học hoặc nhóm tuổi không tồn tại.'],
   CLASSROOM_ARCHIVED: [409, 'Lớp đã lưu trữ, không thể thay đổi.'],
+  CLASSROOM_NEEDS_TEACHER: [409, 'Lớp cần ít nhất một giáo viên phụ trách.'],
   ASSESSMENT_REASON_REQUIRED: [400, 'Sửa nhận xét đã phát hành cần ghi lý do.'],
   ASSESSMENT_NOT_DRAFT: [409, 'Nhận xét này đã phát hành.'],
   ASSESSMENT_PUBLISHED_NOT_DELETABLE: [
@@ -144,6 +145,9 @@ const problems = {
   ],
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
+  CHILD_LOGIN_LOCKED: [403, 'Trẻ đang bị khóa đăng nhập. Hãy liên hệ giáo viên lớp.'],
+  CHILD_LOGIN_ALREADY_LOCKED: [409, 'Trẻ đã bị khóa đăng nhập.'],
+  CHILD_LOGIN_NOT_LOCKED: [409, 'Trẻ hiện không bị khóa đăng nhập.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
   PROFILE_FIELD_NOT_ALLOWED: [
     400,
@@ -210,6 +214,8 @@ const problems = {
   ],
   CONSENT_REQUIRED: [422, 'Cần đồng ý chia sẻ dữ liệu học tập với lớp.'],
   FAMILY_CHILD_NOT_FOUND: [404, 'Không tìm thấy hồ sơ trẻ của bạn.'],
+  SUPPORT_ACCESS_REQUIRED: [403, 'Chưa có quyền hỗ trợ cho hồ sơ này, hoặc quyền đã hết hạn.'],
+  SUPPORT_GRANT_NOT_FOUND: [404, 'Không tìm thấy quyền hỗ trợ này.'],
   FAMILY_CHILD_CLASS_MANAGED: [
     409,
     'Trẻ đang học ở lớp; mã đăng nhập do giáo viên của lớp cấp.',

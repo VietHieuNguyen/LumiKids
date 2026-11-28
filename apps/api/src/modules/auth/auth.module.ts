@@ -1,3 +1,4 @@
+import { AuditModule } from '../audit/audit.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import type { ConfigType } from '@nestjs/config';
@@ -36,6 +37,7 @@ import { BrowserRequestGuard } from './guards/browser-request.guard.js';
 
 @Module({
   imports: [
+    AuditModule,
     ConfigModule.forFeature(authConfig),
     ConfigModule.forFeature(childAuthConfig),
     ConfigModule.forFeature(verificationConfig),
