@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import type { AdminChild, AdminChildPick, ClassroomSummary } from "@lumikids/shared";
+import { classroomError } from "./api";
 import type { ClassroomApi } from "./api";
 import { AddChildForm, EditChildDialog } from "./admin-classroom-detail-page";
 import { ClassroomShell, Dialog, ErrorBanner, Notice, Panel, StatusPill } from "./classroom-shell";
@@ -410,23 +412,75 @@ function CreateChildDialog({
 }) {
   const [classId, setClassId] = useState(classes.some((item) => item.classId === initialClass) ? initialClass : "");
   const chosen = classes.find((item) => item.classId === classId);
+  const unassigned = classId === UNASSIGNED;
   return (
     <Dialog title="Thêm trẻ" onClose={onClose} wide>
       <div className="mb-4">
         <label className="asset-label" htmlFor="create-child-class">Lớp</label>
         <select id="create-child-class" className="asset-input mt-1" value={classId} onChange={(event) => setClassId(event.target.value)} required>
           <option value="">Chọn lớp đang mở</option>
+          <option value={UNASSIGNED}>Chưa xếp lớp (xếp lớp sau)</option>
           {classes.map((item) => (
             <option key={item.classId} value={item.classId}>{item.className} · {item.ageGroup.name} · {item.schoolYear.name}</option>
           ))}
         </select>
         {!classes.length && <p className="mt-2 text-[13px] text-ink-soft">Chưa có lớp đang mở. <Link className="font-medium underline" href="/admin/classrooms">Tạo lớp</Link> trước.</p>}
       </div>
-      {chosen ? (
+      {unassigned ? (
+        <UnassignedChildForm api={api} onAdded={(name) => onAdded(name, "chưa xếp lớp")} />
+      ) : chosen ? (
         <AddChildForm key={chosen.classId} api={api} classId={chosen.classId} onAdded={(_, name) => onAdded(name, chosen.className)} />
       ) : (
         <p className="text-sm text-ink-soft">Chọn lớp để nhập thông tin trẻ. Hồ sơ do phụ huynh tạo được thêm từ trang gia đình.</p>
       )}
     </Dialog>
+  );
+}
+
+const UNASSIGNED = "__unassigned__";
+
+/** Admin creates a child profile first; the class can be set later (school rule: a child may have no class). */
+function UnassignedChildForm({ api, onAdded }: { api: ClassroomApi; onAdded: (name: string) => void }) {
+  const [fullName, setFullName] = useState("");
+  const [dob, setDob] = useState("");
+  const [gender, setGender] = useState<"MALE" | "FEMALE">("FEMALE");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const name = fullName.trim();
+      await api.createUnassignedChild({ fullName: name, dob, gender });
+      onAdded(name);
+    } catch (failure) {
+      setError(classroomError(failure));
+      setBusy(false);
+    }
+  }
+  return (
+    <form onSubmit={submit}>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div>
+          <label className="asset-label" htmlFor="unassigned-name">Họ tên</label>
+          <input id="unassigned-name" className="asset-input mt-1" required maxLength={200} value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={busy} />
+        </div>
+        <div>
+          <label className="asset-label" htmlFor="unassigned-dob">Ngày sinh</label>
+          <input id="unassigned-dob" type="date" className="asset-input mt-1" required max={localToday()} value={dob} onChange={(event) => setDob(event.target.value)} disabled={busy} />
+        </div>
+        <div>
+          <label className="asset-label" htmlFor="unassigned-gender">Giới tính</label>
+          <select id="unassigned-gender" className="asset-input mt-1" value={gender} onChange={(event) => setGender(event.target.value as "MALE" | "FEMALE")} disabled={busy}>
+            <option value="FEMALE">{genderLabels.FEMALE}</option>
+            <option value="MALE">{genderLabels.MALE}</option>
+          </select>
+        </div>
+      </div>
+      {error && <p role="alert" className="asset-error mt-3">{error}</p>}
+      <button className="asset-button-primary mt-4" disabled={busy || !fullName.trim() || !dob}>{busy ? "Đang thêm…" : "Thêm hồ sơ"}</button>
+    </form>
   );
 }

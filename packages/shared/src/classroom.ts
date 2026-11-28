@@ -193,6 +193,8 @@ export const ageGroupUsageListSchema = z.array(ageGroupUsageSchema);
 export const schoolYearUsageListSchema = z.array(schoolYearUsageSchema);
 export const schoolYearListSchema = z.array(schoolYearSchema);
 export const classroomTeacherListSchema = z.array(classroomTeacherSchema);
+/** A child created without a class: the answer is just the new id. */
+export const createdChildIdSchema = z.object({ childId: z.uuid() });
 export const classroomSummaryListSchema = z.array(classroomSummarySchema);
 /** A child's profile without class context (admin edit response). */
 export const childProfileSchema = classroomChildSchema.omit({ enrolledAt: true });

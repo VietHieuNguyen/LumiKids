@@ -23,6 +23,7 @@ import {
   classroomDetailSchema,
   classroomSummaryListSchema,
   classroomTeacherListSchema,
+  createdChildIdSchema,
   issuedLoginCodeSchema,
   playHistoryPageSchema,
   schoolYearListSchema,
@@ -181,6 +182,10 @@ export class ClassroomApi {
   }
   async createChild(input: CreateChildInput) {
     return classroomDetailSchema.parse(await this.send("/admin/children", "POST", input));
+  }
+  /** A child profile not yet in a class (classId omitted). */
+  async createUnassignedChild(input: { fullName: string; dob: string; gender: "MALE" | "FEMALE" }) {
+    return createdChildIdSchema.parse(await this.send("/admin/children", "POST", input));
   }
   async updateChild(childId: string, input: UpdateChildInput) {
     return childProfileSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}`, "PATCH", input));
