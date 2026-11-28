@@ -38,8 +38,8 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
   const atHome = Boolean(child && !child.currentClass);
   const activities = useResource(child ? (signal) => family.activities(childId, signal) : null, `activities:${childId}`);
   const [page, setPage] = useState(1);
-  const history = useResource((signal) => family.playHistory(childId, page, signal), `${childId}:${page}`);
-  const notes = useResource((signal) => family.teacherNotes(childId, signal), childId);
+  const history = useResource(child ? (signal) => family.playHistory(childId, page, signal) : null, `${childId}:${page}`);
+  const notes = useResource(child ? (signal) => family.teacherNotes(childId, signal) : null, childId);
   const [dialog, setDialog] = useState<"edit" | "code" | "pick" | null>(null);
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,7 +55,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
         {children.error ? (
           <ErrorBanner message={children.error} onRetry={children.reload} />
         ) : children.data ? (
-          <Notice>Không tìm thấy hồ sơ này trong gia đình của bạn.</Notice>
+          <p role="status" className="rounded-lg border border-line bg-paper p-4 text-sm text-ink-soft">Hồ sơ này không có trong danh sách con của bạn.</p>
         ) : (
           <p role="status">Đang tải…</p>
         )}
@@ -99,14 +99,14 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
       back={back}
       actions={
         <>
-          <StatusPill tone={place.tone}>{place.label}</StatusPill>
-          <button type="button" className="asset-button-secondary" onClick={() => setDialog("edit")} disabled={Boolean(child.currentClass)} title={child.currentClass ? "Hồ sơ do lớp học quản lý" : undefined}>
-            Sửa hồ sơ
-          </button>
+          <button type="button" className="lumi-button-sun" onClick={() => setDialog("pick")}>Chọn trò cho con</button>
           {atHome && (
-            <button type="button" className="asset-button-primary" onClick={() => setDialog("code")}>
-              {child.loginCodeIssuedAt ? "Cấp mã mới" : "Cấp mã cho con"}
-            </button>
+            <>
+              <button type="button" className="asset-button-secondary" onClick={() => setDialog("code")}>
+                {child.loginCodeIssuedAt ? "Cấp mã mới" : "Cấp mã cho con"}
+              </button>
+              <button type="button" className="asset-button-secondary" onClick={() => setDialog("edit")}>Sửa hồ sơ</button>
+            </>
           )}
         </>
       }
@@ -114,7 +114,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
       {actionError && <ErrorBanner message={actionError} />}
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="space-y-6">
-          <Panel title="Thông tin">
+          <Panel title="Thông tin của con" actions={<StatusPill tone={place.tone}>{place.label}</StatusPill>}>
             <dl className="space-y-3 text-sm">
               <div>
                 <dt className="text-ink-soft">Ngày sinh</dt>
@@ -136,7 +136,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
             {child.currentClass ? (
               <div className="space-y-3 text-sm">
                 <p>
-                  <span className="block font-semibold">Lớp {child.currentClass.className}</span>
+                  <span className="block font-semibold">{child.currentClass.className}</span>
                   <span className="text-ink-soft">{child.currentClass.schoolYearName} · {child.currentClass.ageGroupName} · từ {formatDate(child.currentClass.since)}</span>
                 </p>
                 <p className="leading-6 text-ink-soft">Giáo viên giao bài và cấp mã cho con. Bạn vẫn chọn được trò để con luyện ở nhà; lượt chơi ở nhà không hiện với giáo viên.</p>
@@ -145,7 +145,7 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
                     Rời lớp và rút đồng ý chia sẻ
                   </button>
                 ) : (
-                  <p className="text-xs text-ink-soft">Con được nhà trường xếp lớp; liên hệ nhà trường để chuyển lớp.</p>
+                  <p className="text-sm text-ink-soft">Nhà trường quản lý hồ sơ và việc chuyển lớp của con. Bạn có thể liên hệ trường để cập nhật.</p>
                 )}
               </div>
             ) : (
@@ -177,7 +177,6 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
           <Panel
             title="Trò chơi ở nhà"
             description="Trò bạn chọn trong kho, đúng nhóm tuổi của con. Con chơi bằng mã của mình; mỗi lượt chơi xong được chấm điểm như ở lớp."
-            actions={<button type="button" className="lumi-button-sun" onClick={() => setDialog("pick")}>Chọn trò cho con</button>}
           >
             {activities.error && <ErrorBanner message={activities.error} onRetry={activities.reload} />}
             {!activities.data && !activities.error && <p role="status" className="text-sm">Đang tải…</p>}
@@ -214,12 +213,14 @@ function ChildDetail({ api, library, childId }: { api: ClassroomApi; library: Ga
           </Panel>
           <Panel title="Kết quả chơi" description="Mọi lượt chơi của con, ở nhà và ở lớp. Điểm tính khi con chơi xong một trò; lượt bỏ dở không chấm.">
             {history.error && <ErrorBanner message={history.error} onRetry={history.reload} />}
+            {history.loading && !history.data && <p role="status" className="text-sm text-ink-soft">Đang tải kết quả chơi…</p>}
             {history.data?.pagination.total === 0 && <p className="text-sm text-ink-soft">Con chưa chơi trò nào.</p>}
             {history.data && <PlayHistoryTable data={history.data} loading={history.loading} page={page} onPage={setPage} />}
           </Panel>
           <SupportAccessPanel family={family} childId={childId} />
           <Panel title="Nhận xét của giáo viên" description="Chỉ hiện nhận xét giáo viên đã phát hành về con.">
             {notes.error && <ErrorBanner message={notes.error} onRetry={notes.reload} />}
+            {notes.loading && !notes.data && <p role="status" className="text-sm text-ink-soft">Đang tải nhận xét…</p>}
             {notes.data && notes.data.length === 0 && <p className="text-sm text-ink-soft">Chưa có nhận xét nào.</p>}
             {notes.data && notes.data.length > 0 && (
               <ul className="divide-y divide-line">
@@ -316,6 +317,7 @@ function PickGamesDialog({ family, library, child, onClose, onCreated }: { famil
     <Dialog title="Chọn trò cho con" onClose={onClose} wide>
       <form className="space-y-4" onSubmit={submit}>
         {groups.error && <ErrorBanner message={groups.error} onRetry={groups.reload} />}
+        {groups.loading && !groups.data && <p role="status" className="text-sm text-ink-soft">Đang tải nhóm tuổi…</p>}
         {groups.data && !group && (
           <p className="rounded-2xl bg-sun-soft p-3 text-sm text-[#8a5a00]">Tuổi của con ({Math.floor(months / 12)} tuổi {months % 12} tháng) chưa thuộc nhóm tuổi nào của kho trò chơi.</p>
         )}

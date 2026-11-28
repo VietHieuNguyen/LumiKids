@@ -53,9 +53,12 @@ export function SupportAccessPanel({ family, childId }: { family: FamilyApi; chi
         </button>
       </div>
       {error && <p role="alert" className="asset-error mt-3">{error}</p>}
-      <p className="mt-4 text-sm text-ink-soft">
-        {running.length === 0 ? "Hiện không có quyền hỗ trợ nào đang chạy." : `Đang cho phép đến ${formatDateTime(running[0]!.expiresAt)}.`}
-      </p>
+      {grants.loading && !grants.data && <p role="status" className="mt-4 text-sm text-ink-soft">Đang kiểm tra quyền hỗ trợ…</p>}
+      {grants.data && (
+        <p role="status" className="mt-4 text-sm text-ink-soft">
+          {running.length === 0 ? "Bạn chưa cấp quyền hỗ trợ nào còn hiệu lực." : `Đang cho phép đến ${formatDateTime(running[0]!.expiresAt)}.`}
+        </p>
+      )}
       {running.length > 0 && (
         <ul className="mt-3 divide-y divide-line">
           {running.map((grant) => (
