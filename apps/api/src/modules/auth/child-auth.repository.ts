@@ -22,6 +22,68 @@ export type ChildAccount = Prisma.ChildGetPayload<{
 export class ChildAuthRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** The lock that is still running for this child, if any. */
+  activeLoginLock(childId: string) {
+    return this.prisma.childLoginLock.findFirst({
+      where: { childId, unlockedAt: null },
+      select: { lockId: true },
+    });
+  }
+
+  currentLoginLock(childId: string) {
+    return this.prisma.childLoginLock.findFirst({
+      where: { childId, unlockedAt: null },
+      select: { reason: true, lockedAt: true },
+    });
+  }
+
+  /** Enrolled in a class right now (a lock is only for a child in a class). */
+  async hasCurrentEnrollment(childId: string): Promise<boolean> {
+    return (await this.prisma.classroomEnrollment.count({ where: { childId, endedAt: null } })) > 0;
+  }
+
+  /** Locks the sign-in and signs the child out everywhere, in one transaction. */
+  async createLoginLock(childId: string, reason: string, lockedById: string, now: Date): Promise<string> {
+    const [lock] = await this.prisma.$transaction([
+      this.prisma.childLoginLock.create({
+        data: { childId, reason, lockedById, lockedAt: now },
+        select: { lockId: true },
+      }),
+      this.prisma.childAuthSession.updateMany({
+        where: { childId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+    ]);
+    return lock.lockId;
+  }
+
+  async unlockLoginLock(childId: string, unlockedById: string, now: Date): Promise<boolean> {
+    const result = await this.prisma.childLoginLock.updateMany({
+      where: { childId, unlockedAt: null },
+      data: { unlockedAt: now, unlockedById },
+    });
+    return result.count > 0;
+  }
+
+  /** Running locks on children who are in this class now, for the class teacher. */
+  locksForClass(classId: string) {
+    return this.prisma.childLoginLock.findMany({
+      where: {
+        unlockedAt: null,
+        child: { enrollments: { some: { classId, endedAt: null } } },
+      },
+      orderBy: { lockedAt: 'asc' },
+      select: {
+        lockId: true,
+        childId: true,
+        reason: true,
+        lockedAt: true,
+        child: { select: { fullName: true } },
+        lockedBy: { select: { fullName: true } },
+      },
+    });
+  }
+
   findByCodeDigest(loginCodeDigest: string) {
     return this.prisma.child.findUnique({
       where: { loginCodeDigest },

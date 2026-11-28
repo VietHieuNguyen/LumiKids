@@ -35,6 +35,12 @@ export class TeacherClassroomsController {
   list(@CurrentUser() teacher: Principal) {
     return this.classrooms.teacherClassrooms(teacher);
   }
+  /** Running sign-in locks on the children of this class: the teacher is told why. */
+  @Get(':classId/login-locks')
+  loginLocks(@CurrentUser() teacher: Principal, @Param('classId', ParseUUIDPipe) classId: string) {
+    return this.classrooms.teacherLoginLocks(teacher, classId);
+  }
+
   @Get(':classId')
   detail(
     @CurrentUser() teacher: Principal,

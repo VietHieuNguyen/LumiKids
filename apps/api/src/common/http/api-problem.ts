@@ -145,6 +145,9 @@ const problems = {
   ],
   CHILD_NOT_ENROLLED: [409, 'Trẻ hiện không học lớp này.'],
   CHILD_DISABLED: [409, 'Tài khoản của trẻ đang bị khóa.'],
+  CHILD_LOGIN_LOCKED: [403, 'Trẻ đang bị khóa đăng nhập. Hãy liên hệ giáo viên lớp.'],
+  CHILD_LOGIN_ALREADY_LOCKED: [409, 'Trẻ đã bị khóa đăng nhập.'],
+  CHILD_LOGIN_NOT_LOCKED: [409, 'Trẻ hiện không bị khóa đăng nhập.'],
   ACCOUNT_EMAIL_TAKEN: [409, 'Email này đã có tài khoản.'],
   PROFILE_FIELD_NOT_ALLOWED: [
     400,

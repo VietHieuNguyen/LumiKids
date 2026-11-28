@@ -23,6 +23,8 @@ import {
   classroomDetailSchema,
   classroomSummaryListSchema,
   classroomTeacherListSchema,
+  childLoginLockStateSchema,
+  classLoginLockListSchema,
   createdChildIdSchema,
   issuedLoginCodeSchema,
   playHistoryPageSchema,
@@ -284,6 +286,20 @@ export class ClassroomApi {
   }
 
   /** Admin may issue a child's code in any class or at home. */
+  /** Child sign-in lock (FR-1.5): Admin locks or unlocks a child in a class; the reason is kept. */
+  async childLoginLock(childId: string, signal?: AbortSignal) {
+    return childLoginLockStateSchema.parse(await this.request(`/admin/children/${ClassroomApi.id(childId)}/login-lock`, { signal }));
+  }
+  async lockChildLogin(childId: string, reason: string) {
+    return childLoginLockStateSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-lock`, "POST", { reason }));
+  }
+  async unlockChildLogin(childId: string) {
+    return childLoginLockStateSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-unlock`, "POST"));
+  }
+  /** Running locks on children in this class, for the class teacher. */
+  async classLoginLocks(classId: string, signal?: AbortSignal) {
+    return classLoginLockListSchema.parse(await this.request(`/teacher/classrooms/${ClassroomApi.id(classId)}/login-locks`, { signal }));
+  }
   async issueChildCodeAsAdmin(childId: string) {
     return issuedLoginCodeSchema.parse(await this.send(`/admin/children/${ClassroomApi.id(childId)}/login-code`, "POST"));
   }

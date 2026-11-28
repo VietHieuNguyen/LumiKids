@@ -16,6 +16,7 @@ import type { z } from 'zod';
 import {
   addClassroomTeacherSchema,
   classroomQuerySchema,
+  childLoginLockRequestSchema,
   createChildSchema,
   createClassroomSchema,
   createSchoolYearSchema,
@@ -197,6 +198,26 @@ export class AdminClassroomsController {
   enrollBatch(@Body() value: unknown) {
     const { classId, childIds } = parse(enrollmentBatchSchema, value, 'Chọn lớp và danh sách trẻ hợp lệ.');
     return this.classrooms.enrollSchoolChildren(classId, childIds);
+  }
+
+  @Get('children/:childId/login-lock')
+  loginLockState(@Param('childId', ParseUUIDPipe) childId: string) {
+    return this.classrooms.currentChildLoginLock(childId);
+  }
+
+  @Post('children/:childId/login-lock')
+  lockLogin(
+    @CurrentUser() admin: Principal,
+    @Param('childId', ParseUUIDPipe) childId: string,
+    @Body() value: unknown,
+  ) {
+    const { reason } = parse(childLoginLockRequestSchema, value, 'Nhập lý do khóa (3–500 ký tự).');
+    return this.classrooms.lockChildLogin(admin, childId, reason);
+  }
+
+  @Post('children/:childId/login-unlock')
+  unlockLogin(@CurrentUser() admin: Principal, @Param('childId', ParseUUIDPipe) childId: string) {
+    return this.classrooms.unlockChildLogin(admin, childId);
   }
 
   @Post('children/:childId/login-code')

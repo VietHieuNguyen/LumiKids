@@ -51,35 +51,37 @@ enum GameAssetStatus {
 }
 
 model User {
-  userId             String               @id @default(uuid()) @db.Uuid
-  fullName           String
-  email              String               @unique
-  phone              String
-  address            String
-  passwordHash       String
-  status             AccountStatus        @default(DISABLED)
+  userId                 String               @id @default(uuid()) @db.Uuid
+  fullName               String
+  email                  String               @unique
+  phone                  String
+  address                String
+  passwordHash           String
+  status                 AccountStatus        @default(DISABLED)
   /// Wrong-password count since the last success; reaching the limit locks login until lockedUntil.
-  failedLoginCount   Int                  @default(0)
-  lockedUntil        DateTime?            @db.Timestamptz(3)
-  createdAt          DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime             @updatedAt @db.Timestamptz(3)
-  roles              UserRole[]
-  authSessions       AuthSession[]
-  gameAssets         GameAsset[]
-  activities         Activity[]
-  classrooms         ClassroomTeacher[]
-  classGroups        ClassGroup[]
-  assignments        ActivityAssignment[]
-  replayDecisions    ReplayRequest[]
-  aiTokenUsage       AiTokenUsage[]
-  teacherProfile     Teacher?
-  guardianProfile    Guardian?
-  verification       EmailVerification?
-  classInvites       ClassInvite[]
-  teacherAssessments TeacherAssessment[]
-  joinDecisions      ClassJoinRequest[]
-  lessonPlans        LessonPlan[]         @relation("LessonPlanCreator")
-  editedPlans        LessonPlan[]         @relation("LessonPlanEditor")
+  failedLoginCount       Int                  @default(0)
+  lockedUntil            DateTime?            @db.Timestamptz(3)
+  createdAt              DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime             @updatedAt @db.Timestamptz(3)
+  roles                  UserRole[]
+  authSessions           AuthSession[]
+  gameAssets             GameAsset[]
+  activities             Activity[]
+  classrooms             ClassroomTeacher[]
+  classGroups            ClassGroup[]
+  assignments            ActivityAssignment[]
+  replayDecisions        ReplayRequest[]
+  aiTokenUsage           AiTokenUsage[]
+  teacherProfile         Teacher?
+  guardianProfile        Guardian?
+  verification           EmailVerification?
+  classInvites           ClassInvite[]
+  teacherAssessments     TeacherAssessment[]
+  joinDecisions          ClassJoinRequest[]
+  lessonPlans            LessonPlan[]         @relation("LessonPlanCreator")
+  editedPlans            LessonPlan[]         @relation("LessonPlanEditor")
+  childLoginLocksCreated ChildLoginLock[]     @relation("ChildLoginLockLockedBy")
+  childLoginLocksLifted  ChildLoginLock[]     @relation("ChildLoginLockUnlockedBy")
 }
 
 /// Teacher profile of a User holding ROLE_TEACHER (system.md data dictionary: Teacher extends User).
@@ -237,6 +239,7 @@ model Child {
   consents           SharingConsent[]
   teacherAssessments TeacherAssessment[]
   supportGrants      SupportGrant[]
+  loginLocks         ChildLoginLock[]
 }
 
 model SchoolYear {
@@ -906,4 +909,20 @@ model AuditLog {
 
   @@index([targetType, targetId, createdAt])
   @@index([actorUserId, createdAt])
+}
+
+/// Admin locks a child's sign-in (not the profile) while the child is in a class. Reason is required; each lock is kept.
+model ChildLoginLock {
+  lockId       String    @id @default(uuid()) @db.Uuid
+  childId      String    @db.Uuid
+  child        Child     @relation(fields: [childId], references: [childId], onDelete: Restrict)
+  reason       String    @db.VarChar(500)
+  lockedById   String    @db.Uuid
+  lockedBy     User      @relation("ChildLoginLockLockedBy", fields: [lockedById], references: [userId], onDelete: Restrict)
+  lockedAt     DateTime  @default(now()) @db.Timestamptz(3)
+  unlockedAt   DateTime? @db.Timestamptz(3)
+  unlockedById String?   @db.Uuid
+  unlockedBy   User?     @relation("ChildLoginLockUnlockedBy", fields: [unlockedById], references: [userId], onDelete: Restrict)
+
+  @@index([childId, unlockedAt])
 }

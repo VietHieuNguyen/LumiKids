@@ -336,6 +336,28 @@ export class ClassroomsService {
     return this.classroom(classId);
   }
 
+  // ---------- Child sign-in locks (FR-1.5) ----------
+
+  async lockChildLogin(admin: Principal, childId: string, reason: string) {
+    await this.childAuth.lockLogin(admin.userId, childId, reason);
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  async unlockChildLogin(admin: Principal, childId: string) {
+    await this.childAuth.unlockLogin(admin.userId, childId);
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  currentChildLoginLock(childId: string) {
+    return this.childAuth.currentLoginLock(childId);
+  }
+
+  /** The class teacher sees the running locks of the children in the class. */
+  async teacherLoginLocks(teacher: Principal, classId: string) {
+    await this.requireTeacherOf(teacher, classId);
+    return this.childAuth.locksForClass(classId);
+  }
+
   // ---------- Admin: children ----------
 
   /** Admin may issue a child's code in a class or at home; the previous code stops working. */

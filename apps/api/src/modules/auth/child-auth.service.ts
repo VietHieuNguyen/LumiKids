@@ -7,6 +7,8 @@ import childAuthConfig from '../../common/config/child-auth.config.js';
 import type { ChildPrincipal } from '../../common/security/principal.js';
 import { childPrincipalPermissions } from './child-permissions.js';
 import { ChildAuthRepository } from './child-auth.repository.js';
+import { AuditService } from '../audit/audit.service.js';
+import { ApiProblem } from '../../common/http/api-problem.js';
 import type { ChildAccount } from './child-auth.repository.js';
 import {
   generateLoginCode,
@@ -41,6 +43,7 @@ export class ChildAuthService {
     private readonly auth: ConfigType<typeof authConfig>,
     @Inject(childAuthConfig.KEY)
     private readonly config: ConfigType<typeof childAuthConfig>,
+    private readonly audit: AuditService,
   ) {}
 
   private accessToken(childId: string): Promise<string> {
@@ -83,6 +86,7 @@ export class ChildAuthService {
       !(await this.children.hasCurrentClass(child.childId))
     )
       throw new UnauthorizedException(INVALID_CODE);
+    if (await this.children.activeLoginLock(child.childId)) throw new ApiProblem('CHILD_LOGIN_LOCKED');
     return child;
   }
 
@@ -172,8 +176,43 @@ export class ChildAuthService {
   /** Per-request check behind a child access token: current status, not stale token claims. */
   async requireActiveChild(childId: string): Promise<ChildPrincipal> {
     const child = await this.children.findById(childId);
-    if (!child || child.status !== 'ACTIVE')
+    if (!child || child.status !== 'ACTIVE' || (await this.children.activeLoginLock(childId)))
       throw new UnauthorizedException('Authentication is required.');
     return toChildPrincipal(child);
+  }
+
+  /** Admin locks a child's sign-in while the child is in a class; the child is signed out everywhere. */
+  async lockLogin(actorId: string, childId: string, reason: string, now = new Date()): Promise<void> {
+    if (!(await this.children.hasCurrentEnrollment(childId))) throw new ApiProblem('CHILD_NOT_ENROLLED');
+    if (await this.children.activeLoginLock(childId)) throw new ApiProblem('CHILD_LOGIN_ALREADY_LOCKED');
+    const lockId = await this.children.createLoginLock(childId, reason, actorId, now);
+    await this.audit.record({ actorUserId: actorId, action: 'CHILD_LOGIN_LOCKED', targetType: 'Child', targetId: childId, detail: { lockId } });
+  }
+
+  async unlockLogin(actorId: string, childId: string, now = new Date()): Promise<void> {
+    if (!(await this.children.unlockLoginLock(childId, actorId, now))) throw new ApiProblem('CHILD_LOGIN_NOT_LOCKED');
+    await this.audit.record({ actorUserId: actorId, action: 'CHILD_LOGIN_UNLOCKED', targetType: 'Child', targetId: childId, detail: {} });
+  }
+
+  async currentLoginLock(childId: string) {
+    const row = await this.children.currentLoginLock(childId);
+    return {
+      childId,
+      loginLocked: row !== null,
+      reason: row?.reason ?? null,
+      lockedAt: row?.lockedAt.toISOString() ?? null,
+    };
+  }
+
+  async locksForClass(classId: string) {
+    const rows = await this.children.locksForClass(classId);
+    return rows.map((row) => ({
+      lockId: row.lockId,
+      childId: row.childId,
+      childName: row.child.fullName,
+      reason: row.reason,
+      lockedAt: row.lockedAt.toISOString(),
+      lockedByName: row.lockedBy.fullName,
+    }));
   }
 }
